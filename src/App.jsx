@@ -1,8 +1,10 @@
 import React from 'react'
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
-import HomePage from './pages/home';
-import LoginPage from './pages/login/index';
-import RegisterPage from './pages/register/index';
+import HomePage from './pages/Homepage/Homepage';
+import LoginPage from './pages/LoginPage/LoginPage';
+import RegisterPage from './pages/Register/index';
+import Dashboard from './pages/DashBoard/dashboard';
+import Profile from './pages/Profile/profile';
 
 function App() {
 
@@ -19,6 +21,14 @@ function App() {
     path: "/register",
     element: <RegisterPage />,
   },
+  {
+    path: "/profile",
+    element: <Profile />,
+  },
+  {
+    path: "/dashboard",
+    element: <Dashboard />,
+  }
 ]);
 
   return (
