@@ -51,3 +51,12 @@ export const register = async (userData) => {
     throw error;
   }
 };
+
+export const createUser = async (userData) => {
+  try {
+    const response = await apiClient.post('/users/create', userData);
+    return response.data;
+  } catch (error) {
+    throw error;
+  }
+};

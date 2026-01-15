@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { getAllUsers, updateUser } from '../../api/userApi';
+import { getAllUsers, updateUser, createUser } from '../../api/userApi';
 import './dashboard.css';
 
 const Dashboard = () => {
@@ -18,6 +18,17 @@ const Dashboard = () => {
   const [editFormData, setEditFormData] = useState({ name: '', address: '', dateOfBirth: '' });
   const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
+  const [showAddUserModal, setShowAddUserModal] = useState(false);
+  const [addUserFormData, setAddUserFormData] = useState({
+    username: '',
+    password: '',
+    email: '',
+    name: '',
+    address: '',
+    dateOfBirth: '',
+    role: 'STUDENT'
+  });
+  const [isCreating, setIsCreating] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -191,6 +202,67 @@ const Dashboard = () => {
     navigate('/login');
   };
 
+  const handleAddUserClick = () => {
+    setAddUserFormData({
+      username: '',
+      password: '',
+      email: '',
+      name: '',
+      address: '',
+      dateOfBirth: '',
+      role: 'STUDENT'
+    });
+    setShowAddUserModal(true);
+  };
+
+  const handleCancelAddUser = () => {
+    setShowAddUserModal(false);
+    setAddUserFormData({
+      username: '',
+      password: '',
+      email: '',
+      name: '',
+      address: '',
+      dateOfBirth: '',
+      role: 'STUDENT'
+    });
+  };
+
+  const handleAddUserSubmit = async (e) => {
+    e.preventDefault();
+
+    // Validation
+    if (addUserFormData.password.length < 6) {
+      toast.error('Mật khẩu phải có ít nhất 6 ký tự');
+      return;
+    }
+
+    try {
+      setIsCreating(true);
+      await createUser(addUserFormData);
+
+      // Refresh user list
+      await fetchUsers();
+
+      toast.success('Thêm người dùng thành công!');
+      setShowAddUserModal(false);
+      setAddUserFormData({
+        username: '',
+        password: '',
+        email: '',
+        name: '',
+        address: '',
+        dateOfBirth: '',
+        role: 'STUDENT'
+      });
+    } catch (error) {
+      console.error('Error creating user:', error);
+      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi tạo người dùng. Vui lòng thử lại.');
+    } finally {
+      setIsCreating(false);
+    }
+  };
+
   const fetchUsers = async () => {
     const token = localStorage.getItem('token');
     if (!token) {
@@ -319,7 +391,7 @@ const Dashboard = () => {
             <h1>Quản Lý Người Dùng</h1>
             <p>Quản lý và theo dõi tất cả người dùng trong hệ thống</p>
           </div>
-          <button className="btn-add-user">
+          <button className="btn-add-user" onClick={handleAddUserClick}>
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
               <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
               <line x1="12" y1="8" x2="12" y2="16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -660,6 +732,124 @@ const Dashboard = () => {
                 </button>
                 <button type="submit" className="modal-btn modal-btn-confirm-edit" disabled={isSaving}>
                   {isSaving ? 'Đang lưu...' : 'Lưu thay đổi'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Add User Modal */}
+      {showAddUserModal && (
+        <div className="modal-overlay" onClick={handleCancelAddUser}>
+          <div className="modal-container modal-edit" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Thêm người dùng mới</h2>
+              <button className="modal-close" onClick={handleCancelAddUser}>
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+            <form onSubmit={handleAddUserSubmit}>
+              <div className="modal-body modal-form">
+                <div className="form-row">
+                  <div className="form-column">
+                    <div className="form-group">
+                      <label htmlFor="add-username">Tên người dùng *</label>
+                      <input
+                        type="text"
+                        id="add-username"
+                        value={addUserFormData.username}
+                        onChange={(e) => setAddUserFormData({ ...addUserFormData, username: e.target.value })}
+                        required
+                        placeholder="Nhập tên người dùng"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="add-password">Mật khẩu *</label>
+                      <input
+                        type="password"
+                        id="add-password"
+                        value={addUserFormData.password}
+                        onChange={(e) => setAddUserFormData({ ...addUserFormData, password: e.target.value })}
+                        required
+                        minLength={6}
+                        placeholder="Nhập mật khẩu (tối thiểu 6 ký tự)"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="add-email">Email *</label>
+                      <input
+                        type="email"
+                        id="add-email"
+                        value={addUserFormData.email}
+                        onChange={(e) => setAddUserFormData({ ...addUserFormData, email: e.target.value })}
+                        required
+                        placeholder="Nhập email"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="add-dateOfBirth">Ngày sinh</label>
+                      <input
+                        type="date"
+                        id="add-dateOfBirth"
+                        value={addUserFormData.dateOfBirth}
+                        onChange={(e) => setAddUserFormData({ ...addUserFormData, dateOfBirth: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="form-column">
+                    <div className="form-group">
+                      <label htmlFor="add-name">Họ và tên *</label>
+                      <input
+                        type="text"
+                        id="add-name"
+                        value={addUserFormData.name}
+                        onChange={(e) => setAddUserFormData({ ...addUserFormData, name: e.target.value })}
+                        required
+                        placeholder="Nhập họ và tên"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="add-address">Địa chỉ</label>
+                      <input
+                        type="text"
+                        id="add-address"
+                        value={addUserFormData.address}
+                        onChange={(e) => setAddUserFormData({ ...addUserFormData, address: e.target.value })}
+                        placeholder="Nhập địa chỉ"
+                      />
+                    </div>
+
+                    <div className="form-group">
+                      <label htmlFor="add-role">Vai trò *</label>
+                      <select
+                        id="add-role"
+                        value={addUserFormData.role}
+                        onChange={(e) => setAddUserFormData({ ...addUserFormData, role: e.target.value })}
+                        required
+                      >
+                        <option value="STUDENT">Học viên</option>
+                        <option value="TEACHER">Giáo viên</option>
+                        <option value="ADMIN">Quản trị viên</option>
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button type="button" className="modal-btn modal-btn-cancel" onClick={handleCancelAddUser} disabled={isCreating}>
+                  Hủy
+                </button>
+                <button type="submit" className="modal-btn modal-btn-confirm-edit" disabled={isCreating}>
+                  {isCreating ? 'Đang tạo...' : 'Tạo người dùng'}
                 </button>
               </div>
             </form>
