@@ -1,6 +1,6 @@
 .header {
   background: #FFFFFF;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  border-bottom: 1px solid #E5E7EB;
   position: sticky;
   top: 0;
   z-index: 100;
@@ -9,11 +9,11 @@
 .header-container {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 1rem 2rem;
+  padding: 12px 24px;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 2rem;
+  gap: 24px;
 }
 
 .logo {
@@ -40,14 +40,14 @@
 .logo h2 {
   margin: 0;
   color: #000000;
-  font-size: 1.25rem;
+  font-size: 1.1rem;
   font-weight: 700;
   white-space: nowrap;
 }
 
 .header-search-section {
   flex: 1;
-  max-width: 600px;
+  max-width: 550px;
   display: flex;
   align-items: center;
   gap: 8px;
@@ -69,20 +69,19 @@
 
 .search-bar input {
   width: 100%;
-  padding: 12px 16px 12px 48px;
+  padding: 10px 16px 10px 44px;
   border: 1px solid #E5E7EB;
-  border-radius: 12px;
+  border-radius: 24px;
   font-size: 14px;
-  background: #F9FAFB;
+  background: #FFFFFF;
   transition: all 0.3s ease;
   box-sizing: border-box;
 }
 
 .search-bar input:focus {
   outline: none;
-  border-color: #FF6B4A;
-  background: #FFFFFF;
-  box-shadow: 0 0 0 3px rgba(255, 107, 74, 0.1);
+  border-color: #D1D5DB;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05);
 }
 
 .search-bar input::placeholder {
@@ -98,18 +97,19 @@
 
 .btn-register,
 .btn-login {
-  padding: 10px 24px;
-  border-radius: 12px;
+  padding: 8px 20px;
+  border-radius: 8px;
   text-decoration: none;
   font-weight: 500;
   font-size: 14px;
-  transition: all 0.3s ease;
+  transition: all 0.2s ease;
   white-space: nowrap;
+  cursor: pointer;
 }
 
 .btn-register {
   background: #FFFFFF;
-  color: #000000;
+  color: #374151;
   border: 1px solid #E5E7EB;
 }
 
@@ -121,13 +121,39 @@
 .btn-login {
   background: #FF6B4A;
   color: #FFFFFF;
-  border: none;
+  border: 1px solid #FF6B4A;
 }
 
 .btn-login:hover {
   background: #FF5722;
-  transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(255, 107, 74, 0.3);
+  border-color: #FF5722;
+}
+
+/* Translate Icon Button */
+.translate-icon-btn {
+  width: 40px;
+  height: 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #FFFFFF;
+  border: 1px solid #E5E7EB;
+  border-radius: 50%;
+  color: #6B7280;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.translate-icon-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.translate-icon-btn:hover {
+  background: #FFF5F3;
+  border-color: #FF6B4A;
+  color: #FF6B4A;
 }
 
 /* Profile Dropdown Styles */
@@ -239,38 +265,6 @@
 .translate-dropdown {
   position: relative;
   flex-shrink: 0;
-}
-
-.translate-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 10px 14px;
-  background: #FFFFFF;
-  border: 1px solid #E5E7EB;
-  border-radius: 12px;
-  color: #374151;
-  font-size: 14px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  white-space: nowrap;
-}
-
-.translate-btn svg {
-  width: 18px;
-  height: 18px;
-  color: #6B7280;
-}
-
-.translate-btn:hover {
-  background: #F9FAFB;
-  border-color: #FF6B4A;
-  color: #FF6B4A;
-}
-
-.translate-btn:hover svg {
-  color: #FF6B4A;
 }
 
 .translate-dropdown-menu {
@@ -716,14 +710,11 @@
 
 @media (max-width: 1024px) {
   .header-container {
-    flex-wrap: wrap;
-    gap: 1rem;
+    gap: 16px;
   }
 
   .header-search-section {
-    order: 3;
-    width: 100%;
-    max-width: 100%;
+    max-width: 400px;
   }
 
   .translate-dropdown-menu {
@@ -732,17 +723,25 @@
   }
 
   .logo h2 {
-    font-size: 1rem;
+    font-size: 0.95rem;
   }
 }
 
 @media (max-width: 768px) {
   .header-container {
-    padding: 1rem;
+    padding: 12px 16px;
+    flex-wrap: wrap;
+    gap: 12px;
   }
 
   .logo h2 {
     display: none;
+  }
+
+  .header-search-section {
+    order: 3;
+    width: 100%;
+    max-width: 100%;
   }
 
   .btn-register,
@@ -751,12 +750,14 @@
     font-size: 13px;
   }
 
-  .translate-btn span {
-    display: none;
+  .translate-icon-btn {
+    width: 36px;
+    height: 36px;
   }
 
-  .translate-btn {
-    padding: 10px;
+  .translate-icon-btn svg {
+    width: 18px;
+    height: 18px;
   }
 
   .translate-dropdown-menu {

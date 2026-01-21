@@ -1,3 +1,128 @@
+/* Homepage Layout with Sidebar */
+.homepage-layout {
+  min-height: 100vh;
+  background: #F9FAFB;
+}
+
+.homepage-main-layout {
+  margin-left: 100px;
+  min-height: 100vh;
+  width: calc(100% - 100px);
+  overflow-x: hidden;
+}
+
+/* Homepage Header */
+.homepage-header {
+  background: #FFFFFF !important;
+  padding: 0 24px !important;
+  height: 64px !important;
+  line-height: 64px !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 24px;
+  border-bottom: 1px solid #E5E7EB;
+  position: sticky;
+  top: 0;
+  z-index: 99;
+}
+
+.homepage-header-logo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-logo-icon {
+  width: 36px;
+  height: 36px;
+  background: #FF6B4A;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.header-logo-icon span {
+  color: #FFFFFF;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.header-logo-text {
+  font-size: 16px;
+  font-weight: 700;
+  color: #111827;
+  white-space: nowrap;
+}
+
+.homepage-header-search {
+  flex: 1;
+  max-width: 500px;
+}
+
+.header-search-input {
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid #E5E7EB;
+  background: #F9FAFB;
+}
+
+.header-search-input:hover,
+.header-search-input:focus {
+  border-color: #D1D5DB;
+  background: #FFFFFF;
+}
+
+.header-search-input .ant-input {
+  background: transparent;
+}
+
+.homepage-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: auto;
+}
+
+.homepage-header-actions .btn-register {
+  height: 40px;
+  padding: 0 20px;
+  border-radius: 8px;
+  font-weight: 500;
+  border: 1px solid #E5E7EB;
+  color: #374151;
+}
+
+.homepage-header-actions .btn-register:hover {
+  border-color: #FF6B4A !important;
+  color: #FF6B4A !important;
+}
+
+.homepage-header-actions .btn-login {
+  height: 40px;
+  padding: 0 20px;
+  border-radius: 8px;
+  font-weight: 500;
+  background: #FF6B4A !important;
+  border-color: #FF6B4A !important;
+}
+
+.homepage-header-actions .btn-login:hover {
+  background: #FF5722 !important;
+  border-color: #FF5722 !important;
+}
+
+/* Homepage Content */
+.homepage-content {
+  padding: 10px;
+  max-width: 100%;
+  margin: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* Legacy styles */
 .homepage {
   min-height: 100vh;
   display: flex;
@@ -278,8 +403,14 @@
 
 /* Responsive Design */
 @media (max-width: 1024px) {
+  .homepage-main-layout {
+    margin-left: 80px;
+    width: calc(100% - 80px);
+  }
+
+  .homepage-content,
   .main-content {
-    padding: 1.5rem;
+    padding: 10px;
   }
 
   .hero-banner {
@@ -306,6 +437,36 @@
 }
 
 @media (max-width: 768px) {
+  .homepage-main-layout {
+    margin-left: 0;
+    width: 100%;
+  }
+
+  .homepage-header {
+    flex-wrap: wrap;
+    height: auto !important;
+    padding: 12px 16px !important;
+    gap: 12px;
+  }
+
+  .homepage-header-logo {
+    order: 1;
+  }
+
+  .homepage-header-actions {
+    order: 2;
+  }
+
+  .homepage-header-search {
+    order: 3;
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .homepage-content {
+    padding: 10px;
+  }
+
   .hero-banner {
     padding: 1.5rem;
     border-radius: 16px;

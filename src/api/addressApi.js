@@ -40,7 +40,7 @@ const isCacheValid = (timestampKey) => {
     const cacheTime = parseInt(timestamp, 10);
     const now = Date.now();
     return (now - cacheTime) < CACHE_DURATION;
-  } catch (error) {
+  } catch {
     return false;
   }
 };
@@ -74,7 +74,7 @@ export const getProvincesApi = async () => {
           console.log("Using old cached data");
           return JSON.parse(oldCache);
         }
-      } catch (e) {
+      } catch {
         // Ignore
       }
       return MOCK_PROVINCES;
@@ -106,7 +106,7 @@ export const getProvincesApi = async () => {
         console.log("Using old cached data due to network error");
         return JSON.parse(oldCache);
       }
-    } catch (e) {
+    } catch {
       // Ignore
     }
     
@@ -151,7 +151,7 @@ export const getCommunesApi = async (provinceId) => {
           console.log("Using old cached wards data");
           return JSON.parse(oldCache);
         }
-      } catch (e) {
+      } catch {
         // Ignore
       }
       return MOCK_COMMUNES;
@@ -167,7 +167,7 @@ export const getCommunesApi = async (provinceId) => {
           console.log("Using old cached wards data");
           return JSON.parse(oldCache);
         }
-      } catch (e) {
+      } catch {
         // Ignore
       }
       return MOCK_COMMUNES;
@@ -199,7 +199,7 @@ export const getCommunesApi = async (provinceId) => {
         console.log("Using old cached wards data due to network error");
         return JSON.parse(oldCache);
       }
-    } catch (e) {
+    } catch {
       // Ignore
     }
     

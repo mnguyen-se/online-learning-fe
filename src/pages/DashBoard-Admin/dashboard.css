@@ -521,6 +521,11 @@
   color: #7C3AED;
 }
 
+.badge-manager {
+  background: #FEF3C7;
+  color: #92400E;
+}
+
 .status-active {
   background: #ECFDF5;
   color: #065F46;

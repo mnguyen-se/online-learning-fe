@@ -2,6 +2,11 @@
   background: #1F2937;
   color: #FFFFFF;
   margin-top: auto;
+  /* Full-width: thoát khỏi parent có margin-left (sidebar) */
+  width: 100vw;
+  position: relative;
+  left: 50%;
+  margin-left: -50vw;
 }
 
 .footer-container {

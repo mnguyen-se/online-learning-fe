@@ -1,16 +1,28 @@
 import { useState } from 'react'
+import { Layout } from 'antd'
+import Sidebar from '../../components/Sidebar/Sidebar'
 import Header from '../../components/Header/header'
 import Footer from '../../components/Footer/footer'
 import './homepage.css'
 
+const { Content } = Layout
+
 function Homepages() {
   const [activeSlide, setActiveSlide] = useState(0)
+  const [collapsed, setCollapsed] = useState(false)
 
   return (
-    <div className="homepage">
-      <Header />
-      
-      <main className="main-content">
+    <Layout className="homepage-layout">
+      {/* Sidebar */}
+      <Sidebar collapsed={collapsed} onCollapse={setCollapsed} />
+
+      {/* Main Layout */}
+      <Layout className="homepage-main-layout">
+        {/* Top Header with Translate feature */}
+        <Header />
+
+        {/* Main Content */}
+        <Content className="homepage-content">
         {/* Hero Banner */}
         <section className="hero-banner">
           <div className="hero-content">
@@ -175,10 +187,11 @@ function Homepages() {
               </div>
             </div>
         </section>
-      </main>
 
-      <Footer />
-    </div>
+          <Footer />
+        </Content>
+      </Layout>
+    </Layout>
   )
 }
 
