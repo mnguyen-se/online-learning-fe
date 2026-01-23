@@ -12,6 +12,14 @@ export const getActiveCourses = async () => {
 
 export const createCourse = async (courseData) => {
   const response = await apiClient.post('/courses', courseData);
+  // Nếu response.data rỗng hoặc undefined, trả về courseData với status
+  if (!response.data || Object.keys(response.data).length === 0) {
+    console.warn('API returned empty response, using request data');
+    return {
+      ...courseData,
+      id: response.headers?.location?.split('/').pop() || null,
+    };
+  }
   return response.data;
 };
 
