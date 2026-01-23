@@ -52,8 +52,8 @@ const LoginPage = () => {
         if (userRole === 'ADMIN') {
           navigate('/dashboard-admin');
         } else if (userRole === 'TEACHER')  {
-          navigate('/dashboard-teacher');
-        } else if (userRole === 'MANAGER')  { 
+          navigate('/teacher-page');
+        } else if (userRole === 'COURSE_MANAGER')  { 
           navigate('/dashboard-manager');
         }else if(userRole === 'STUDENT')  { 
           navigate('/');

@@ -32,10 +32,6 @@ const Dashboard = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchUsers();
-  }, [fetchUsers]);
-
-  useEffect(() => {
     let filtered = users;
 
     // Filter by role
@@ -269,8 +265,10 @@ const Dashboard = () => {
   const fetchUsers = useCallback(async () => {
     const token = localStorage.getItem('token');
     if (!token) {
-      toast.error('Vui lòng đăng nhập để truy cập dashboard');
-      navigate('/login');
+      toast.info('Chua dang nhap, hien thi dashboard o che do demo.');
+      setUsers([]);
+      setFilteredUsers([]);
+      setIsLoading(false);
       return;
     }
 
@@ -293,6 +291,10 @@ const Dashboard = () => {
       setIsLoading(false);
     }
   }, [navigate]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   return (
     <div className="dashboard-container">

@@ -3,10 +3,10 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import HomePage from './pages/Homepage/Homepage';
 import LoginPage from './pages/LoginPage/LoginPage';
 import RegisterPage from './pages/register';
-import DashboardAdmin from './pages/DashBoard-Admin/dashboard';
-import DashboardManager from './pages/DashBoard-Manager/DashboardManager';
-import DashboardTeacher from './pages/Dashboard-Teacher/DashboardTeacher';
 import Profile from './pages/Profile/profile';
+import Dashboard from './pages/DashBoard-Admin/dashboard';
+import CourseManagement from './pages/Manager/ManageCourse/CourseManagement';
+import TeacherPage from './pages/Teacher/teacherPage';
 
 function App() {
 
@@ -29,19 +29,19 @@ function App() {
   },
   {
     path: "/dashboard",
-    element: <DashboardAdmin />,
+    element: <Dashboard />,
   },
   {
     path: "/dashboard-admin",
-    element: <DashboardAdmin />,
+    element: <Dashboard />,
   },
   {
     path: "/dashboard-manager",
-    element: <DashboardManager />,
+    element: <CourseManagement />,
   },
   {
-    path: "/dashboard-teacher",
-    element: <DashboardTeacher />,
+    path: "/teacher-page",
+    element: <TeacherPage />,
   }
 ]);
 
