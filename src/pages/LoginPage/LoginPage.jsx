@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import { toast } from 'react-toastify';
-
+import { login as loginAction } from '../../store/slices/userSlice';
 import { login, getUserInfo } from '../../api/userApi';
 import './loginpage.css';
 
 const LoginPage = () => {
+  const dispatch = useDispatch();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -27,11 +29,19 @@ const LoginPage = () => {
         
         // Lấy thông tin role từ response hoặc gọi API getUserInfo
         let userRole = response.role;
+        let userInfo = null;
         
         if (!userRole) {
           try {
-            const userInfo = await getUserInfo(username);
+            userInfo = await getUserInfo(username);
             userRole = userInfo.role;
+          } catch (error) {
+            console.error('Error fetching user info:', error);
+          }
+        } else {
+          // Nếu có role từ response, lấy thêm userInfo nếu cần
+          try {
+            userInfo = await getUserInfo(username);
           } catch (error) {
             console.error('Error fetching user info:', error);
           }
@@ -45,6 +55,14 @@ const LoginPage = () => {
         if (rememberMe) {
           localStorage.setItem('rememberMe', 'true');
         }
+        
+        // Dispatch action login vào Redux store
+        dispatch(loginAction({
+          ...userInfo,
+          username,
+          role: userRole,
+          token: response.token,
+        }));
         
         toast.success('Đăng nhập thành công!');
         
