@@ -10,6 +10,7 @@ import Profile from './pages/Profile/profile';
 import Dashboard from './pages/DashBoard-Admin/dashboard';
 import CourseManagement from './pages/Manager/ManageCourse/CourseManagement';
 import TeacherPage from './pages/Teacher/teacherPage';
+import LessonsView from './pages/Lessons/LessonsView';
 
 function App() {
   const router = createBrowserRouter([
@@ -44,6 +45,10 @@ function App() {
     {
       path: '/teacher-page',
       element: <TeacherPage />,
+    },
+    {
+      path: '/lessons',
+      element: <LessonsView />,
     },
   ]);
 

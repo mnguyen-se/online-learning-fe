@@ -29,9 +29,14 @@ const CourseContentLayout = ({
   onSaveLesson,
   onCancelLesson,
   onUpdateLesson,
+  onUpdateModuleLesson,
+  onEditLesson,
+  onCancelEditLesson,
   onSaveAndFinish,
   getCourseId,
   formatCourseId,
+  isReloadingLessons = false,
+  isEditingLesson = false,
 }) => {
   const selectedChapter = selectedChapterId
     ? lessons.find((l) => l.id === selectedChapterId) ?? null
@@ -62,6 +67,7 @@ const CourseContentLayout = ({
         isSavingLesson={isSavingLesson}
         moduleLessons={moduleLessons}
         selectedLessonId={selectedLessonId}
+        isReloadingLessons={isReloadingLessons}
       />
 
       <div className="course-content-main">
@@ -72,12 +78,18 @@ const CourseContentLayout = ({
           />
         ) : contentTab === 'lesson' ? (
           <LessonDetails
+            key={selectedLessonId ?? 'new'}
             selectedLesson={isCreatingLesson ? null : selectedLesson}
             selectedChapterId={selectedChapterId}
             onSave={onSaveLesson}
             onCancel={onCancelLesson}
+            onEdit={onEditLesson}
+            onCancelEdit={onCancelEditLesson}
             isLoading={isSavingLesson}
             isNewLesson={selectedLesson?.isNew ?? false}
+            isEditing={isEditingLesson || (selectedLesson?.isNew ?? false)}
+            onUpdateModuleLesson={onUpdateModuleLesson}
+            selectedLessonId={selectedLessonId}
           />
         ) : (
           <ChapterInfo

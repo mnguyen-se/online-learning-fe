@@ -1304,32 +1304,36 @@
   right: 8px;
   top: 50%;
   transform: translateY(-50%);
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   display: flex;
   align-items: center;
   justify-content: center;
   border: none;
   background: transparent;
-  color: #94a3b8;
+  color: #ef4444;
   cursor: pointer;
-  border-radius: 4px;
+  border-radius: 6px;
   transition: all 0.2s ease;
-  opacity: 0;
+  opacity: 0.7;
   z-index: 2;
+  flex-shrink: 0;
 }
 
 .course-program-item-wrapper:hover .course-program-item-delete {
   opacity: 1;
+  background: #fee2e2;
 }
 
 .course-program-item-delete:hover {
   background: #fee2e2;
   color: #dc2626;
+  opacity: 1;
 }
 
 .course-program-item-delete:active {
-  transform: translateY(-50%) scale(0.95);
+  transform: translateY(-50%) scale(0.9);
+  background: #fecaca;
 }
 
 /* Lessons list trong chương */
@@ -1340,6 +1344,11 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+
+.course-program-lesson-item-wrapper {
+  position: relative;
+  width: 100%;
 }
 
 .course-program-lesson-item {
@@ -1383,6 +1392,43 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.course-program-lesson-item-delete {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: #ef4444;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+  opacity: 0.7;
+  z-index: 2;
+  flex-shrink: 0;
+}
+
+.course-program-lesson-item-wrapper:hover .course-program-lesson-item-delete {
+  opacity: 1;
+  background: #fee2e2;
+}
+
+.course-program-lesson-item-delete:hover {
+  background: #fee2e2;
+  color: #dc2626;
+  opacity: 1;
+}
+
+.course-program-lesson-item-delete:active {
+  transform: translateY(-50%) scale(0.9);
+  background: #fecaca;
 }
 
 .course-program-add-lesson {
@@ -1842,4 +1888,381 @@
 .lesson-details-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+/* Quiz Section */
+.lesson-quiz-section {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.lesson-quiz-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.lesson-quiz-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  margin: 0;
+}
+
+.lesson-quiz-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 12px;
+  background: #1e293b;
+  color: #ffffff;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.lesson-quiz-question {
+  padding: 20px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.lesson-quiz-question-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.lesson-quiz-question-number {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #64748b;
+}
+
+.lesson-quiz-drag-icon {
+  color: #94a3b8;
+  cursor: grab;
+  font-size: 16px;
+}
+
+.lesson-quiz-drag-icon:active {
+  cursor: grabbing;
+}
+
+.lesson-quiz-delete-btn {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: all 0.2s ease;
+}
+
+.lesson-quiz-delete-btn:hover:not(:disabled) {
+  background: #fee2e2;
+  color: #dc2626;
+}
+
+.lesson-quiz-delete-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.lesson-quiz-question-content {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.lesson-quiz-answers {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.lesson-quiz-answer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+  transition: all 0.2s ease;
+}
+
+.lesson-quiz-answer.is-correct {
+  background: #f0fdf4;
+  border-color: #22c55e;
+}
+
+.lesson-quiz-answer-radio {
+  width: 24px;
+  height: 24px;
+  min-width: 24px;
+  border: 2px solid #cbd5e1;
+  border-radius: 50%;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  padding: 0;
+}
+
+.lesson-quiz-answer.is-correct .lesson-quiz-answer-radio {
+  border-color: #22c55e;
+  background: #22c55e;
+  color: #ffffff;
+}
+
+.lesson-quiz-answer-radio:hover:not(:disabled) {
+  border-color: #22c55e;
+}
+
+.lesson-quiz-answer-radio:disabled {
+  cursor: not-allowed;
+}
+
+.lesson-quiz-answer-input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 6px;
+  font-size: 14px;
+  color: #0f172a;
+  background: #ffffff;
+  transition: all 0.2s ease;
+}
+
+.lesson-quiz-answer-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.lesson-quiz-answer.is-correct .lesson-quiz-answer-input {
+  border-color: #22c55e;
+}
+
+.lesson-quiz-answer-input:disabled {
+  background: #f8fafc;
+  color: #94a3b8;
+  cursor: not-allowed;
+}
+
+.lesson-quiz-answer-label {
+  padding: 4px 12px;
+  background: #22c55e;
+  color: #ffffff;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.lesson-quiz-add-question {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px 20px;
+  border: 2px dashed #cbd5e1;
+  border-radius: 12px;
+  background: #f8fafc;
+  color: #64748b;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.lesson-quiz-add-question:hover:not(:disabled) {
+  border-color: #3b82f6;
+  background: #eff6ff;
+  color: #3b82f6;
+}
+
+.lesson-quiz-add-question:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.lesson-quiz-add-question svg {
+  width: 32px;
+  height: 32px;
+  stroke: currentColor;
+}
+
+/* Lesson Details View Mode */
+.lesson-details-view {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.lesson-details-type-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 8px 16px;
+  border: 2px solid #dc2626;
+  border-radius: 20px;
+  background: #ffffff;
+  color: #dc2626;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.lesson-details-view-value {
+  padding: 12px 16px;
+  background: #f8fafc;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  color: #0f172a;
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+.lesson-details-view-value.lesson-details-view-text {
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  min-height: auto;
+  padding: 16px;
+}
+
+.lesson-details-link {
+  color: #3b82f6;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.lesson-details-link:hover {
+  text-decoration: underline;
+}
+
+.lesson-details-btn-edit {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: #3b82f6;
+  color: #ffffff;
+  border: none;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.lesson-details-btn-edit:hover:not(:disabled) {
+  background: #2563eb;
+}
+
+.lesson-details-btn-edit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.lesson-quiz-question-view {
+  padding: 20px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #ffffff;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.lesson-quiz-answer-view {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.lesson-quiz-answer-view.is-correct {
+  background: #f0fdf4;
+  border-color: #22c55e;
+}
+
+.lesson-quiz-answer-number {
+  font-weight: 600;
+  color: #64748b;
+  min-width: 24px;
+}
+
+.lesson-quiz-answer-text {
+  flex: 1;
+  color: #0f172a;
+  font-size: 14px;
+}
+
+/* Reload Lessons Indicator */
+.course-program-reload-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 16px;
+  margin: 8px 0;
+  background: #eff6ff;
+  border: 1px solid #bfdbfe;
+  border-radius: 8px;
+  color: #1e40af;
+  font-size: 13px;
+  font-weight: 500;
+  animation: slideDown 0.3s ease;
+}
+
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.course-program-reload-spinner {
+  animation: spin 1s linear infinite;
+  color: #3b82f6;
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.course-program-lessons.is-reloading {
+  opacity: 0.6;
+  pointer-events: none;
+  transition: opacity 0.3s ease;
 }

@@ -3,7 +3,7 @@ import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { createCourse, deleteCourse, getActiveCourses, getCourses, updateCourse } from '../../../api/coursesApi';
-import { createLesson, updateLesson, getLessons } from '../../../api/lessionApi';
+import { createLesson, updateLesson, getLessons, deleteLesson } from '../../../api/lessionApi';
 import { createModule, deleteModule, getModulesByCourse } from '../../../api/module';
 import { logout } from '../../../store/slices/userSlice';
 import CourseList from './components/CourseList';
@@ -39,8 +39,11 @@ function CourseManagement() {
   const [selectedChapterId, setSelectedChapterId] = useState(null);
   const [selectedLessonId, setSelectedLessonId] = useState(null);
   const [isCreatingLesson, setIsCreatingLesson] = useState(false);
+  const [isEditingLesson, setIsEditingLesson] = useState(false); // Track chế độ edit/view
   const [moduleLessons, setModuleLessons] = useState([]); // Danh sách lessons của module đang chọn
   const [deleteConfirmModal, setDeleteConfirmModal] = useState({ isOpen: false, chapterId: null });
+  const [deleteLessonModal, setDeleteLessonModal] = useState({ isOpen: false, lessonId: null });
+  const [isReloadingLessons, setIsReloadingLessons] = useState(false);
 
   // Utility functions
   const getCourseId = (course) =>
@@ -236,18 +239,21 @@ function CourseManagement() {
       return;
     }
 
-    // Tính orderIndex cho lesson mới
-    const maxOrderIndex = moduleLessons.length > 0
-      ? Math.max(...moduleLessons.map(l => Number(l.orderIndex ?? 0)))
+    // Tính orderIndex cho lesson mới (chỉ tính từ server-side lessons)
+    const serverLessons = moduleLessons.filter(l => l.isServer && l.moduleId === selectedChapterId);
+    const maxOrderIndex = serverLessons.length > 0
+      ? Math.max(...serverLessons.map(l => Number(l.orderIndex ?? 0)))
       : 0;
     const nextOrderIndex = Math.max(1, maxOrderIndex + 1);
 
     // Thêm lesson mới vào danh sách local (chưa gọi API)
+    const tempId = `temp-${Date.now()}`;
     const newLesson = {
-      id: `temp-${Date.now()}`, // ID tạm để phân biệt
-      title: 'Bài học mới',
+      id: tempId, // ID tạm để phân biệt
+      title: '', // Title rỗng, người dùng sẽ nhập
       lessonType: 'VIDEO',
       contentUrl: '',
+      textContent: '',
       orderIndex: nextOrderIndex,
       moduleId: selectedChapterId,
       isNew: true, // Đánh dấu là lesson mới chưa lưu
@@ -255,6 +261,12 @@ function CourseManagement() {
     };
 
     setModuleLessons([...moduleLessons, newLesson]);
+    
+    // Tự động select lesson mới và mở form để điền nội dung
+    setSelectedLessonId(tempId);
+    setContentTab('lesson');
+    setIsCreatingLesson(true);
+    setIsEditingLesson(true); // Lesson mới luôn ở edit mode
   };
 
   // Load danh sách lessons của một module
@@ -268,27 +280,50 @@ function CourseManagement() {
       const existingLessons = await getLessons({ courseId });
       const rawLessons = Array.isArray(existingLessons) ? existingLessons : existingLessons?.data ?? [];
       
-      // Lọc lessons thuộc module
+      // Lọc lessons thuộc module (CHỈ LẤY CÁC LESSON CHƯA BỊ XÓA)
       const serverLessons = rawLessons
         .filter(l => {
           const lessonModuleId = l.moduleId ?? l.module?.moduleId ?? l.sectionId ?? l.section?.id;
-          return lessonModuleId === moduleId;
+          const isPublic = l.isPublic ?? l.is_public ?? true; // Mặc định là true nếu không có field
+          return lessonModuleId === moduleId && isPublic === true;
         })
-        .map(l => ({
-          id: l.id ?? l.lessonId ?? l._id ?? Date.now(),
-          title: l.title ?? 'Bài học mới',
-          lessonType: l.lessonType ?? 'VIDEO',
-          contentUrl: l.contentUrl ?? '',
-          orderIndex: l.orderIndex ?? 0,
-          moduleId: moduleId,
-          isServer: true,
-        }))
+        .map(l => {
+          const lessonType = l.lessonType ?? 'VIDEO';
+          const contentUrl = l.contentUrl ?? '';
+          
+          // Xử lý textContent: nếu là TEXT hoặc QUIZ, contentUrl chứa textContent
+          let textContent = '';
+          if (lessonType === 'TEXT' || lessonType === 'QUIZ') {
+            textContent = contentUrl;
+          }
+          
+          // Lấy lessonId từ nhiều nguồn có thể
+          const lessonId = l.lessonId ?? l.id ?? l._id;
+          
+          return {
+            id: lessonId ?? Date.now() + Math.random(),
+            lessonId: lessonId, // Lưu thêm lessonId để dùng cho update/delete
+            title: l.title ?? 'Bài học mới',
+            lessonType: lessonType,
+            contentUrl: lessonType === 'VIDEO' ? contentUrl : '',
+            textContent: textContent,
+            orderIndex: l.orderIndex ?? 0,
+            moduleId: moduleId,
+            isServer: true,
+          };
+        })
         .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
       
-      // Giữ lại các lesson mới chưa lưu (có isNew: true)
-      const newLessons = moduleLessons.filter(l => l.isNew && l.moduleId === moduleId);
+      // Giữ lại các lesson mới chưa lưu (có isNew: true) nhưng không trùng với server lessons
+      // Kiểm tra trùng dựa vào orderIndex và moduleId
+      const existingOrderIndexes = new Set(serverLessons.map(l => Number(l.orderIndex ?? 0)));
+      const newLessons = moduleLessons.filter(l => 
+        l.isNew 
+        && l.moduleId === moduleId
+        && !existingOrderIndexes.has(Number(l.orderIndex ?? 0)) // Không trùng orderIndex với server lessons
+      );
       
-      // Merge: server lessons + new lessons (chưa lưu)
+      // Merge: server lessons + new lessons (chưa lưu, không trùng)
       setModuleLessons([...serverLessons, ...newLessons].sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0)));
     } catch (error) {
       console.error('Load module lessons error:', error);
@@ -321,56 +356,229 @@ function CourseManagement() {
         return;
       }
 
+      // Tính orderIndex từ server-side lessons (tránh conflict)
+      // QUAN TRỌNG: Fetch ngay trước khi tạo để đảm bảo data mới nhất
+      let orderIndex = currentLesson.orderIndex ?? 1;
+      if (currentLesson.isNew) {
+        // Fetch tất cả lessons từ server NGAY TRƯỚC KHI TẠO để tính orderIndex chính xác
+        try {
+          // Fetch fresh data từ server (không dùng cache)
+          const existingLessons = await getLessons({ courseId });
+          const rawLessons = Array.isArray(existingLessons) ? existingLessons : existingLessons?.data ?? [];
+          
+          // Lọc lessons thuộc module hiện tại (chỉ lấy server-side lessons)
+          // QUAN TRỌNG: KHÔNG filter isPublic. Unique constraint (module_id, order_index) áp dụng cho
+          // MỌI row trong DB (kể cả lesson đã xóa). Phải tính orderIndex từ TẤT CẢ lessons trong module.
+          const serverLessons = rawLessons.filter(l => {
+            const lessonModuleId = l.moduleId ?? l.module?.moduleId ?? l.sectionId ?? l.section?.id;
+            return String(lessonModuleId) === String(selectedChapterId) || Number(lessonModuleId) === Number(selectedChapterId);
+          });
+          
+          // Tính maxOrderIndex từ TẤT CẢ lessons trong module (kể cả đã xóa)
+          const orderIndexes = serverLessons
+            .map(l => Number(l.orderIndex ?? 0))
+            .filter(idx => idx > 0 && !isNaN(idx));
+          
+          const maxOrderIndex = orderIndexes.length > 0 ? Math.max(...orderIndexes) : 0;
+          
+          // Tính orderIndex mới: maxOrderIndex + 1
+          orderIndex = maxOrderIndex + 1;
+          
+          // Double check: đảm bảo orderIndex không trùng với bất kỳ orderIndex nào đã có
+          const existingIndexes = new Set(orderIndexes);
+          let attempts = 0;
+          while (existingIndexes.has(orderIndex) && attempts < 100) {
+            orderIndex++;
+            attempts++;
+          }
+          
+          // Log để debug
+          console.log('Calculated orderIndex:', orderIndex, 'for module:', selectedChapterId, 'existing indexes:', Array.from(existingIndexes));
+        } catch (err) {
+          console.error('Error fetching existing lessons for orderIndex calculation:', err);
+          // Fallback: dùng orderIndex từ local state, nhưng tăng thêm để tránh conflict
+          const localMax = moduleLessons
+            .filter(l => !l.isNew && l.moduleId === selectedChapterId)
+            .reduce((max, l) => Math.max(max, Number(l.orderIndex ?? 0)), 0);
+          orderIndex = Math.max(1, localMax + 1);
+          console.warn('Using fallback orderIndex:', orderIndex);
+        }
+      }
+
+      // Chuẩn bị payload theo LessonDtoReq
       const lessonPayload = {
         title: lessonData.title,
         lessonType: lessonData.lessonType || 'VIDEO',
-        contentUrl: lessonData.contentUrl || '',
-        orderIndex: currentLesson.orderIndex ?? 1,
+        orderIndex: orderIndex,
         moduleId: selectedChapterId,
       };
 
-      if (currentLesson.isNew) {
-        // Lesson mới → gọi API tạo
-        const createdLesson = await createLesson(lessonPayload);
-        const newLessonId = createdLesson?.id ?? createdLesson?.lessonId ?? createdLesson?._id ?? null;
-        
-        if (!newLessonId) {
-          throw new Error('Không thể lấy ID bài học sau khi tạo.');
-        }
+      // Xử lý contentUrl và textContent theo lessonType
+      if (lessonData.lessonType === 'VIDEO') {
+        // VIDEO: lưu vào contentUrl
+        lessonPayload.contentUrl = lessonData.contentUrl || '';
+      } else if (lessonData.lessonType === 'TEXT') {
+        // TEXT: lưu vào contentUrl (hoặc textContent tùy backend)
+        lessonPayload.contentUrl = lessonData.textContent || '';
+      } else if (lessonData.lessonType === 'QUIZ') {
+        // QUIZ: lưu quiz questions (JSON) vào contentUrl
+        lessonPayload.contentUrl = lessonData.textContent || ''; // JSON string từ LessonDetails
+      }
 
-        // Cập nhật danh sách local: xóa lesson tạm, thêm lesson mới từ server
-        setModuleLessons(prev => 
-          prev.filter(l => l.id !== selectedLessonId)
-            .concat([{
-              id: newLessonId,
-              title: lessonData.title,
-              lessonType: lessonData.lessonType || 'VIDEO',
-              contentUrl: lessonData.contentUrl || '',
-              orderIndex: currentLesson.orderIndex ?? 1,
-              moduleId: selectedChapterId,
-              isServer: true,
-            }])
-        );
+      if (currentLesson.isNew) {
+        // Lesson mới → gọi API tạo với retry logic nếu bị duplicate
+        // Thêm flag để prevent multiple simultaneous requests
+        let createSuccess = false;
+        let retryCount = 0;
+        const maxRetries = 3;
+        const requestId = `create-${selectedLessonId}-${Date.now()}`;
+        
+        while (!createSuccess && retryCount < maxRetries) {
+          try {
+            console.log(`[${requestId}] Attempting to create lesson with orderIndex:`, orderIndex);
+            await createLesson(lessonPayload);
+            createSuccess = true;
+            console.log(`[${requestId}] Lesson created successfully`);
+          } catch (createError) {
+            // Kiểm tra nếu là duplicate error
+            const errorMessage = createError?.response?.data?.error || createError?.message || '';
+            const isDuplicateError = errorMessage.includes('Duplicate entry') || 
+                                   errorMessage.includes('UK5b8va6i6s2lts98iubi6kl9v6') ||
+                                   createError?.response?.status === 500;
+            
+            if (isDuplicateError && retryCount < maxRetries - 1) {
+              // Nếu là duplicate, fetch lại và tính orderIndex mới
+              retryCount++;
+              console.warn(`Duplicate orderIndex detected, retrying (attempt ${retryCount}/${maxRetries})...`);
+              
+              try {
+                const existingLessons = await getLessons({ courseId });
+                const rawLessons = Array.isArray(existingLessons) ? existingLessons : existingLessons?.data ?? [];
+                // Retry: dùng TẤT CẢ lessons trong module (kể cả đã xóa) vì unique constraint áp dụng cho mọi row
+                const serverLessons = rawLessons.filter(l => {
+                  const lessonModuleId = l.moduleId ?? l.module?.moduleId ?? l.sectionId ?? l.section?.id;
+                  return String(lessonModuleId) === String(selectedChapterId) || Number(lessonModuleId) === Number(selectedChapterId);
+                });
+                
+                const orderIndexes = serverLessons
+                  .map(l => Number(l.orderIndex ?? 0))
+                  .filter(idx => idx > 0 && !isNaN(idx));
+                
+                const maxOrderIndex = orderIndexes.length > 0 ? Math.max(...orderIndexes) : 0;
+                orderIndex = maxOrderIndex + 1;
+                
+                // Đảm bảo không trùng
+                const existingIndexes = new Set(orderIndexes);
+                while (existingIndexes.has(orderIndex)) {
+                  orderIndex++;
+                }
+                
+                // Cập nhật payload với orderIndex mới
+                lessonPayload.orderIndex = orderIndex;
+                console.log('Retrying with new orderIndex:', orderIndex);
+              } catch (fetchError) {
+                console.error('Error fetching lessons for retry:', fetchError);
+                // Tăng orderIndex thêm 1 và thử lại
+                orderIndex++;
+                lessonPayload.orderIndex = orderIndex;
+              }
+            } else {
+              // Nếu không phải duplicate hoặc đã retry hết, throw error
+              throw createError;
+            }
+          }
+        }
+        
+        if (!createSuccess) {
+          throw new Error('Không thể tạo bài học sau nhiều lần thử. Vui lòng thử lại.');
+        }
+        
+        // Set loading state
+        setIsReloadingLessons(true);
+        
+        try {
+          // Xóa lesson tạm (isNew) khỏi danh sách trước khi reload
+          setModuleLessons(prev => prev.filter(l => 
+            !(l.isNew && l.moduleId === selectedChapterId && l.id === selectedLessonId)
+          ));
+          
+          // Reload danh sách lessons từ server để lấy lessonId và cập nhật UI
+          await loadModuleLessons(selectedChapterId, courseId);
+          
+          // Đợi một chút để đảm bảo state đã được cập nhật
+          await new Promise(resolve => setTimeout(resolve, 300));
+          
+          // Tìm lesson vừa tạo trong moduleLessons (đã được reload)
+          // Tìm dựa vào title, orderIndex, và moduleId
+          const createdLesson = moduleLessons.find(l => 
+            l.moduleId === selectedChapterId
+            && l.title === lessonData.title
+            && Number(l.orderIndex) === orderIndex
+            && l.lessonType === (lessonData.lessonType || 'VIDEO')
+            && l.isServer === true // Chỉ lấy lesson từ server
+          );
+          
+          if (createdLesson && createdLesson.id) {
+            // Select lesson vừa tạo để hiển thị ở view mode
+            setSelectedLessonId(createdLesson.id);
+            setContentTab('lesson');
+            setIsCreatingLesson(false); // Đánh dấu đã tạo xong, không còn là lesson mới
+            setIsEditingLesson(false); // Hiển thị ở view mode sau khi tạo xong
+          } else {
+            // Nếu không tìm thấy trong moduleLessons, thử fetch lại từ server
+            const reloadedLessons = await getLessons({ courseId });
+            const rawReloaded = Array.isArray(reloadedLessons) ? reloadedLessons : reloadedLessons?.data ?? [];
+            const serverLesson = rawReloaded.find(l => {
+              const lessonModuleId = l.moduleId ?? l.module?.moduleId ?? l.sectionId ?? l.section?.id;
+              return String(lessonModuleId) === String(selectedChapterId)
+                && l.title === lessonData.title
+                && Number(l.orderIndex) === orderIndex
+                && l.lessonType === (lessonData.lessonType || 'VIDEO');
+            });
+            
+            if (serverLesson) {
+              const lessonId = serverLesson.lessonId ?? serverLesson.id ?? serverLesson._id;
+              if (lessonId) {
+                // Reload lại để đảm bảo lesson có trong moduleLessons
+                await loadModuleLessons(selectedChapterId, courseId);
+                await new Promise(resolve => setTimeout(resolve, 200));
+                
+                // Tìm lại trong moduleLessons sau khi reload
+                const foundLesson = moduleLessons.find(l => 
+                  (l.lessonId ?? l.id) === lessonId ||
+                  (l.title === lessonData.title && Number(l.orderIndex) === orderIndex && l.moduleId === selectedChapterId)
+                );
+                
+                if (foundLesson && foundLesson.id) {
+                  setSelectedLessonId(foundLesson.id);
+                  setContentTab('lesson');
+                  setIsCreatingLesson(false); // Đánh dấu đã tạo xong
+                  setIsEditingLesson(false); // Hiển thị ở view mode sau khi tạo xong
+                }
+                // Không reset nếu không tìm thấy - giữ nguyên trạng thái hiện tại
+              }
+              // Không reset nếu không tìm thấy lessonId - giữ nguyên trạng thái hiện tại
+            }
+            // Không reset nếu không tìm thấy lesson - giữ nguyên trạng thái hiện tại
+          }
+        } finally {
+          setIsReloadingLessons(false);
+        }
         
         toast.success('Đã tạo bài học thành công.');
       } else {
         // Lesson đã có → gọi API cập nhật
         await updateLesson(selectedLessonId, lessonPayload);
         
-        // Cập nhật lesson trong danh sách local
-        setModuleLessons(prev =>
-          prev.map(l =>
-            l.id === selectedLessonId
-              ? { ...l, ...lessonPayload }
-              : l
-          )
-        );
+        // Reload danh sách lessons để đảm bảo sync với server
+        await loadModuleLessons(selectedChapterId, courseId);
+        
+        // Giữ nguyên selectedLessonId và quay về view mode sau khi cập nhật
+        setContentTab('lesson');
+        setIsEditingLesson(false); // Quay về view mode sau khi lưu
         
         toast.success('Đã cập nhật bài học thành công.');
       }
-      
-      setSelectedLessonId(null);
-      setContentTab('program');
     } catch (e) {
       const msg = e?.response?.data?.message || e?.message || 'Lưu bài học thất bại. Vui lòng thử lại.';
       setLessonError(msg);
@@ -387,11 +595,15 @@ function CourseManagement() {
       const currentLesson = moduleLessons.find(l => l.id === selectedLessonId);
       if (currentLesson?.isNew) {
         setModuleLessons(prev => prev.filter(l => l.id !== selectedLessonId));
+        setSelectedLessonId(null);
+        setIsCreatingLesson(false);
+        setIsEditingLesson(false);
+        setContentTab('program');
+      } else {
+        // Nếu là lesson đã lưu, chỉ quay lại view mode
+        setIsEditingLesson(false);
       }
     }
-    setSelectedLessonId(null);
-    setIsCreatingLesson(false);
-    setContentTab('program');
   };
 
   const handleDeleteChapter = (chapterId) => {
@@ -480,6 +692,82 @@ function CourseManagement() {
 
   const cancelDeleteChapter = () => {
     setDeleteConfirmModal({ isOpen: false, chapterId: null });
+  };
+
+  const handleDeleteLesson = (lessonId) => {
+    if (!lessonId) {
+      toast.error('Không tìm thấy ID bài học để xóa.');
+      return;
+    }
+    
+    // Nếu là lesson mới chưa lưu, xóa trực tiếp khỏi danh sách local
+    const lesson = moduleLessons.find(l => l.id === lessonId);
+    if (lesson?.isNew) {
+      setModuleLessons(prev => prev.filter(l => l.id !== lessonId));
+      if (selectedLessonId === lessonId) {
+        setSelectedLessonId(null);
+        setIsCreatingLesson(false);
+        setIsEditingLesson(false);
+        setContentTab('program');
+      }
+      return;
+    }
+    
+    // Lesson đã lưu → mở modal xác nhận
+    setDeleteLessonModal({ isOpen: true, lessonId });
+  };
+
+  const confirmDeleteLesson = async () => {
+    const { lessonId } = deleteLessonModal;
+    if (!lessonId) {
+      setDeleteLessonModal({ isOpen: false, lessonId: null });
+      return;
+    }
+
+    const courseId = createdCourseId ?? getCourseId(selectedCourse);
+    if (!courseId) {
+      toast.error('Không tìm thấy mã khóa học.');
+      return;
+    }
+
+    try {
+      setIsSavingLesson(true);
+      setLessonError('');
+      
+      // Lấy lessonId thực từ lesson object (có thể là id tạm hoặc lessonId)
+      const lesson = moduleLessons.find(l => l.id === lessonId);
+      const realLessonId = lesson?.lessonId ?? lessonId;
+      
+      // Gọi API DELETE /api/v1/lessons/delete/{lessonId}
+      await deleteLesson(realLessonId);
+      
+      // Reload danh sách lessons của module sau khi xóa
+      if (selectedChapterId) {
+        await loadModuleLessons(selectedChapterId, courseId);
+      }
+      
+      // Nếu lesson đang được chọn bị xóa, clear selection
+      if (selectedLessonId === lessonId) {
+        setSelectedLessonId(null);
+        setIsCreatingLesson(false);
+        setIsEditingLesson(false);
+        setContentTab('program');
+      }
+      
+      toast.success('Đã xóa bài học thành công.');
+      setDeleteLessonModal({ isOpen: false, lessonId: null });
+    } catch (e) {
+      const msg = e?.response?.data?.message || e?.message || 'Xóa bài học thất bại. Vui lòng thử lại.';
+      setLessonError(msg);
+      toast.error(msg);
+      console.error('Delete lesson error:', e);
+    } finally {
+      setIsSavingLesson(false);
+    }
+  };
+
+  const cancelDeleteLesson = () => {
+    setDeleteLessonModal({ isOpen: false, lessonId: null });
   };
 
   const loadCourseStats = async (courseId) => {
@@ -628,6 +916,7 @@ function CourseManagement() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+
   const handleContinueToContent = async () => {
     const trimmedTitle = courseTitle.trim();
     const trimmedDescription = courseDescription.trim();
@@ -719,7 +1008,16 @@ function CourseManagement() {
   const handleSelectLesson = (lessonId) => {
     setSelectedLessonId(lessonId);
     setIsCreatingLesson(false);
+    setIsEditingLesson(false); // Mặc định là view mode khi click vào card
     setContentTab('lesson');
+  };
+
+  const handleEditLesson = () => {
+    setIsEditingLesson(true); // Chuyển sang edit mode khi click nút chỉnh sửa
+  };
+
+  const handleCancelEditLesson = () => {
+    setIsEditingLesson(false); // Quay lại view mode khi hủy
   };
 
   const handleSelectCourse = (course, courseId) => {
@@ -768,6 +1066,11 @@ function CourseManagement() {
 
   const handleUpdateLesson = (lessonId, updates) => {
     setLessons((prev) => prev.map((lesson) => (lesson.id === lessonId ? { ...lesson, ...updates } : lesson)));
+  };
+
+  // Handler để cập nhật lesson trong moduleLessons (dùng cho lesson tạm khi người dùng nhập)
+  const handleUpdateModuleLesson = (lessonId, updates) => {
+    setModuleLessons((prev) => prev.map((lesson) => (lesson.id === lessonId ? { ...lesson, ...updates } : lesson)));
   };
 
   const handleLogout = () => {
@@ -898,6 +1201,7 @@ function CourseManagement() {
                     selectedLessonId={selectedLessonId}
                     isCreatingLesson={isCreatingLesson}
                     moduleLessons={moduleLessons}
+                    isReloadingLessons={isReloadingLessons}
                     onTabChange={setContentTab}
                     onCoverImageUrlChange={setCourseCoverImageUrl}
                     onAddChapter={handleAddChapter}
@@ -905,11 +1209,16 @@ function CourseManagement() {
                     onSelectChapter={handleSelectChapter}
                     onSelectLesson={handleSelectLesson}
                     onDeleteChapter={handleDeleteChapter}
+                    onDeleteLesson={handleDeleteLesson}
                     onSaveChapter={handleSaveChapter}
                     onCancelChapter={handleCancelChapter}
                     onSaveLesson={handleSaveLesson}
                     onCancelLesson={handleCancelLesson}
                     onUpdateLesson={handleUpdateLesson}
+                    onUpdateModuleLesson={handleUpdateModuleLesson}
+                    onEditLesson={handleEditLesson}
+                    onCancelEditLesson={handleCancelEditLesson}
+                    isEditingLesson={isEditingLesson}
                     onSaveAndFinish={async () => {
                       await handleUpdateCourseContent();
                       setViewMode('list');
@@ -976,6 +1285,39 @@ function CourseManagement() {
                 type="button"
                 className="delete-confirm-modal-btn delete-confirm-modal-btn-confirm"
                 onClick={confirmDeleteChapter}
+                disabled={isSavingLesson}
+              >
+                {isSavingLesson ? 'Đang xóa...' : 'Xóa'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal xác nhận xóa bài học */}
+      {deleteLessonModal.isOpen && (
+        <div className="delete-confirm-modal-overlay" onClick={cancelDeleteLesson}>
+          <div className="delete-confirm-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="delete-confirm-modal-header">
+              <h3 className="delete-confirm-modal-title">Xác nhận xóa bài học</h3>
+            </div>
+            <div className="delete-confirm-modal-body">
+              <p className="delete-confirm-modal-message">
+                Bạn có chắc chắn muốn xóa bài học này? Hành động này không thể hoàn tác.
+              </p>
+            </div>
+            <div className="delete-confirm-modal-footer">
+              <button
+                type="button"
+                className="delete-confirm-modal-btn delete-confirm-modal-btn-cancel"
+                onClick={cancelDeleteLesson}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                className="delete-confirm-modal-btn delete-confirm-modal-btn-confirm"
+                onClick={confirmDeleteLesson}
                 disabled={isSavingLesson}
               >
                 {isSavingLesson ? 'Đang xóa...' : 'Xóa'}

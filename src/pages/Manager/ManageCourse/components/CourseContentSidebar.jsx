@@ -11,6 +11,7 @@ const CourseContentSidebar = ({
   onSelectChapter,
   onSelectLesson,
   onDeleteChapter,
+  onDeleteLesson,
   onSaveAndFinish,
   getCourseId,
   formatCourseId,
@@ -19,6 +20,7 @@ const CourseContentSidebar = ({
   isSavingLesson,
   moduleLessons = [],
   selectedLessonId,
+  isReloadingLessons = false,
 }) => {
   return (
     <div className="course-content-sidebar">
@@ -106,25 +108,53 @@ const CourseContentSidebar = ({
                     {/* Hiển thị lessons và nút thêm bài học của chương đang chọn */}
                     {isSelected && (
                       <>
+                        {isReloadingLessons && (
+                          <div className="course-program-reload-indicator">
+                            <svg className="course-program-reload-spinner" width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                              <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="4 4" opacity="0.3"/>
+                              <path d="M8 1C11.866 1 15 4.134 15 8" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+                            </svg>
+                            <span>Đang tải lại danh sách bài học...</span>
+                          </div>
+                        )}
                         {chapterLessons.length > 0 && (
-                          <ul className="course-program-lessons">
+                          <ul className={`course-program-lessons ${isReloadingLessons ? 'is-reloading' : ''}`}>
                             {chapterLessons.map((lessonItem) => {
                               const isLessonSelected = selectedLessonId === lessonItem.id;
                               return (
                                 <li key={lessonItem.id}>
-                                  <button
-                                    type="button"
-                                    className={`course-program-lesson-item ${isLessonSelected ? 'is-selected' : ''}`}
-                                    onClick={() => {
-                                      onTabChange('lesson');
-                                      onSelectLesson(lessonItem.id);
-                                    }}
-                                  >
-                                    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="course-program-lesson-icon">
-                                      <path d="M3 2.5L13 8L3 13.5V2.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                                    </svg>
-                                    <span className="course-program-lesson-label">{lessonItem.title}</span>
-                                  </button>
+                                  <div className="course-program-lesson-item-wrapper">
+                                    <button
+                                      type="button"
+                                      className={`course-program-lesson-item ${isLessonSelected ? 'is-selected' : ''}`}
+                                      onClick={() => {
+                                        onTabChange('lesson');
+                                        onSelectLesson(lessonItem.id);
+                                      }}
+                                    >
+                                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" className="course-program-lesson-icon">
+                                        <path d="M3 2.5L13 8L3 13.5V2.5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                      </svg>
+                                      <span className="course-program-lesson-label">
+                                        {lessonItem.title || (lessonItem.isNew ? 'Bài học mới' : 'Bài học')}
+                                      </span>
+                                    </button>
+                                    <button
+                                      type="button"
+                                      className="course-program-lesson-item-delete"
+                                      aria-label="Xóa bài học"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (onDeleteLesson) {
+                                          onDeleteLesson(lessonItem.id);
+                                        }
+                                      }}
+                                    >
+                                      <svg width="14" height="14" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+                                        <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                                      </svg>
+                                    </button>
+                                  </div>
                                 </li>
                               );
                             })}
@@ -137,6 +167,7 @@ const CourseContentSidebar = ({
                             onTabChange('program');
                             onAddLessonItem();
                           }}
+                          disabled={isReloadingLessons}
                         >
                           + Thêm bài học
                         </button>
