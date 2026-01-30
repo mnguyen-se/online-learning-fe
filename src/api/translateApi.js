@@ -33,7 +33,7 @@ export const translateText = async (text, sourceLang = 'auto', targetLang = 'vi'
   if (source === 'auto') {
     // Thử phát hiện: nếu có ký tự Hiragana/Katakana/Kanji thì là tiếng Nhật
     const japaneseRegex = /[\u3040-\u309F\u30A0-\u30FF\u4E00-\u9FAF]/;
-    const englishRegex = /^[a-zA-Z\s,\.\-']+$/;
+    const englishRegex = /^[a-zA-Z\s,.'-]+$/;
     
     if (japaneseRegex.test(text)) {
       finalSource = 'ja';

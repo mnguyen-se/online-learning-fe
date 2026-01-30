@@ -128,6 +128,7 @@ const Header = () => {
   return (
     <header className="header">
       <div className="header-container">
+        {/* Logo */}
         <div className="logo">
           <div className="logo-icon">
             <svg
@@ -148,9 +149,20 @@ const Header = () => {
               </text>
             </svg>
           </div>
-          <h2>Edu Learn AI</h2>
+          <h2>Học Tiếng Nhật Để Đi Làm</h2>
         </div>
+
+        {/* Search Bar */}
         <div className="header-search-section">
+          <div className="search-bar">
+            <svg className="search-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <circle cx="11" cy="11" r="8"/>
+              <path d="m21 21-4.35-4.35"/>
+            </svg>
+            <input type="text" placeholder="Tìm kiếm khóa học, bài viết, video, ..." />
+          </div>
+          
+          {/* Translate Button */}
           <div className="translate-dropdown" ref={translateDropdownRef}>
             <button
               className="translate-btn"
@@ -158,28 +170,10 @@ const Header = () => {
               aria-label="Dịch từ điển"
               title="Dịch từ điển"
             >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  d="M5 8l6 6M19 8l-6 6M2 12h20"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                />
-                <circle
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                  fill="none"
-                />
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" fill="none"/>
+                <path d="M2 12h20M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" stroke="currentColor" strokeWidth="2" fill="none"/>
               </svg>
-              <span>Dịch</span>
             </button>
             {showTranslateDropdown && (
               <div className="translate-dropdown-menu">
@@ -505,24 +499,6 @@ const Header = () => {
                 )}
               </div>
             )}
-          </div>
-          <div className="search-bar">
-            <svg
-              className="search-icon"
-              width="20"
-              height="20"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-            >
-              <circle cx="11" cy="11" r="8" />
-              <path d="m21 21-4.35-4.35" />
-            </svg>
-            <input
-              type="text"
-              placeholder="Tìm kiếm khóa học, bài viết, video, ..."
-            />
           </div>
         </div>
         <div className="header-actions">

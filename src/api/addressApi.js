@@ -1,223 +1,92 @@
 import axios from "axios";
 
-// API từ vietnamlabs.com
-const VIETNAM_LABS_API = "https://vietnamlabs.com/api/vietnamprovince";
+// API chuẩn địa chỉ Việt Nam: https://provinces.open-api.vn/api/
+const BASE_URL = "https://provinces.open-api.vn/api/v1";
+const CACHE_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 ngày
 
-// Keys cho localStorage
-const PROVINCES_CACHE_KEY = "vietnam_provinces_cache";
-const PROVINCES_TIMESTAMP_KEY = "vietnam_provinces_timestamp";
-const WARDS_CACHE_KEY_PREFIX = "vietnam_wards_";
-const CACHE_DURATION = 7 * 24 * 60 * 60 * 1000; // 7 ngày (milliseconds)
-
-// Mock data fallback
-const MOCK_PROVINCES = [
-  { id: "01", name: "Hà Nội" },
-  { id: "02", name: "Hồ Chí Minh" },
-  { id: "03", name: "Đà Nẵng" },
-  { id: "04", name: "Hải Phòng" },
-  { id: "05", name: "Cần Thơ" },
-  { id: "06", name: "An Giang" },
-  { id: "07", name: "Bà Rịa - Vũng Tàu" },
-  { id: "08", name: "Bắc Giang" },
-  { id: "09", name: "Bắc Kạn" },
-  { id: "10", name: "Bạc Liêu" },
-];
-
-const MOCK_COMMUNES = [
-  { id: "ward-1", name: "Phường 1" },
-  { id: "ward-2", name: "Phường 2" },
-  { id: "ward-3", name: "Phường 3" },
-  { id: "ward-4", name: "Xã 1" },
-  { id: "ward-5", name: "Xã 2" },
-];
-
-// Kiểm tra cache có còn hiệu lực không
-const isCacheValid = (timestampKey) => {
-  try {
-    const timestamp = localStorage.getItem(timestampKey);
-    if (!timestamp) return false;
-    
-    const cacheTime = parseInt(timestamp, 10);
-    const now = Date.now();
-    return (now - cacheTime) < CACHE_DURATION;
-  } catch (error) {
-    return false;
-  }
+const cache = {
+  provinces: null,
+  provincesTime: 0,
+  districtsAll: null,
+  districtsAllTime: 0,
+  wardsAll: null,
+  wardsAllTime: 0,
 };
 
-// Lấy danh sách tỉnh/thành mới nhất (với cache)
-export const getProvincesApi = async () => {
-  // Kiểm tra cache trước
-  try {
-    const cachedData = localStorage.getItem(PROVINCES_CACHE_KEY);
-    if (cachedData && isCacheValid(PROVINCES_TIMESTAMP_KEY)) {
-      console.log("Using cached provinces data");
-      return JSON.parse(cachedData);
-    }
-  } catch (error) {
-    console.warn("Error reading provinces cache:", error);
-  }
+const isCacheValid = (timestamp) =>
+  timestamp && Date.now() - timestamp < CACHE_DURATION;
 
-  // Nếu không có cache hoặc cache hết hạn, gọi API
-  try {
-    console.log("Fetching provinces from vietnamlabs.com");
-    const response = await axios.get(VIETNAM_LABS_API, {
-      timeout: 10000 // 10 giây timeout
-    });
-    
-    if (!response.data.success || !response.data.data) {
-      console.warn("Invalid API response, checking cache or using mock data");
-      // Thử dùng cache cũ nếu có
-      try {
-        const oldCache = localStorage.getItem(PROVINCES_CACHE_KEY);
-        if (oldCache) {
-          console.log("Using old cached data");
-          return JSON.parse(oldCache);
-        }
-      } catch (e) {
-        // Ignore
-      }
-      return MOCK_PROVINCES;
-    }
-    
-    const provinces = response.data.data.map((province) => ({
-      id: province.id,
-      name: province.province
-    }));
-    
-    // Lưu vào cache
-    try {
-      localStorage.setItem(PROVINCES_CACHE_KEY, JSON.stringify(provinces));
-      localStorage.setItem(PROVINCES_TIMESTAMP_KEY, Date.now().toString());
-      console.log(`Cached ${provinces.length} provinces`);
-    } catch (error) {
-      console.warn("Error saving provinces to cache:", error);
-    }
-    
-    console.log(`Fetched ${provinces.length} provinces from vietnamlabs.com`);
-    return provinces;
-  } catch (error) {
-    console.error("Error fetching provinces:", error);
-    
-    // Thử dùng cache cũ nếu có
-    try {
-      const oldCache = localStorage.getItem(PROVINCES_CACHE_KEY);
-      if (oldCache) {
-        console.log("Using old cached data due to network error");
-        return JSON.parse(oldCache);
-      }
-    } catch (e) {
-      // Ignore
-    }
-    
-    console.warn("Using mock data as fallback");
-    return MOCK_PROVINCES;
-  }
-};
-
-// Lấy danh sách xã/phường thuộc một tỉnh (với cache)
-export const getCommunesApi = async (provinceId) => {
-  if (!provinceId) {
-    return MOCK_COMMUNES;
-  }
-
-  const cacheKey = `${WARDS_CACHE_KEY_PREFIX}${provinceId}`;
-  const timestampKey = `${WARDS_CACHE_KEY_PREFIX}${provinceId}_timestamp`;
-
-  // Kiểm tra cache trước
-  try {
-    const cachedData = localStorage.getItem(cacheKey);
-    if (cachedData && isCacheValid(timestampKey)) {
-      console.log(`Using cached wards data for province ${provinceId}`);
-      return JSON.parse(cachedData);
-    }
-  } catch (error) {
-    console.warn("Error reading wards cache:", error);
-  }
-
-  // Nếu không có cache hoặc cache hết hạn, gọi API
-  try {
-    console.log(`Fetching communes for province ID: ${provinceId}`);
-    const response = await axios.get(VIETNAM_LABS_API, {
-      timeout: 10000 // 10 giây timeout
-    });
-    
-    if (!response.data.success || !response.data.data) {
-      console.warn("Invalid API response, checking cache or using mock data");
-      // Thử dùng cache cũ nếu có
-      try {
-        const oldCache = localStorage.getItem(cacheKey);
-        if (oldCache) {
-          console.log("Using old cached wards data");
-          return JSON.parse(oldCache);
-        }
-      } catch (e) {
-        // Ignore
-      }
-      return MOCK_COMMUNES;
-    }
-    
-    const province = response.data.data.find(p => p.id === provinceId);
-    if (!province || !province.wards) {
-      console.warn(`Province ID ${provinceId} not found or has no wards`);
-      // Thử dùng cache cũ nếu có
-      try {
-        const oldCache = localStorage.getItem(cacheKey);
-        if (oldCache) {
-          console.log("Using old cached wards data");
-          return JSON.parse(oldCache);
-        }
-      } catch (e) {
-        // Ignore
-      }
-      return MOCK_COMMUNES;
-    }
-    
-    const communes = province.wards.map((ward, index) => ({
-      id: `${provinceId}-${index}`,
-      name: ward.name
-    }));
-    
-    // Lưu vào cache
-    try {
-      localStorage.setItem(cacheKey, JSON.stringify(communes));
-      localStorage.setItem(timestampKey, Date.now().toString());
-      console.log(`Cached ${communes.length} wards for province ${provinceId}`);
-    } catch (error) {
-      console.warn("Error saving wards to cache:", error);
-    }
-    
-    console.log(`Found ${communes.length} wards in ${province.province}`);
-    return communes;
-  } catch (error) {
-    console.error("Error fetching communes:", error);
-    
-    // Thử dùng cache cũ nếu có
-    try {
-      const oldCache = localStorage.getItem(cacheKey);
-      if (oldCache) {
-        console.log("Using old cached wards data due to network error");
-        return JSON.parse(oldCache);
-      }
-    } catch (e) {
-      // Ignore
-    }
-    
-    console.warn("Using mock data as fallback");
-    return MOCK_COMMUNES;
-  }
-};
-
-// Export với tên mà RegisterPage đang sử dụng
-export const getAllProvinces = getProvincesApi;
-export const getWardsByProvince = getCommunesApi;
-
-
-
-export default axios.create({
-  baseURL: VIETNAM_LABS_API,
-  headers: {
-    "Content-Type": "application/json"
-  }
+const api = axios.create({
+  baseURL: BASE_URL,
+  timeout: 15000,
+  headers: { "Content-Type": "application/json" },
 });
 
+/**
+ * Lấy danh sách Tỉnh/Thành phố.
+ * @returns {Promise<Array<{ code: number, name: string }>>}
+ */
+export const getProvinces = async () => {
+  if (cache.provinces && isCacheValid(cache.provincesTime)) {
+    return cache.provinces;
+  }
+  const res = await api.get("/");
+  const list = Array.isArray(res.data) ? res.data : [];
+  const normalized = list.map((p) => ({
+    code: p.code,
+    name: p.name || "",
+  }));
+  cache.provinces = normalized;
+  cache.provincesTime = Date.now();
+  return normalized;
+};
+
+/**
+ * Lấy danh sách Quận/Huyện theo mã tỉnh.
+ * @param {number|string} provinceCode
+ * @returns {Promise<Array<{ code: number, name: string, province_code: number }>>}
+ */
+export const getDistrictsByProvinceCode = async (provinceCode) => {
+  if (provinceCode === undefined || provinceCode === null || provinceCode === "")
+    return [];
+  const code = Number(provinceCode);
+  if (!cache.districtsAll || !isCacheValid(cache.districtsAllTime)) {
+    const res = await api.get("/d/");
+    const list = Array.isArray(res.data) ? res.data : [];
+    cache.districtsAll = list.map((d) => ({
+      code: d.code,
+      name: d.name || "",
+      province_code: d.province_code,
+    }));
+    cache.districtsAllTime = Date.now();
+  }
+  return cache.districtsAll.filter((d) => d.province_code === code);
+};
+
+/**
+ * Lấy danh sách Xã/Phường theo mã quận.
+ * @param {number|string} districtCode
+ * @returns {Promise<Array<{ code: number, name: string, district_code: number }>>}
+ */
+export const getWardsByDistrictCode = async (districtCode) => {
+  if (
+    districtCode === undefined ||
+    districtCode === null ||
+    districtCode === ""
+  )
+    return [];
+  const code = Number(districtCode);
+  if (!cache.wardsAll || !isCacheValid(cache.wardsAllTime)) {
+    const res = await api.get("/w/");
+    const list = Array.isArray(res.data) ? res.data : [];
+    cache.wardsAll = list.map((w) => ({
+      code: w.code,
+      name: w.name || "",
+      district_code: w.district_code,
+    }));
+    cache.wardsAllTime = Date.now();
+  }
+  return cache.wardsAll.filter((w) => w.district_code === code);
+};
+
+export default api;

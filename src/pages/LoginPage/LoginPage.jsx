@@ -1,10 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import { toast } from 'react-toastify';
-import { login } from '../../api/userApi';
+import { login as loginAction } from '../../store/slices/userSlice';
+import { login, getUserInfo } from '../../api/userApi';
 import './loginpage.css';
 
 const LoginPage = () => {
+  const dispatch = useDispatch();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
@@ -22,17 +25,57 @@ const LoginPage = () => {
       // Lưu token vào localStorage
       if (response.token) {
         localStorage.setItem('token', response.token);
-        localStorage.setItem('username', username); // Lưu username để dùng cho API getUserInfo
+        localStorage.setItem('username', username);
+        
+        // Lấy thông tin role từ response hoặc gọi API getUserInfo
+        let userRole = response.role;
+        let userInfo = null;
+        
+        if (!userRole) {
+          try {
+            userInfo = await getUserInfo(username);
+            userRole = userInfo.role;
+          } catch (error) {
+            console.error('Error fetching user info:', error);
+          }
+        } else {
+          // Nếu có role từ response, lấy thêm userInfo nếu cần
+          try {
+            userInfo = await getUserInfo(username);
+          } catch (error) {
+            console.error('Error fetching user info:', error);
+          }
+        }
+
+        if (userRole) {
+          localStorage.setItem('role', userRole);
+        }
         
         // Nếu có rememberMe, có thể lưu thêm thông tin user
         if (rememberMe) {
           localStorage.setItem('rememberMe', 'true');
         }
         
+        // Dispatch action login vào Redux store
+        dispatch(loginAction({
+          ...userInfo,
+          username,
+          role: userRole,
+          token: response.token,
+        }));
+        
         toast.success('Đăng nhập thành công!');
         
-        // Điều hướng đến trang chủ hoặc dashboard
-        navigate('/');
+        // Điều hướng dựa trên role
+        if (userRole === 'ADMIN') {
+          navigate('/dashboard-admin');
+        } else if (userRole === 'TEACHER')  {
+          navigate('/teacher-page');
+        } else if (userRole === 'COURSE_MANAGER')  { 
+          navigate('/dashboard-manager');
+        }else if(userRole === 'STUDENT')  { 
+          navigate('/');
+        }
       } else {
         toast.error('Token không được trả về từ server');
       }

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { getAllUsers, updateUser, createUser } from '../../api/userApi';
@@ -32,10 +32,6 @@ const Dashboard = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
-    fetchUsers();
-  }, [navigate]);
-
-  useEffect(() => {
     let filtered = users;
 
     // Filter by role
@@ -44,6 +40,7 @@ const Dashboard = () => {
         'Học viên': 'STUDENT',
         'Giáo viên': 'TEACHER',
         'Quản trị': 'ADMIN',
+        'Quản lý': 'MANAGER',
       };
       filtered = filtered.filter(user => user.role === roleMap[activeFilter]);
     }
@@ -90,6 +87,7 @@ const Dashboard = () => {
       STUDENT: 'Học viên',
       TEACHER: 'Giáo viên',
       ADMIN: 'Quản trị viên',
+      MANAGER: 'Quản lý',
     };
     return roleMap[role] || role;
   };
@@ -99,6 +97,7 @@ const Dashboard = () => {
       STUDENT: 'badge-student',
       TEACHER: 'badge-teacher',
       ADMIN: 'badge-admin',
+      MANAGER: 'badge-manager',
     };
     return roleMap[role] || '';
   };
@@ -263,11 +262,13 @@ const Dashboard = () => {
     }
   };
 
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     const token = localStorage.getItem('token');
     if (!token) {
-      toast.error('Vui lòng đăng nhập để truy cập dashboard');
-      navigate('/login');
+      toast.info('Chua dang nhap, hien thi dashboard o che do demo.');
+      setUsers([]);
+      setFilteredUsers([]);
+      setIsLoading(false);
       return;
     }
 
@@ -289,7 +290,11 @@ const Dashboard = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [navigate]);
+
+  useEffect(() => {
+    fetchUsers();
+  }, [fetchUsers]);
 
   return (
     <div className="dashboard-container">
@@ -503,6 +508,12 @@ const Dashboard = () => {
                 onClick={() => setActiveFilter('Quản trị')}
               >
                 Quản trị
+              </button>
+              <button
+                className={`filter-btn ${activeFilter === 'Quản lý' ? 'active' : ''}`}
+                onClick={() => setActiveFilter('Quản lý')}
+              >
+                Quản lý
               </button>
             </div>
 
@@ -839,6 +850,7 @@ const Dashboard = () => {
                         <option value="STUDENT">Học viên</option>
                         <option value="TEACHER">Giáo viên</option>
                         <option value="ADMIN">Quản trị viên</option>
+                        <option value="MANAGER">Quản lý</option>
                       </select>
                     </div>
                   </div>

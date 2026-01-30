@@ -1,8 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import Select from 'react-select';
 import { register } from '../../api/userApi';
-import { getAllProvinces, getWardsByProvince } from '../../api/addressApi';
+import {
+  getProvinces,
+  getDistrictsByProvinceCode,
+  getWardsByDistrictCode,
+} from '../../api/addressApi';
 import './RegisterPage.css';
 
 const RegisterPage = () => {
@@ -19,82 +24,37 @@ const RegisterPage = () => {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [provinces, setProvinces] = useState([]);
-  const [selectedProvince, setSelectedProvince] = useState('');
-  const [selectedProvinceId, setSelectedProvinceId] = useState('');
+  const [districts, setDistricts] = useState([]);
   const [wards, setWards] = useState([]);
-  const [selectedWard, setSelectedWard] = useState('');
+  const [selectedProvinceCode, setSelectedProvinceCode] = useState('');
+  const [selectedProvinceName, setSelectedProvinceName] = useState('');
+  const [selectedDistrictCode, setSelectedDistrictCode] = useState('');
+  const [selectedDistrictName, setSelectedDistrictName] = useState('');
+  const [selectedWardCode, setSelectedWardCode] = useState('');
+  const [selectedWardName, setSelectedWardName] = useState('');
   const [addressDetail, setAddressDetail] = useState('');
   const [isLoadingProvinces, setIsLoadingProvinces] = useState(false);
+  const [isLoadingDistricts, setIsLoadingDistricts] = useState(false);
   const [isLoadingWards, setIsLoadingWards] = useState(false);
   const navigate = useNavigate();
 
-  // Fetch provinces on component mount
+  // 1. Lấy danh sách Tỉnh/Thành khi component mount
   useEffect(() => {
     const fetchProvinces = async () => {
       setIsLoadingProvinces(true);
       try {
-        const data = await getAllProvinces();
-        console.log('Provinces data received:', data);
-        console.log('Number of provinces:', data?.length);
-        console.log('Type of data:', typeof data);
-        console.log('Is array?', Array.isArray(data));
-        
-        if (data && Array.isArray(data) && data.length > 0) {
-          console.log('Setting provinces:', data);
-          setProvinces(data);
-          console.log('Provinces state should be updated');
-        } else {
-          console.warn('No provinces data received or invalid format');
-          console.warn('Data:', data);
-          setProvinces([]);
-          toast.error('Không có dữ liệu tỉnh/thành phố');
-        }
+        const data = await getProvinces();
+        setProvinces(Array.isArray(data) ? data : []);
       } catch (error) {
         console.error('Error loading provinces:', error);
         setProvinces([]);
-        let errorMessage = 'Không thể tải danh sách tỉnh/thành phố';
-        
-        if (error.message?.includes('timeout') || error.code === 'ECONNABORTED') {
-          errorMessage = 'API timeout: Server không phản hồi. Vui lòng thử lại sau.';
-        } else if (error.code === 'ERR_NETWORK' || error.message?.includes('Network Error')) {
-          errorMessage = 'Không thể kết nối đến API. Vui lòng kiểm tra kết nối internet.';
-        } else if (error.response) {
-          errorMessage = `Lỗi API: ${error.response.status} - ${error.response.statusText}`;
-        } else if (error.message) {
-          errorMessage = error.message;
-        }
-        
-        toast.error(errorMessage);
+        toast.error('Không thể tải danh sách tỉnh/thành phố. Vui lòng kiểm tra kết nối.');
       } finally {
         setIsLoadingProvinces(false);
       }
     };
     fetchProvinces();
   }, []);
-
-  // Fetch wards when province is selected
-  useEffect(() => {
-    if (selectedProvinceId) {
-      const fetchWards = async () => {
-        setIsLoadingWards(true);
-        setWards([]);
-        setSelectedWard('');
-        try {
-          const data = await getWardsByProvince(selectedProvinceId);
-          setWards(data);
-        } catch (error) {
-          console.error('Error loading wards:', error);
-          toast.error('Không thể tải danh sách xã/phường');
-        } finally {
-          setIsLoadingWards(false);
-        }
-      };
-      fetchWards();
-    } else {
-      setWards([]);
-      setSelectedWard('');
-    }
-  }, [selectedProvinceId]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -104,53 +64,109 @@ const RegisterPage = () => {
     }));
   };
 
-  const handleProvinceChange = (e) => {
-    const provinceName = e.target.value;
-    setSelectedProvince(provinceName);
-    
-    // Find province ID from provinces list
-    const selectedProv = provinces.find(p => 
-      (p.name || p.provinceName || p.province) === provinceName
-    );
-    if (selectedProv) {
-      setSelectedProvinceId(selectedProv.id || selectedProv.provinceCode || selectedProv.code || '');
-    } else {
-      setSelectedProvinceId('');
+  // 2. Khi Tỉnh thay đổi -> Lấy Quận/Huyện và Reset Quận/Xã
+  const handleProvinceChange = async (option) => {
+    if (!option) {
+      setSelectedProvinceCode('');
+      setSelectedProvinceName('');
+      setDistricts([]);
+      setSelectedDistrictCode('');
+      setSelectedDistrictName('');
+      setWards([]);
+      setSelectedWardCode('');
+      setSelectedWardName('');
+      return;
+    }
+    const code = option.value;
+    const name = option.label;
+    setSelectedProvinceCode(code);
+    setSelectedProvinceName(name);
+    setDistricts([]);
+    setSelectedDistrictCode('');
+    setSelectedDistrictName('');
+    setWards([]);
+    setSelectedWardCode('');
+    setSelectedWardName('');
+    setIsLoadingDistricts(true);
+    try {
+      const data = await getDistrictsByProvinceCode(code);
+      setDistricts(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error loading districts:', error);
+      setDistricts([]);
+    } finally {
+      setIsLoadingDistricts(false);
     }
   };
 
-  const handleWardChange = (e) => {
-    setSelectedWard(e.target.value);
+  // 3. Khi Quận thay đổi -> Lấy Xã/Phường và Reset Xã
+  const handleDistrictChange = async (option) => {
+    if (!option) {
+      setSelectedDistrictCode('');
+      setSelectedDistrictName('');
+      setWards([]);
+      setSelectedWardCode('');
+      setSelectedWardName('');
+      return;
+    }
+    const code = option.value;
+    const name = option.label;
+    setSelectedDistrictCode(code);
+    setSelectedDistrictName(name);
+    setWards([]);
+    setSelectedWardCode('');
+    setSelectedWardName('');
+    setIsLoadingWards(true);
+    try {
+      const data = await getWardsByDistrictCode(code);
+      setWards(Array.isArray(data) ? data : []);
+    } catch (error) {
+      console.error('Error loading wards:', error);
+      setWards([]);
+      toast.error('Không thể tải danh sách xã/phường');
+    } finally {
+      setIsLoadingWards(false);
+    }
+  };
+
+  const handleWardChange = (option) => {
+    if (!option) {
+      setSelectedWardCode('');
+      setSelectedWardName('');
+      return;
+    }
+    setSelectedWardCode(option.value);
+    setSelectedWardName(option.label);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
-    // Validation
+
     if (formData.password !== confirmPassword) {
       toast.error('Mật khẩu xác nhận không khớp');
       return;
     }
-
     if (formData.password.length < 6) {
       toast.error('Mật khẩu phải có ít nhất 6 ký tự');
+      return;
+    }
+
+    // Validation địa chỉ: bắt buộc chọn đủ Tỉnh, Quận, Xã
+    if (!selectedProvinceCode || !selectedDistrictCode || !selectedWardCode) {
+      toast.error('Vui lòng chọn đầy đủ Tỉnh/Thành phố, Quận/Huyện và Xã/Phường.');
       return;
     }
 
     setIsLoading(true);
 
     try {
-      // Combine address: số nhà, đường + xã/phường + tỉnh/thành phố
-      let fullAddress = '';
-      if (addressDetail) {
-        fullAddress = addressDetail;
-      }
-      if (selectedWard) {
-        fullAddress = fullAddress ? `${fullAddress}, ${selectedWard}` : selectedWard;
-      }
-      if (selectedProvince) {
-        fullAddress = fullAddress ? `${fullAddress}, ${selectedProvince}` : selectedProvince;
-      }
+      const parts = [
+        addressDetail,
+        selectedWardName,
+        selectedDistrictName,
+        selectedProvinceName,
+      ].filter(Boolean);
+      const fullAddress = parts.join(', ');
 
       const submitData = {
         ...formData,
@@ -182,12 +198,6 @@ const RegisterPage = () => {
     }
   };
 
-  // Debug: Log provinces state whenever it changes
-  useEffect(() => {
-    console.log('Provinces state updated:', provinces);
-    console.log('Provinces length:', provinces?.length);
-  }, [provinces]);
-
   return (
     <div className="register-page">
       <div className="register-container">
@@ -205,8 +215,9 @@ const RegisterPage = () => {
             <p className="tagline">Tạo tài khoản mới</p>
           </div>
 
-          {/* Register Form */}
+          {/* Register Form – Thứ tự: thông tin cá nhân → email/ngày sinh → mật khẩu → địa chỉ (Tỉnh → Quận → Xã → Số nhà) */}
           <form className="register-form" onSubmit={handleSubmit}>
+            {/* Hàng 1: Tên đăng nhập | Họ và tên */}
             <div className="form-row">
               <div className="form-column">
                 <div className="form-group">
@@ -215,26 +226,62 @@ const RegisterPage = () => {
                     type="text"
                     id="username"
                     name="username"
-                    placeholder="Nhập tên người dùng"
+                    placeholder="vd: nguyenvan_a"
                     value={formData.username}
                     onChange={handleChange}
                     required
                   />
                 </div>
+              </div>
+              <div className="form-column">
+                <div className="form-group">
+                  <label htmlFor="name">Họ và tên *</label>
+                  <input
+                    type="text"
+                    id="name"
+                    name="name"
+                    placeholder="Nguyễn Văn A"
+                    value={formData.name}
+                    onChange={handleChange}
+                    required
+                  />
+                </div>
+              </div>
+            </div>
 
+            {/* Hàng 2: Email | Ngày sinh */}
+            <div className="form-row">
+              <div className="form-column">
                 <div className="form-group">
                   <label htmlFor="email">Email *</label>
                   <input
                     type="email"
                     id="email"
                     name="email"
-                    placeholder="Nhập email"
+                    placeholder="example@email.com"
                     value={formData.email}
                     onChange={handleChange}
                     required
                   />
                 </div>
+              </div>
+              <div className="form-column">
+                <div className="form-group">
+                  <label htmlFor="dateOfBirth">Ngày sinh</label>
+                  <input
+                    type="date"
+                    id="dateOfBirth"
+                    name="dateOfBirth"
+                    value={formData.dateOfBirth}
+                    onChange={handleChange}
+                  />
+                </div>
+              </div>
+            </div>
 
+            {/* Hàng 3: Mật khẩu | Xác nhận mật khẩu – cạnh nhau để tab order rõ ràng */}
+            <div className="form-row">
+              <div className="form-column">
                 <div className="form-group password-group">
                   <label htmlFor="password">Mật khẩu *</label>
                   <div className="password-input-wrapper">
@@ -242,7 +289,7 @@ const RegisterPage = () => {
                       type={showPassword ? "text" : "password"}
                       id="password"
                       name="password"
-                      placeholder="Nhập mật khẩu"
+                      placeholder="••••••••"
                       value={formData.password}
                       onChange={handleChange}
                       required
@@ -268,82 +315,15 @@ const RegisterPage = () => {
                     </button>
                   </div>
                 </div>
-
-                <div className="form-group">
-                  <label htmlFor="province">Tỉnh/Thành phố</label>
-                  <select
-                    id="province"
-                    name="province"
-                    value={selectedProvince}
-                    onChange={handleProvinceChange}
-                    disabled={isLoadingProvinces}
-                    style={{ minHeight: '44px' }}
-                  >
-                    <option value="">-- Chọn tỉnh/thành phố --</option>
-                    {provinces && provinces.length > 0 ? (
-                      provinces.map((province, index) => {
-                        // Handle different API response formats
-                        const provinceName = province.name || province.provinceName || province.province || province;
-                        const provinceId = province.id || province.provinceCode || province.code || index;
-                        console.log(`Rendering option ${index}:`, provinceName, provinceId);
-                        return (
-                          <option key={provinceId} value={provinceName}>
-                            {provinceName}
-                          </option>
-                        );
-                      })
-                    ) : (
-                      !isLoadingProvinces && <option value="" disabled>Không có dữ liệu</option>
-                    )}
-                  </select>
-                  {isLoadingProvinces && <span style={{ fontSize: '12px', color: '#6B7280', marginLeft: '8px' }}>Đang tải...</span>}
-                  {!isLoadingProvinces && provinces.length === 0 && (
-                    <span style={{ fontSize: '12px', color: '#EF4444', marginLeft: '8px' }}>Không có dữ liệu ({provinces.length} tỉnh)</span>
-                  )}
-                  {!isLoadingProvinces && provinces.length > 0 && (
-                    <span style={{ fontSize: '12px', color: '#10B981', marginLeft: '8px' }}>({provinces.length} tỉnh có sẵn)</span>
-                  )}
-                </div>
-
-                <div className="form-group">
-                  <label htmlFor="ward">Xã/Phường</label>
-                  <select
-                    id="ward"
-                    value={selectedWard}
-                    onChange={handleWardChange}
-                    disabled={!selectedProvince || isLoadingWards}
-                  >
-                    <option value="">-- Chọn xã/phường --</option>
-                    {wards.map((ward, index) => (
-                      <option key={index} value={ward.name}>
-                        {ward.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
               </div>
-
               <div className="form-column">
-                <div className="form-group">
-                  <label htmlFor="name">Họ và tên *</label>
-                  <input
-                    type="text"
-                    id="name"
-                    name="name"
-                    placeholder="Nhập họ và tên"
-                    value={formData.name}
-                    onChange={handleChange}
-                    required
-                  />
-                </div>
-
                 <div className="form-group password-group">
                   <label htmlFor="confirmPassword">Xác nhận mật khẩu *</label>
                   <div className="password-input-wrapper">
                     <input
                       type={showConfirmPassword ? "text" : "password"}
                       id="confirmPassword"
-                      placeholder="Nhập lại mật khẩu"
+                      placeholder="••••••••"
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       required
@@ -369,24 +349,106 @@ const RegisterPage = () => {
                     </button>
                   </div>
                 </div>
+              </div>
+            </div>
 
+            {/* Địa chỉ: Tỉnh → Quận/Huyện → Xã/Phường → Số nhà, đường (có search) */}
+            <div className="form-section-label">Địa chỉ *</div>
+            <div className="form-row">
+              <div className="form-column">
                 <div className="form-group">
-                  <label htmlFor="dateOfBirth">Ngày sinh</label>
-                  <input
-                    type="date"
-                    id="dateOfBirth"
-                    name="dateOfBirth"
-                    value={formData.dateOfBirth}
-                    onChange={handleChange}
+                  <label htmlFor="province">Tỉnh/Thành phố *</label>
+                  <Select
+                    inputId="province"
+                    isClearable
+                    isSearchable
+                    placeholder="-- Chọn Tỉnh/Thành --"
+                    options={provinces.map((p) => ({ value: p.code, label: p.name }))}
+                    value={
+                      selectedProvinceCode
+                        ? {
+                            value: selectedProvinceCode,
+                            label: selectedProvinceName,
+                          }
+                        : null
+                    }
+                    onChange={handleProvinceChange}
+                    isLoading={isLoadingProvinces}
+                    noOptionsMessage={() => 'Không có dữ liệu'}
+                    classNamePrefix="register-select"
+                  />
+                  {!isLoadingProvinces && provinces.length > 0 && (
+                    <span className="form-hint">({provinces.length} tỉnh – gõ để tìm)</span>
+                  )}
+                </div>
+              </div>
+              <div className="form-column">
+                <div className="form-group">
+                  <label htmlFor="district">Quận/Huyện *</label>
+                  <Select
+                    inputId="district"
+                    isClearable
+                    isSearchable
+                    placeholder={
+                      !selectedProvinceCode
+                        ? 'Vui lòng chọn Tỉnh/Thành trước'
+                        : '-- Chọn Quận/Huyện --'
+                    }
+                    options={districts.map((d) => ({ value: d.code, label: d.name }))}
+                    value={
+                      selectedDistrictCode
+                        ? {
+                            value: selectedDistrictCode,
+                            label: selectedDistrictName,
+                          }
+                        : null
+                    }
+                    onChange={handleDistrictChange}
+                    isDisabled={!selectedProvinceCode}
+                    isLoading={isLoadingDistricts}
+                    noOptionsMessage={() => 'Không có dữ liệu'}
+                    classNamePrefix="register-select"
                   />
                 </div>
-
+              </div>
+            </div>
+            <div className="form-row">
+              <div className="form-column">
+                <div className="form-group">
+                  <label htmlFor="ward">Xã/Phường *</label>
+                  <Select
+                    inputId="ward"
+                    isClearable
+                    isSearchable
+                    placeholder={
+                      !selectedDistrictCode
+                        ? 'Vui lòng chọn Quận/Huyện trước'
+                        : '-- Chọn Xã/Phường --'
+                    }
+                    options={wards.map((w) => ({ value: w.code, label: w.name }))}
+                    value={
+                      selectedWardCode
+                        ? {
+                            value: selectedWardCode,
+                            label: selectedWardName,
+                          }
+                        : null
+                    }
+                    onChange={handleWardChange}
+                    isDisabled={!selectedDistrictCode}
+                    isLoading={isLoadingWards}
+                    noOptionsMessage={() => 'Không có dữ liệu'}
+                    classNamePrefix="register-select"
+                  />
+                </div>
+              </div>
+              <div className="form-column">
                 <div className="form-group">
                   <label htmlFor="addressDetail">Số nhà, đường, ...</label>
                   <input
                     type="text"
                     id="addressDetail"
-                    placeholder="Nhập số nhà, tên đường, ..."
+                    placeholder="vd: 123 Đường ABC, Khu phố 1"
                     value={addressDetail}
                     onChange={(e) => setAddressDetail(e.target.value)}
                   />
