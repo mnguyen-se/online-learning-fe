@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { getUserInfo } from '../../api/userApi';
 import Header from '../../components/Header/header';
+import DashboardHeader from '../../components/DashboardHeader';
+import { useAuth } from '../../hooks';
 import Footer from '../../components/Footer/footer';
 import './profile.css';
 
@@ -10,6 +12,7 @@ const Profile = () => {
   const [userInfo, setUserInfo] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
+  const { isStaff } = useAuth();
 
   useEffect(() => {
     const fetchUserInfo = async () => {
@@ -66,7 +69,7 @@ const Profile = () => {
   if (isLoading) {
     return (
       <div className="profile-page">
-        <Header />
+        {isStaff ? <DashboardHeader /> : <Header />}
         <div className="profile-loading">
           <div className="loading-spinner"></div>
           <p>Đang tải thông tin...</p>
@@ -79,7 +82,7 @@ const Profile = () => {
   if (!userInfo) {
     return (
       <div className="profile-page">
-        <Header />
+        {isStaff ? <DashboardHeader /> : <Header />}
         <div className="profile-error">
           <p>Không thể tải thông tin người dùng</p>
         </div>
@@ -90,7 +93,7 @@ const Profile = () => {
 
   return (
     <div className="profile-page">
-      <Header />
+      {isStaff ? <DashboardHeader /> : <Header />}
       <div className="profile-container">
         <div className="profile-header">
           <div className="profile-avatar">

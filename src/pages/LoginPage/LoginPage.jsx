@@ -66,14 +66,14 @@ const LoginPage = () => {
         
         toast.success('Đăng nhập thành công!');
         
-        // Điều hướng dựa trên role
+        // Điều hướng dựa trên role (dùng /admin, /manager, /teacher - App redirect tới dashboard tương ứng)
         if (userRole === 'ADMIN') {
-          navigate('/dashboard-admin');
-        } else if (userRole === 'TEACHER')  {
-          navigate('/teacher-page');
-        } else if (userRole === 'COURSE_MANAGER')  { 
-          navigate('/dashboard-manager');
-        }else if(userRole === 'STUDENT')  { 
+          navigate('/admin');
+        } else if (userRole === 'TEACHER') {
+          navigate('/teacher');
+        } else if (userRole === 'COURSE_MANAGER') {
+          navigate('/manager');
+        } else if (userRole === 'STUDENT') {
           navigate('/');
         }
       } else {

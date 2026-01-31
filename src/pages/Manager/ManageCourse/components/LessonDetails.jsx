@@ -9,7 +9,7 @@ function getInitialFromLesson(lesson) {
   let textContent = '';
   if (lt === 'VIDEO') {
     contentUrl = lesson.contentUrl || '';
-  } else if (lt === 'TEXT' || lt === 'QUIZ') {
+  } else if (lt === 'TEXT' || lt === 'QUIZ' || lt === 'ASSIGNMENT') {
     textContent = lesson.textContent || lesson.contentUrl || '';
   } else {
     contentUrl = lesson.contentUrl || '';
@@ -175,6 +175,7 @@ const LessonDetails = ({
               {lessonType === 'VIDEO' && 'Video Bài giảng'}
               {lessonType === 'TEXT' && 'Tài liệu đọc'}
               {lessonType === 'QUIZ' && 'Trắc nghiệm (Quizlet Style)'}
+              {lessonType === 'ASSIGNMENT' && 'Bài tập'}
             </div>
           </div>
 
@@ -197,6 +198,13 @@ const LessonDetails = ({
           {lessonType === 'TEXT' && textContent && (
             <div className="lesson-details-field">
               <label className="lesson-details-label">NỘI DUNG VĂN BẢN</label>
+              <div className="lesson-details-view-value lesson-details-view-text">{textContent}</div>
+            </div>
+          )}
+
+          {lessonType === 'ASSIGNMENT' && textContent && (
+            <div className="lesson-details-field">
+              <label className="lesson-details-label">YÊU CẦU BÀI TẬP</label>
               <div className="lesson-details-view-value lesson-details-view-text">{textContent}</div>
             </div>
           )}
@@ -269,6 +277,7 @@ const LessonDetails = ({
             <option value="VIDEO">Video Bài giảng</option>
             <option value="TEXT">Tài liệu đọc</option>
             <option value="QUIZ">Trắc nghiệm (Quizlet Style)</option>
+            <option value="ASSIGNMENT">Bài tập</option>
           </select>
         </div>
 
@@ -316,6 +325,20 @@ const LessonDetails = ({
               onChange={(e) => setTextContent(e.target.value)}
               disabled={isLoading}
               rows={8}
+            />
+          </div>
+        )}
+
+        {lessonType === 'ASSIGNMENT' && (
+          <div className="lesson-details-field">
+            <label className="lesson-details-label">YÊU CẦU BÀI TẬP</label>
+            <textarea
+              className="lesson-details-textarea"
+              placeholder="Nhập yêu cầu bài tập, thời gian làm bài, thang điểm..."
+              value={textContent}
+              onChange={(e) => setTextContent(e.target.value)}
+              disabled={isLoading}
+              rows={6}
             />
           </div>
         )}

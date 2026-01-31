@@ -194,6 +194,23 @@
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
 }
 
+.hero-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  align-items: center;
+}
+
+.hero-button-dashboard {
+  background: #FF6B4A !important;
+  color: #FFFFFF !important;
+}
+
+.hero-button-dashboard:hover {
+  background: #FF5722 !important;
+  color: #FFFFFF !important;
+}
+
 .hero-image {
   flex: 1;
   max-width: 500px;

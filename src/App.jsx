@@ -1,15 +1,16 @@
 import React from 'react';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { createBrowserRouter, RouterProvider, Navigate } from 'react-router-dom';
 import { store, persistor } from './store/store';
+import PrivateRoute from './components/PrivateRoute';
 import HomePage from './pages/Homepage/Homepage';
 import LoginPage from './pages/LoginPage/LoginPage';
 import RegisterPage from './pages/register';
 import Profile from './pages/Profile/profile';
 import Dashboard from './pages/DashBoard-Admin/dashboard';
 import CourseManagement from './pages/Manager/ManageCourse/CourseManagement';
-import TeacherPage from './pages/Teacher/teacherPage';
+import TeacherPage from './pages/Teacher/TeacherPage';
 import LessonsView from './pages/Lessons/LessonsView';
 
 function App() {
@@ -32,19 +33,39 @@ function App() {
     },
     {
       path: '/dashboard',
-      element: <Dashboard />,
+      element: (
+        <PrivateRoute allowedRoles={['ADMIN']} element={<Dashboard />} />
+      ),
     },
     {
       path: '/dashboard-admin',
-      element: <Dashboard />,
+      element: (
+        <PrivateRoute allowedRoles={['ADMIN']} element={<Dashboard />} />
+      ),
+    },
+    {
+      path: '/admin',
+      element: <Navigate to="/dashboard-admin" replace />,
     },
     {
       path: '/dashboard-manager',
-      element: <CourseManagement />,
+      element: (
+        <PrivateRoute allowedRoles={['COURSE_MANAGER']} element={<CourseManagement />} />
+      ),
+    },
+    {
+      path: '/manager',
+      element: <Navigate to="/dashboard-manager" replace />,
     },
     {
       path: '/teacher-page',
-      element: <TeacherPage />,
+      element: (
+        <PrivateRoute allowedRoles={['TEACHER']} element={<TeacherPage />} />
+      ),
+    },
+    {
+      path: '/teacher',
+      element: <Navigate to="/teacher-page" replace />,
     },
     {
       path: '/lessons',

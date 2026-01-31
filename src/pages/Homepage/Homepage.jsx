@@ -1,7 +1,10 @@
 import { useState } from 'react'
 import { Layout } from 'antd'
+import { useNavigate } from 'react-router-dom'
 import Sidebar from '../../components/Sidebar/Sidebar'
 import Header from '../../components/Header/header'
+import DashboardHeader from '../../components/DashboardHeader'
+import { useAuth } from '../../hooks'
 import Footer from '../../components/Footer/footer'
 import './homepage.css'
 
@@ -10,6 +13,13 @@ const { Content } = Layout
 function Homepages() {
   const [activeSlide, setActiveSlide] = useState(0)
   const [collapsed, setCollapsed] = useState(false)
+  const navigate = useNavigate()
+  const { isStaff, getDashboardPath } = useAuth()
+
+  const handleGoToDashboard = () => {
+    const path = getDashboardPath()
+    navigate(path === '/login' ? '/' : path)
+  }
 
   return (
     <Layout className="homepage-layout">
@@ -18,8 +28,8 @@ function Homepages() {
 
       {/* Main Layout */}
       <Layout className="homepage-main-layout">
-        {/* Top Header with Translate feature */}
-        <Header />
+        {/* Conditional Header: Student = Header (translate, search); Admin/Manager/Teacher = DashboardHeader (Go to Dashboard) */}
+        {isStaff ? <DashboardHeader /> : <Header />}
 
         {/* Main Content */}
         <Content className="homepage-content">
@@ -31,7 +41,14 @@ function Homepages() {
               <p className="hero-description">
                 Học tiếng Nhật trực tuyến qua Zoom, phù hợp nếu bạn muốn được review bài tập, học theo lịch trình có sẵn và tương tác với giảng viên bản ngữ. Giúp học linh hoạt, phù hợp cả sinh viên và người đi làm.
               </p>
-              <button className="hero-button">NHẬN LỘ TRÌNH TIẾNG NHẬT</button>
+              <div className="hero-buttons">
+                <button type="button" className="hero-button">NHẬN LỘ TRÌNH TIẾNG NHẬT</button>
+                {isStaff && (
+                  <button type="button" className="hero-button hero-button-dashboard" onClick={handleGoToDashboard}>
+                    Go to Dashboard
+                  </button>
+                )}
+              </div>
             </div>
             <div className="hero-image">
               <div className="hero-image-wrapper">

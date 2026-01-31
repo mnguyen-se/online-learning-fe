@@ -1,18 +1,16 @@
 import React, { useEffect, useState } from 'react';
-import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { createCourse, deleteCourse, getActiveCourses, getCourses, updateCourse } from '../../../api/coursesApi';
 import { createLesson, updateLesson, getLessons, deleteLesson } from '../../../api/lessionApi';
 import { createModule, deleteModule, getModulesByCourse } from '../../../api/module';
-import { logout } from '../../../store/slices/userSlice';
+import DashboardLayout from '../../../components/DashboardLayout';
 import CourseList from './components/CourseList';
 import CourseInitForm from './components/CourseInitForm';
 import CourseContentLayout from './components/CourseContentLayout';
 import './courseManagement.css';
 
 function CourseManagement() {
-  const dispatch = useDispatch();
   const navigate = useNavigate();
   const [viewMode, setViewMode] = useState('list');
   const [activeTab, setActiveTab] = useState('general');
@@ -291,9 +289,9 @@ function CourseManagement() {
           const lessonType = l.lessonType ?? 'VIDEO';
           const contentUrl = l.contentUrl ?? '';
           
-          // Xử lý textContent: nếu là TEXT hoặc QUIZ, contentUrl chứa textContent
+          // Xử lý textContent: TEXT, QUIZ, ASSIGNMENT lưu nội dung trong contentUrl
           let textContent = '';
-          if (lessonType === 'TEXT' || lessonType === 'QUIZ') {
+          if (lessonType === 'TEXT' || lessonType === 'QUIZ' || lessonType === 'ASSIGNMENT') {
             textContent = contentUrl;
           }
           
@@ -415,14 +413,16 @@ function CourseManagement() {
 
       // Xử lý contentUrl và textContent theo lessonType
       if (lessonData.lessonType === 'VIDEO') {
-        // VIDEO: lưu vào contentUrl
         lessonPayload.contentUrl = lessonData.contentUrl || '';
       } else if (lessonData.lessonType === 'TEXT') {
-        // TEXT: lưu vào contentUrl (hoặc textContent tùy backend)
         lessonPayload.contentUrl = lessonData.textContent || '';
       } else if (lessonData.lessonType === 'QUIZ') {
-        // QUIZ: lưu quiz questions (JSON) vào contentUrl
         lessonPayload.contentUrl = lessonData.textContent || ''; // JSON string từ LessonDetails
+      } else if (lessonData.lessonType === 'ASSIGNMENT') {
+        // ASSIGNMENT: lưu mô tả/yêu cầu bài tập vào contentUrl (hoặc JSON nếu có metadata)
+        lessonPayload.contentUrl = lessonData.textContent || lessonData.contentUrl || '';
+      } else {
+        lessonPayload.contentUrl = lessonData.contentUrl || lessonData.textContent || '';
       }
 
       if (currentLesson.isNew) {
@@ -1073,43 +1073,12 @@ function CourseManagement() {
     setModuleLessons((prev) => prev.map((lesson) => (lesson.id === lessonId ? { ...lesson, ...updates } : lesson)));
   };
 
-  const handleLogout = () => {
-    dispatch(logout());
-    navigate('/login');
-  };
-
   return (
-    <div className="manager-shell">
-      <header className="manager-topbar">
-        <span className="manager-topbar-title">Nihongo Academy LMS</span>
-      </header>
-
-      <div className="manager-body">
-        <aside className="manager-sidebar">
-          <div className="manager-brand">
-            <div className="manager-brand-icon">N</div>
-            <div>
-              <div className="manager-brand-title">Nihongo LMS</div>
-              <div className="manager-brand-subtitle">Manager Panel</div>
-            </div>
-          </div>
-
-          <div className="manager-sidebar-footer">
-            <div className="manager-profile">
-              <div className="manager-avatar">M</div>
-              <div>
-                <div className="manager-name">Manager Tanaka</div>
-                <div className="manager-role">MANAGER</div>
-              </div>
-            </div>
-            <button className="manager-logout" type="button" onClick={handleLogout}>
-              Đăng xuất
-            </button>
-          </div>
-        </aside>
-
-        <main className="manager-main">
-          <section className="manager-dashboard-content">
+    <DashboardLayout
+      pageTitle="Quản lý khóa học"
+      pageSubtitle="Hệ thống quản lý Module & Lesson tập trung"
+    >
+      <section className="manager-dashboard-content">
             {viewMode === 'list' ? (
               <>
                 <div className="manager-hero">
@@ -1257,9 +1226,7 @@ function CourseManagement() {
                 ) : null}
               </div>
             )}
-          </section>
-        </main>
-      </div>
+      </section>
 
       {/* Modal xác nhận xóa chương */}
       {deleteConfirmModal.isOpen && (
@@ -1326,7 +1293,7 @@ function CourseManagement() {
           </div>
         </div>
       )}
-    </div>
+    </DashboardLayout>
   );
 }
 
