@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Provider } from 'react-redux';
 import { PersistGate } from 'redux-persist/integration/react';
@@ -12,6 +13,7 @@ import Dashboard from './pages/DashBoard-Admin/dashboard';
 import CourseManagement from './pages/Manager/ManageCourse/CourseManagement';
 import TeacherPage from './pages/Teacher/TeacherPage';
 import LessonsView from './pages/Lessons/LessonsView';
+import MyCourses from "./pages/MyCourses/MyCourses";
 
 function App() {
   const router = createBrowserRouter([
@@ -71,6 +73,8 @@ function App() {
       path: '/lessons',
       element: <LessonsView />,
     },
+    { path: "/my-courses", 
+      element: <MyCourses /> },
   ]);
 
   return (
