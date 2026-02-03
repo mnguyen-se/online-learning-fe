@@ -55,12 +55,23 @@ const LessonDetails = ({
   isEditing = false,
   onUpdateModuleLesson,
   selectedLessonId,
+  allowedLessonTypes,
 }) => {
-  const [title, setTitle] = useState(() => getInitialFromLesson(selectedLesson).title);
-  const [lessonType, setLessonType] = useState(() => getInitialFromLesson(selectedLesson).lessonType);
-  const [contentUrl, setContentUrl] = useState(() => getInitialFromLesson(selectedLesson).contentUrl);
-  const [textContent, setTextContent] = useState(() => getInitialFromLesson(selectedLesson).textContent);
-  const [quizQuestions, setQuizQuestions] = useState(() => getInitialFromLesson(selectedLesson).quizQuestions);
+  const initialLesson = useMemo(() => getInitialFromLesson(selectedLesson), [selectedLesson]);
+  const availableLessonTypes = useMemo(
+    () => (Array.isArray(allowedLessonTypes) && allowedLessonTypes.length > 0
+      ? allowedLessonTypes
+      : ['VIDEO', 'TEXT', 'QUIZ', 'ASSIGNMENT']),
+    [allowedLessonTypes]
+  );
+  const normalizedLessonType = availableLessonTypes.includes(initialLesson.lessonType)
+    ? initialLesson.lessonType
+    : availableLessonTypes[0];
+  const [title, setTitle] = useState(() => initialLesson.title);
+  const [lessonType, setLessonType] = useState(() => normalizedLessonType);
+  const [contentUrl, setContentUrl] = useState(() => initialLesson.contentUrl);
+  const [textContent, setTextContent] = useState(() => initialLesson.textContent);
+  const [quizQuestions, setQuizQuestions] = useState(() => initialLesson.quizQuestions);
 
   const generateQuestionId = () => `${Date.now()}-${Math.random()}`;
 
@@ -274,10 +285,18 @@ const LessonDetails = ({
             onChange={handleLessonTypeChange}
             disabled={isLoading || !isEditMode}
           >
-            <option value="VIDEO">Video Bài giảng</option>
-            <option value="TEXT">Tài liệu đọc</option>
-            <option value="QUIZ">Trắc nghiệm (Quizlet Style)</option>
-            <option value="ASSIGNMENT">Bài tập</option>
+            {availableLessonTypes.includes('VIDEO') && (
+              <option value="VIDEO">Video Bài giảng</option>
+            )}
+            {availableLessonTypes.includes('TEXT') && (
+              <option value="TEXT">Tài liệu đọc</option>
+            )}
+            {availableLessonTypes.includes('QUIZ') && (
+              <option value="QUIZ">Trắc nghiệm (Quizlet Style)</option>
+            )}
+            {availableLessonTypes.includes('ASSIGNMENT') && (
+              <option value="ASSIGNMENT">Bài tập</option>
+            )}
           </select>
         </div>
 

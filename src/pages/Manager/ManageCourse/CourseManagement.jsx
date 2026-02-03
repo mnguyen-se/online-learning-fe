@@ -8,6 +8,7 @@ import DashboardLayout from '../../../components/DashboardLayout';
 import CourseList from './components/CourseList';
 import CourseInitForm from './components/CourseInitForm';
 import CourseContentLayout from './components/CourseContentLayout';
+import CourseContentWizard from './components/CourseContentWizard';
 import './courseManagement.css';
 
 function CourseManagement() {
@@ -16,6 +17,7 @@ function CourseManagement() {
   const [activeTab, setActiveTab] = useState('general');
   const [courseTitle, setCourseTitle] = useState('');
   const [courseDescription, setCourseDescription] = useState('');
+  const [courseIsPublic, setCourseIsPublic] = useState(true);
   const [courseError, setCourseError] = useState('');
   const [courseSuccess, setCourseSuccess] = useState('');
   const [isSavingCourse, setIsSavingCourse] = useState(false);
@@ -42,6 +44,8 @@ function CourseManagement() {
   const [deleteConfirmModal, setDeleteConfirmModal] = useState({ isOpen: false, chapterId: null });
   const [deleteLessonModal, setDeleteLessonModal] = useState({ isOpen: false, lessonId: null });
   const [isReloadingLessons, setIsReloadingLessons] = useState(false);
+  const [wizardStep, setWizardStep] = useState('course');
+  const [wizardPath, setWizardPath] = useState(null);
 
   // Utility functions
   const getCourseId = (course) =>
@@ -108,20 +112,20 @@ function CourseManagement() {
     const courseId = createdCourseId ?? getCourseId(selectedCourse);
     if (!courseId || !selectedChapterId) {
       toast.error('Không tìm thấy mã khóa học hoặc chương.');
-      return;
+      return false;
     }
 
     // Tìm chương hiện tại
     const currentChapter = lessons.find(l => l.id === selectedChapterId);
     if (!currentChapter) {
       toast.error('Không tìm thấy chương.');
-      return;
+      return false;
     }
 
     // Kiểm tra tên chương
     if (!currentChapter.title || !currentChapter.title.trim()) {
       toast.error('Vui lòng nhập tên chương.');
-      return;
+      return false;
     }
 
     try {
@@ -209,11 +213,13 @@ function CourseManagement() {
       await loadModuleLessons(moduleId, courseId);
       
       toast.success('Đã tạo chương thành công.');
+      return true;
     } catch (e) {
       const msg = e?.response?.data?.message || e?.message || 'Tạo chương thất bại. Vui lòng thử lại.';
       setLessonError(msg);
       toast.error(msg);
       console.error('Create chapter error:', e);
+      return false;
     } finally {
       setIsSavingLesson(false);
     }
@@ -335,12 +341,12 @@ function CourseManagement() {
     const courseId = createdCourseId ?? getCourseId(selectedCourse);
     if (!courseId || !selectedChapterId) {
       toast.error('Không tìm thấy mã khóa học hoặc chương.');
-      return;
+      return false;
     }
 
     if (!selectedLessonId) {
       toast.error('Không tìm thấy bài học để lưu.');
-      return;
+      return false;
     }
 
     try {
@@ -351,7 +357,7 @@ function CourseManagement() {
       const currentLesson = moduleLessons.find(l => l.id === selectedLessonId);
       if (!currentLesson) {
         toast.error('Không tìm thấy bài học.');
-        return;
+        return false;
       }
 
       // Tính orderIndex từ server-side lessons (tránh conflict)
@@ -566,6 +572,7 @@ function CourseManagement() {
         }
         
         toast.success('Đã tạo bài học thành công.');
+        return true;
       } else {
         // Lesson đã có → gọi API cập nhật
         await updateLesson(selectedLessonId, lessonPayload);
@@ -578,12 +585,14 @@ function CourseManagement() {
         setIsEditingLesson(false); // Quay về view mode sau khi lưu
         
         toast.success('Đã cập nhật bài học thành công.');
+        return true;
       }
     } catch (e) {
       const msg = e?.response?.data?.message || e?.message || 'Lưu bài học thất bại. Vui lòng thử lại.';
       setLessonError(msg);
       toast.error(msg);
       console.error('Save lesson error:', e);
+      return false;
     } finally {
       setIsSavingLesson(false);
     }
@@ -930,7 +939,7 @@ function CourseManagement() {
       const created = await createCourse({
         title: trimmedTitle,
         description: trimmedDescription,
-        isPublic: true,
+        isPublic: courseIsPublic,
       });
       const nextCourseId = getCourseId(created);
       if (nextCourseId) {
@@ -940,13 +949,14 @@ function CourseManagement() {
           courseId: nextCourseId,
           title: trimmedTitle,
           description: trimmedDescription,
-          isPublic: true,
+          isPublic: courseIsPublic,
         });
         setContentTab('general');
         setLessons([]);
-        setViewMode('content');
-        await loadLessonsForCourse(nextCourseId);
-        toast.success('Đã tạo khóa học. Bạn có thể bắt đầu soạn nội dung.');
+        setWizardPath(null);
+        setWizardStep('content-type');
+        setViewMode('wizard');
+        toast.success('Đã tạo khóa học. Hãy chọn loại nội dung để tiếp tục.');
       } else {
         throw new Error('Không thể lấy ID khóa học sau khi tạo.');
       }
@@ -957,6 +967,38 @@ function CourseManagement() {
     } finally {
       setIsSavingCourse(false);
     }
+  };
+
+  const handleSelectWizardPath = (path) => {
+    setWizardPath(path);
+    if (path === 'module') {
+      setWizardStep('chapter');
+      handleAddChapter();
+    } else {
+      setWizardStep('standalone-title');
+    }
+  };
+
+  const handleWizardSaveChapter = async () => {
+    const ok = await handleSaveChapter();
+    if (ok) {
+      setWizardStep('lesson');
+      handleAddLessonItem();
+    }
+    return ok;
+  };
+
+  const handleWizardSaveLesson = async (lessonData) => {
+    const ok = await handleSaveLesson(lessonData);
+    if (ok) {
+      setWizardStep('module-finish');
+    }
+    return ok;
+  };
+
+  const handleCreateStandaloneTest = () => {
+    toast.success('Đã tạo bài kiểm tra rời (demo).');
+    setWizardStep('standalone-finish');
   };
 
   const handleToggleActive = async (course, event) => {
@@ -1117,6 +1159,7 @@ function CourseManagement() {
                         setActiveTab('general');
                         setCourseTitle('');
                         setCourseDescription('');
+                        setCourseIsPublic(true);
                         setCourseError('');
                         setCourseSuccess('');
                         setCreatedCourseId(null);
@@ -1124,6 +1167,8 @@ function CourseManagement() {
                         setLessonError('');
                         setLessons([]);
                         setSelectedChapterId(null);
+                        setWizardStep('course');
+                        setWizardPath(null);
                       }}
                     >
                       <span className="cta-icon">+</span>
@@ -1198,7 +1243,40 @@ function CourseManagement() {
                     getCourseId={getCourseId}
                     formatCourseId={formatCourseId}
                   />
-                ) : viewMode === 'content' ? (
+                ) : viewMode === 'wizard' && selectedCourse ? (
+                  <CourseContentWizard
+                    selectedCourse={selectedCourse}
+                    wizardStep={wizardStep}
+                    wizardPath={wizardPath}
+                    lessons={lessons}
+                    moduleLessons={moduleLessons}
+                    selectedChapterId={selectedChapterId}
+                    selectedLessonId={selectedLessonId}
+                    isSavingLesson={isSavingLesson}
+                    lessonError={lessonError}
+                    onSelectWizardPath={handleSelectWizardPath}
+                    onSetWizardStep={setWizardStep}
+                    onSaveChapter={handleWizardSaveChapter}
+                    onCancelChapter={handleCancelChapter}
+                    onSaveLesson={handleWizardSaveLesson}
+                    onCancelLesson={handleCancelLesson}
+                    onAddLessonItem={handleAddLessonItem}
+                    onUpdateLesson={handleUpdateLesson}
+                    onUpdateModuleLesson={handleUpdateModuleLesson}
+                    onCreateStandaloneTest={handleCreateStandaloneTest}
+                    onGoToContent={() => {
+                      setViewMode('content');
+                      setContentTab('general');
+                      setWizardStep('content-type');
+                    }}
+                    onGoToList={() => {
+                      setViewMode('list');
+                      setSelectedCourse(null);
+                      setSelectedChapterId(null);
+                      setSelectedLessonId(null);
+                    }}
+                  />
+                ) : viewMode === 'content' || viewMode === 'wizard' ? (
                   <div className="course-content-empty">
                     <h2>Chưa chọn khóa học</h2>
                     <p>Vui lòng quay lại danh sách và chọn một khóa học.</p>
@@ -1209,15 +1287,18 @@ function CourseManagement() {
                   <CourseInitForm
                     courseTitle={courseTitle}
                     courseDescription={courseDescription}
+                    courseIsPublic={courseIsPublic}
                     courseError={courseError}
                     courseSuccess={courseSuccess}
                     isSavingCourse={isSavingCourse}
                     onTitleChange={setCourseTitle}
                     onDescriptionChange={setCourseDescription}
+                    onPublicChange={setCourseIsPublic}
                     onCancel={() => {
                       setViewMode('list');
                       setCourseTitle('');
                       setCourseDescription('');
+                      setCourseIsPublic(true);
                       setCourseError('');
                       setCourseSuccess('');
                     }}

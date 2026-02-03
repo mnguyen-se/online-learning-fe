@@ -3,11 +3,13 @@ import React from 'react';
 const CourseInitForm = ({
   courseTitle,
   courseDescription,
+  courseIsPublic,
   courseError,
   courseSuccess,
   isSavingCourse,
   onTitleChange,
   onDescriptionChange,
+  onPublicChange,
   onCancel,
   onContinue,
 }) => {
@@ -41,6 +43,22 @@ const CourseInitForm = ({
           value={courseDescription}
           onChange={(e) => onDescriptionChange(e.target.value)}
         />
+        <div className="course-public-toggle">
+          <div className="course-public-text">
+            <span className="course-label">TRẠNG THÁI KHÓA HỌC</span>
+            <span className="course-public-hint">
+              {courseIsPublic ? 'Công khai cho học viên' : 'Riêng tư, chỉ nội bộ quản trị'}
+            </span>
+          </div>
+          <label className="course-public-switch">
+            <input
+              type="checkbox"
+              checked={courseIsPublic}
+              onChange={(e) => onPublicChange(e.target.checked)}
+            />
+            <span className="course-public-slider" aria-hidden />
+          </label>
+        </div>
         {courseError && (
           <p className="course-error">{courseError}</p>
         )}
@@ -63,7 +81,7 @@ const CourseInitForm = ({
           onClick={onContinue}
           disabled={isSavingCourse}
         >
-          {isSavingCourse ? 'Đang tạo...' : 'Tiếp tục soạn nội dung'}
+          {isSavingCourse ? 'Đang tạo...' : 'Tạo khóa học'}
           <span className="course-init-arrow">→</span>
         </button>
       </div>
