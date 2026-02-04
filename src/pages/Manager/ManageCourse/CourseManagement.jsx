@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
 import { createCourse, deleteCourse, getCourses, updateCourse } from '../../../api/coursesApi';
+import { getEnrolledStudentsByCourse } from '../../../api/enrollmentApi';
 import { createLesson, updateLesson, getLessons, deleteLesson, uploadLessonVideo } from '../../../api/lessionApi';
 import {
   createAssignment,
@@ -927,6 +928,7 @@ function CourseManagement() {
       modules: 0,
       lessons: 0,
       tests: 0,
+      students: 0,
     };
 
     const normalizeList = (data) => {
@@ -937,15 +939,17 @@ function CourseManagement() {
     };
 
     try {
-      const [lessonsResult, modulesResult, testsResult] = await Promise.allSettled([
+      const [lessonsResult, modulesResult, testsResult, studentsResult] = await Promise.allSettled([
         getLessons({ courseId }),
         getModulesByCourse(courseId),
         getAssignmentsByCourse(courseId),
+        getEnrolledStudentsByCourse(courseId),
       ]);
 
       const lessonsList = lessonsResult.status === 'fulfilled' ? normalizeList(lessonsResult.value) : [];
       const modulesList = modulesResult.status === 'fulfilled' ? normalizeList(modulesResult.value) : [];
       const testsList = testsResult.status === 'fulfilled' ? normalizeList(testsResult.value) : [];
+      const studentsList = studentsResult.status === 'fulfilled' ? normalizeList(studentsResult.value) : [];
 
       const moduleIds = new Set(
         modulesList
@@ -970,6 +974,7 @@ function CourseManagement() {
         modules: chaptersCount,
         lessons: lessonsCount,
         tests: testsList.length,
+        students: studentsList.length,
       };
     } catch {
       return {
@@ -977,6 +982,7 @@ function CourseManagement() {
         modules: 0,
         lessons: 0,
         tests: 0,
+        students: 0,
       };
     }
   };
@@ -999,7 +1005,16 @@ function CourseManagement() {
           const stats = await loadCourseStats(courseId);
           return { courseId, stats };
         }
-        return { courseId: null, stats: { modules: 0, lessons: 0 } };
+        return {
+          courseId: null,
+          stats: {
+            chapters: 0,
+            modules: 0,
+            lessons: 0,
+            tests: 0,
+            students: 0,
+          },
+        };
       });
 
       const statsResults = await Promise.all(statsPromises);
@@ -1431,6 +1446,15 @@ function CourseManagement() {
   };
 
   const getCourseStudentCount = (course) => {
+    const courseId = getCourseId(course);
+    const statsValue =
+      courseStats?.[courseId]?.students ??
+      courseStats?.[courseId]?.studentCount ??
+      courseStats?.[courseId]?.studentsCount;
+    if (Number.isFinite(statsValue)) return statsValue;
+    const parsed = Number(statsValue);
+    if (Number.isFinite(parsed)) return parsed;
+
     const candidate =
       course?.studentCount ??
       course?.studentsCount ??
@@ -1443,10 +1467,7 @@ function CourseManagement() {
     if (typeof candidate === 'number' && !Number.isNaN(candidate)) return candidate;
     if (Array.isArray(candidate)) return candidate.length;
     if (Array.isArray(course?.students)) return course.students.length;
-
-    const courseId = getCourseId(course);
-    const fallback = courseStats?.[courseId]?.lessons ?? courseStats?.[courseId]?.modules ?? 0;
-    return Number(fallback) || 0;
+    return 0;
   };
 
   const normalizedSearch = courseSearch.trim().toLowerCase();
