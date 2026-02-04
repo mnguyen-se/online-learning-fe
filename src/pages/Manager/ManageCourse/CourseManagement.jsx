@@ -922,16 +922,62 @@ function CourseManagement() {
   };
 
   const loadCourseStats = async (courseId) => {
-    if (!courseId) return { modules: 0, lessons: 0 };
+    if (!courseId) return {
+      chapters: 0,
+      modules: 0,
+      lessons: 0,
+      tests: 0,
+    };
+
+    const normalizeList = (data) => {
+      if (Array.isArray(data)) return data;
+      if (Array.isArray(data?.data)) return data.data;
+      if (Array.isArray(data?.data?.data)) return data.data.data;
+      return [];
+    };
+
     try {
-      const data = await getLessons({ courseId });
-      const rawList = Array.isArray(data) ? data : data?.data ?? [];
-      const uniqueSections = new Set(
-        rawList.map((l) => l.sectionId ?? l.section_id ?? l.section ?? 0).filter((s) => s > 0)
+      const [lessonsResult, modulesResult, testsResult] = await Promise.allSettled([
+        getLessons({ courseId }),
+        getModulesByCourse(courseId),
+        getAssignmentsByCourse(courseId),
+      ]);
+
+      const lessonsList = lessonsResult.status === 'fulfilled' ? normalizeList(lessonsResult.value) : [];
+      const modulesList = modulesResult.status === 'fulfilled' ? normalizeList(modulesResult.value) : [];
+      const testsList = testsResult.status === 'fulfilled' ? normalizeList(testsResult.value) : [];
+
+      const moduleIds = new Set(
+        modulesList
+          .map((module) => module?.moduleId ?? module?.id ?? module?._id)
+          .filter((id) => id !== null && id !== undefined)
+          .map((id) => String(id))
       );
-      return { modules: uniqueSections.size, lessons: rawList.length };
+      const lessonsCount = moduleIds.size
+        ? lessonsList.filter((lesson) => {
+          const lessonModuleId =
+            lesson?.moduleId ??
+            lesson?.module?.moduleId ??
+            lesson?.sectionId ??
+            lesson?.section?.id;
+          if (lessonModuleId === null || lessonModuleId === undefined) return false;
+          return moduleIds.has(String(lessonModuleId));
+        }).length
+        : 0;
+      const chaptersCount = modulesList.length;
+      return {
+        chapters: chaptersCount,
+        modules: chaptersCount,
+        lessons: lessonsCount,
+        tests: testsList.length,
+      };
     } catch {
-      return { modules: 0, lessons: 0 };
+      return {
+        chapters: 0,
+        modules: 0,
+        lessons: 0,
+        tests: 0,
+      };
     }
   };
 

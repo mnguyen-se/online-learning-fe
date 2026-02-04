@@ -11,7 +11,16 @@ const CourseCard = ({
   getCourseIsActive,
 }) => {
   const courseId = getCourseId(course);
-  const stats = courseStats[courseId] || { modules: 0, lessons: 0 };
+  const stats = courseStats?.[courseId] || {
+    chapters: 0,
+    modules: 0,
+    lessons: 0,
+    tests: 0,
+  };
+  const toSafeNumber = (value) => (Number.isFinite(value) ? value : Number(value) || 0);
+  const chaptersCount = toSafeNumber(stats.chapters ?? stats.modules ?? 0);
+  const lessonsCount = toSafeNumber(stats.lessons ?? 0);
+  const testsCount = toSafeNumber(stats.tests ?? 0);
   const isActive =
     typeof courseActiveStates[courseId] === 'boolean'
       ? courseActiveStates[courseId]
@@ -43,14 +52,22 @@ const CourseCard = ({
               <path d="M2 11C2 10.4477 2.44772 10 3 10H5C5.55228 10 6 10.4477 6 11V13C6 13.5523 5.55228 14 5 14H3C2.44772 14 2 13.5523 2 13V11Z" stroke="currentColor" strokeWidth="1.5"/>
               <path d="M10 11C10 10.4477 10.4477 10 11 10H13C13.5523 10 14 10.4477 14 11V13C14 13.5523 13.5523 14 13 14H11C10.4477 14 10 13.5523 10 13V11Z" stroke="currentColor" strokeWidth="1.5"/>
             </svg>
-            {stats.modules} Modules
+            {chaptersCount} Chương
           </span>
           <span className="manager-card-meta-item">
             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
               <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5"/>
               <path d="M6 5L11 8L6 11V5Z" fill="currentColor"/>
             </svg>
-            {stats.lessons} Bài học
+            {lessonsCount} Bài học
+          </span>
+          <span className="manager-card-meta-item">
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M5 2.5H11L12.5 4V13.5C12.5 14.0523 12.0523 14.5 11.5 14.5H4.5C3.94772 14.5 3.5 14.0523 3.5 13.5V3.5C3.5 2.94772 3.94772 2.5 4.5 2.5H5Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M6 1.5H10" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              <path d="M5.5 8L7 9.5L10.5 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            {testsCount} Bài kiểm tra
           </span>
         </div>
         <div className="manager-card-footer">
