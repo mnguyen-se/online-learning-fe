@@ -34,12 +34,6 @@ function App() {
       element: <Profile />,
     },
     {
-      path: '/dashboard',
-      element: (
-        <PrivateRoute allowedRoles={['ADMIN']} element={<Dashboard />} />
-      ),
-    },
-    {
       path: '/dashboard-admin',
       element: (
         <PrivateRoute allowedRoles={['ADMIN']} element={<Dashboard />} />

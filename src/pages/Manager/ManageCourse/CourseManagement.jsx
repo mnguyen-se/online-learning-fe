@@ -1,25 +1,16 @@
 import React, { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
-import { createCourse, deleteCourse, getCourses, updateCourse } from '../../../api/coursesApi';
+import { deleteCourse, getCourses, updateCourse } from '../../../api/coursesApi';
 import { createLesson, updateLesson, getLessons, deleteLesson } from '../../../api/lessionApi';
 import { createModule, deleteModule, getModulesByCourse } from '../../../api/module';
 import DashboardLayout from '../../../components/DashboardLayout';
 import CourseCard from './components/CourseCard';
-import CourseInitForm from './components/CourseInitForm';
 import CourseContentLayout from './components/CourseContentLayout';
-import CourseContentWizard from './components/CourseContentWizard';
 import './courseManagement.css';
 
 function CourseManagement() {
   const [viewMode, setViewMode] = useState('list');
   const [activeNavTab, setActiveNavTab] = useState('dashboard');
-  const [courseTitle, setCourseTitle] = useState('');
-  const [courseDescription, setCourseDescription] = useState('');
-  const [courseIsPublic, setCourseIsPublic] = useState(true);
-  const [courseError, setCourseError] = useState('');
-  const [courseSuccess, setCourseSuccess] = useState('');
-  const [isSavingCourse, setIsSavingCourse] = useState(false);
-  const [createdCourseId, setCreatedCourseId] = useState(null);
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [courses, setCourses] = useState([]);
   const [isLoadingCourses, setIsLoadingCourses] = useState(false);
@@ -45,8 +36,6 @@ function CourseManagement() {
   const [deleteConfirmModal, setDeleteConfirmModal] = useState({ isOpen: false, chapterId: null });
   const [deleteLessonModal, setDeleteLessonModal] = useState({ isOpen: false, lessonId: null });
   const [isReloadingLessons, setIsReloadingLessons] = useState(false);
-  const [wizardStep, setWizardStep] = useState('course');
-  const [wizardPath, setWizardPath] = useState(null);
 
   // Utility functions
   const getCourseId = (course) =>
@@ -85,7 +74,7 @@ function CourseManagement() {
   };
 
   const handleAddChapter = () => {
-    const courseId = createdCourseId ?? getCourseId(selectedCourse);
+    const courseId = getCourseId(selectedCourse);
     if (!courseId) {
       toast.error('Không tìm thấy mã khóa học. Vui lòng chọn khóa học trước.');
       return;
@@ -118,7 +107,7 @@ function CourseManagement() {
   };
 
   const handleSaveChapter = async () => {
-    const courseId = createdCourseId ?? getCourseId(selectedCourse);
+    const courseId = getCourseId(selectedCourse);
     if (!courseId || !selectedChapterId) {
       toast.error('Không tìm thấy mã khóa học hoặc chương.');
       return false;
@@ -347,7 +336,7 @@ function CourseManagement() {
   };
 
   const handleSaveLesson = async (lessonData) => {
-    const courseId = createdCourseId ?? getCourseId(selectedCourse);
+    const courseId = getCourseId(selectedCourse);
     if (!courseId || !selectedChapterId) {
       toast.error('Không tìm thấy mã khóa học hoặc chương.');
       return false;
@@ -652,7 +641,7 @@ function CourseManagement() {
       return;
     }
 
-    const courseId = createdCourseId ?? getCourseId(selectedCourse);
+    const courseId = getCourseId(selectedCourse);
     if (!courseId) {
       toast.error('Không tìm thấy mã khóa học.');
       return;
@@ -742,7 +731,7 @@ function CourseManagement() {
       return;
     }
 
-    const courseId = createdCourseId ?? getCourseId(selectedCourse);
+    const courseId = getCourseId(selectedCourse);
     if (!courseId) {
       toast.error('Không tìm thấy mã khóa học.');
       return;
@@ -894,132 +883,6 @@ function CourseManagement() {
   }, []);
 
 
-  const handleContinueToContent = async () => {
-    const trimmedTitle = courseTitle.trim();
-    const trimmedDescription = courseDescription.trim();
-    if (!trimmedTitle || !trimmedDescription) {
-      setCourseError('Vui lòng nhập tên khóa học và mô tả tổng quan.');
-      return;
-    }
-    if (createdCourseId && selectedCourse?.id) {
-      try {
-        setCourseError('');
-        setIsSavingCourse(true);
-        await updateCourse(createdCourseId, {
-          title: trimmedTitle,
-          description: trimmedDescription,
-          isPublic: courseIsPublic,
-        });
-        setSelectedCourse((prev) => (
-          prev
-            ? {
-                ...prev,
-                title: trimmedTitle,
-                description: trimmedDescription,
-                isPublic: courseIsPublic,
-              }
-            : prev
-        ));
-        toast.success('Đã cập nhật thông tin khóa học.');
-        setWizardPath(null);
-        setWizardStep('content-type');
-        setViewMode('wizard');
-        setActiveNavTab('create');
-      } catch (e) {
-        const msg = e?.response?.data?.message || e?.message || 'Cập nhật khóa học thất bại. Vui lòng thử lại.';
-        setCourseError(msg);
-        toast.error(msg);
-      } finally {
-        setIsSavingCourse(false);
-      }
-      return;
-    }
-    try {
-      setCourseError('');
-      setIsSavingCourse(true);
-      const created = await createCourse({
-        title: trimmedTitle,
-        description: trimmedDescription,
-        isPublic: courseIsPublic,
-      });
-      const nextCourseId = getCourseId(created);
-      if (nextCourseId) {
-        setCreatedCourseId(nextCourseId);
-        setSelectedCourse({
-          id: nextCourseId,
-          courseId: nextCourseId,
-          title: trimmedTitle,
-          description: trimmedDescription,
-          isPublic: courseIsPublic,
-        });
-        setContentTab('general');
-        setLessons([]);
-        setWizardPath(null);
-        setWizardStep('content-type');
-        setViewMode('wizard');
-        setActiveNavTab('create');
-        toast.success('Đã tạo khóa học. Hãy chọn loại nội dung để tiếp tục.');
-      } else {
-        throw new Error('Không thể lấy ID khóa học sau khi tạo.');
-      }
-    } catch (e) {
-      const msg = e?.response?.data?.message || e?.message || 'Tạo khóa học thất bại. Vui lòng thử lại.';
-      setCourseError(msg);
-      toast.error(msg);
-    } finally {
-      setIsSavingCourse(false);
-    }
-  };
-
-  const handleSelectWizardPath = (path) => {
-    setWizardPath(path);
-    if (path === 'module') {
-      setWizardStep('chapter');
-      handleAddChapter();
-    } else {
-      setWizardStep('standalone-title');
-    }
-  };
-
-  const handleWizardSaveChapter = async () => {
-    const ok = await handleSaveChapter();
-    if (ok) {
-      setWizardStep('lesson');
-      handleAddLessonItem();
-    }
-    return ok;
-  };
-
-  const handleWizardSaveLesson = async (lessonData) => {
-    const ok = await handleSaveLesson(lessonData);
-    if (ok) {
-      setWizardStep('preview');
-    }
-    return ok;
-  };
-
-  const handleCreateStandaloneTest = () => {
-    toast.success('Đã tạo bài kiểm tra rời (demo).');
-    setWizardStep('preview');
-  };
-
-  const resetCreateFlow = () => {
-    setCourseTitle('');
-    setCourseDescription('');
-    setCourseIsPublic(true);
-    setCourseError('');
-    setCourseSuccess('');
-    setCreatedCourseId(null);
-    setSelectedCourse(null);
-    setLessons([]);
-    setModuleLessons([]);
-    setSelectedChapterId(null);
-    setSelectedLessonId(null);
-    setWizardStep('course');
-    setWizardPath(null);
-    setViewMode('create');
-  };
-
   const openEditCourseModal = (course) => {
     const courseId = getCourseId(course) ?? course?.id ?? null;
     setEditCourseForm({
@@ -1105,7 +968,7 @@ function CourseManagement() {
     }
     
     // Chương đã lưu → load lessons
-    const courseId = createdCourseId ?? getCourseId(selectedCourse);
+    const courseId = getCourseId(selectedCourse);
     if (courseId && chapterId) {
       loadModuleLessons(chapterId, courseId);
     }
@@ -1225,6 +1088,8 @@ function CourseManagement() {
     <DashboardLayout
       pageTitle="Quản lý khóa học"
       pageSubtitle="Hệ thống quản lý Module & Lesson tập trung"
+      showSidebar={false}
+      showTopbar={false}
     >
       <section className="manager-dashboard-content">
         <div className="course-management-nav">
@@ -1242,18 +1107,6 @@ function CourseManagement() {
               onClick={() => setActiveNavTab('management')}
             >
               Quản lý KH
-            </button>
-            <button
-              type="button"
-              className={`course-management-tab${activeNavTab === 'create' ? ' is-active' : ''}`}
-              onClick={() => {
-                if (viewMode !== 'wizard' && viewMode !== 'create') {
-                  setViewMode('create');
-                }
-                setActiveNavTab('create');
-              }}
-            >
-              Tạo KH mới
             </button>
           </div>
         </div>
@@ -1484,80 +1337,6 @@ function CourseManagement() {
           )
         )}
 
-        {activeNavTab === 'create' && (
-          <div className={`course-create${viewMode === 'wizard' ? ' is-content' : ''}`}>
-            {viewMode === 'wizard' && selectedCourse ? (
-              <>
-                <div className="course-wizard-back">
-                  <button
-                    type="button"
-                    className="course-outline-btn"
-                    onClick={() => setViewMode('create')}
-                  >
-                    Quay lại bước 1
-                  </button>
-                </div>
-                <CourseContentWizard
-                  selectedCourse={selectedCourse}
-                  wizardStep={wizardStep}
-                  wizardPath={wizardPath}
-                  lessons={lessons}
-                  moduleLessons={moduleLessons}
-                  selectedChapterId={selectedChapterId}
-                  selectedLessonId={selectedLessonId}
-                  isSavingLesson={isSavingLesson}
-                  lessonError={lessonError}
-                  onSelectWizardPath={handleSelectWizardPath}
-                  onSetWizardStep={setWizardStep}
-                  onSaveChapter={handleWizardSaveChapter}
-                  onCancelChapter={handleCancelChapter}
-                  onSaveLesson={handleWizardSaveLesson}
-                  onCancelLesson={handleCancelLesson}
-                  onAddLessonItem={handleAddLessonItem}
-                  onUpdateLesson={handleUpdateLesson}
-                  onUpdateModuleLesson={handleUpdateModuleLesson}
-                  onCreateStandaloneTest={handleCreateStandaloneTest}
-                  onGoToContent={() => {
-                    setViewMode('content');
-                    setContentTab('general');
-                    setWizardStep('content-type');
-                    setActiveNavTab('management');
-                  }}
-                  onGoToList={() => {
-                    setViewMode('list');
-                    setSelectedCourse(null);
-                    setSelectedChapterId(null);
-                    setSelectedLessonId(null);
-                    setActiveNavTab('management');
-                  }}
-                />
-              </>
-            ) : viewMode === 'wizard' ? (
-              <div className="course-content-empty">
-                <h2>Chưa chọn khóa học</h2>
-                <p>Vui lòng quay lại bước 1 để tạo khóa học mới.</p>
-              </div>
-            ) : (
-              <CourseInitForm
-                courseTitle={courseTitle}
-                courseDescription={courseDescription}
-                courseIsPublic={courseIsPublic}
-                courseError={courseError}
-                courseSuccess={courseSuccess}
-                isSavingCourse={isSavingCourse}
-                onTitleChange={setCourseTitle}
-                onDescriptionChange={setCourseDescription}
-                onPublicChange={setCourseIsPublic}
-                onCancel={() => {
-                  resetCreateFlow();
-                  setViewMode('list');
-                  setActiveNavTab('management');
-                }}
-                onContinue={handleContinueToContent}
-              />
-            )}
-          </div>
-        )}
       </section>
 
       {/* Modal xác nhận xóa chương */}
