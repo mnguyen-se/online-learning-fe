@@ -98,13 +98,14 @@ const CourseContentWizard = ({
 
   const stepTitle = useMemo(() => {
     if (wizardStep === 'course') return 'Bước 1: Tạo khóa học';
-    if (wizardStep === 'content-type') return 'Bước 2: Chọn loại nội dung';
+    if (wizardStep === 'content-type') return 'Bước 2: Xây dựng nội dung';
     if (wizardStep === 'chapter') return 'A1: Tạo chương';
     if (wizardStep === 'lesson') return 'A2: Tạo bài học trong chương';
     if (wizardStep === 'module-finish') return 'Hoàn tất tạo chương & bài học';
     if (wizardStep === 'standalone-title') return 'B1: Tạo tiêu đề bài kiểm tra';
     if (wizardStep === 'standalone-content') return 'B2: Tạo nội dung bài kiểm tra';
     if (wizardStep === 'standalone-finish') return 'Hoàn tất tạo bài kiểm tra';
+    if (wizardStep === 'preview') return 'Bước 4: Preview khóa học';
     return 'Tạo nội dung khóa học';
   }, [wizardStep]);
 
@@ -246,8 +247,8 @@ const CourseContentWizard = ({
               className="course-wizard-card"
               onClick={() => onSelectWizardPath('module')}
             >
-              <h3>Tạo chương (Module/Chapter)</h3>
-              <p>Tạo chương học và bài học (Video/Bài đọc).</p>
+              <h3>Tạo bài học</h3>
+              <p>Video hoặc bài đọc (có thể tổ chức theo chương).</p>
               <span className="course-wizard-card-action">Chọn</span>
             </button>
             <button
@@ -255,8 +256,8 @@ const CourseContentWizard = ({
               className="course-wizard-card"
               onClick={() => onSelectWizardPath('standalone')}
             >
-              <h3>Tạo bài kiểm tra rời</h3>
-              <p>Quiz trắc nghiệm hoặc bài viết, không thuộc chương (cần backend hỗ trợ lưu).</p>
+              <h3>Tạo bài kiểm tra</h3>
+              <p>Quiz trắc nghiệm hoặc bài viết, import Excel hoặc nhập tay.</p>
               <span className="course-wizard-card-action">Chọn</span>
             </button>
           </div>
@@ -326,6 +327,13 @@ const CourseContentWizard = ({
             </button>
             <button type="button" className="course-action-btn primary" onClick={onGoToContent}>
               Sang trang quản lý
+            </button>
+            <button
+              type="button"
+              className="course-action-btn"
+              onClick={() => onSetWizardStep('preview')}
+            >
+              Preview khóa học
             </button>
           </div>
         </div>
@@ -502,6 +510,85 @@ const CourseContentWizard = ({
               }}
             >
               Tạo bài kiểm tra khác
+            </button>
+            <button type="button" className="course-action-btn primary" onClick={onGoToContent}>
+              Sang trang quản lý
+            </button>
+            <button
+              type="button"
+              className="course-action-btn"
+              onClick={() => onSetWizardStep('preview')}
+            >
+              Preview khóa học
+            </button>
+          </div>
+        </div>
+      )}
+
+      {wizardStep === 'preview' && (
+        <div className="course-wizard-step course-wizard-preview">
+          <div className="course-preview-header">
+            <h3>Preview khóa học vừa tạo</h3>
+            <p>Kiểm tra nhanh thông tin trước khi quay lại xây dựng nội dung.</p>
+          </div>
+
+          <div className="course-preview-grid">
+            <div className="course-preview-card">
+              <h4>Thông tin cơ bản</h4>
+              <div className="course-preview-item">
+                <span>Tên khóa học</span>
+                <strong>{selectedCourse?.title || 'Chưa có'}</strong>
+              </div>
+              <div className="course-preview-item">
+                <span>Mô tả tổng quan</span>
+                <p>{selectedCourse?.description || 'Chưa có mô tả.'}</p>
+              </div>
+              <div className="course-preview-item">
+                <span>Trạng thái</span>
+                <strong>
+                  {(selectedCourse?.isPublic ?? selectedCourse?.is_public ?? selectedCourse?.isActive ?? true)
+                    ? 'Mở'
+                    : 'Đóng'}
+                </strong>
+              </div>
+            </div>
+
+            <div className="course-preview-card">
+              <h4>Nội dung đã tạo</h4>
+              <div className="course-preview-metrics">
+                <div>
+                  <span>Chương</span>
+                  <strong>{lessons.length}</strong>
+                </div>
+                <div>
+                  <span>Bài học (chương đang chọn)</span>
+                  <strong>{moduleLessons.length}</strong>
+                </div>
+              </div>
+              <div className="course-preview-list">
+                {lessons.length ? (
+                  lessons.map((chapter) => (
+                    <div key={chapter.id} className="course-preview-list-item">
+                      <span>{chapter.title || 'Chương chưa đặt tên'}</span>
+                      {selectedChapterId === chapter.id && (
+                        <span className="course-preview-list-badge">Đang chọn</span>
+                      )}
+                    </div>
+                  ))
+                ) : (
+                  <div className="course-preview-empty">Chưa có chương nào được tạo.</div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <div className="course-preview-actions">
+            <button
+              type="button"
+              className="course-action-btn"
+              onClick={() => onSetWizardStep('content-type')}
+            >
+              Quay lại Bước 2 (Curriculum Builder)
             </button>
             <button type="button" className="course-action-btn primary" onClick={onGoToContent}>
               Sang trang quản lý
