@@ -1848,6 +1848,18 @@
   line-height: 1.5;
 }
 
+.lesson-details-video {
+  width: 100%;
+  max-height: 320px;
+  border-radius: 10px;
+  background: #0f172a;
+}
+
+.lesson-details-file-name {
+  font-size: 13px;
+  color: #475569;
+}
+
 .lesson-details-actions {
   display: flex;
   gap: 12px;

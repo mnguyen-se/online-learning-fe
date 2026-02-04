@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
 function getInitialFromLesson(lesson) {
   if (!lesson) {
@@ -61,7 +61,7 @@ const LessonDetails = ({
   const availableLessonTypes = useMemo(
     () => (Array.isArray(allowedLessonTypes) && allowedLessonTypes.length > 0
       ? allowedLessonTypes
-      : ['VIDEO', 'TEXT', 'QUIZ', 'ASSIGNMENT']),
+      : ['VIDEO', 'TEXT']),
     [allowedLessonTypes]
   );
   const normalizedLessonType = availableLessonTypes.includes(initialLesson.lessonType)
@@ -72,6 +72,8 @@ const LessonDetails = ({
   const [contentUrl, setContentUrl] = useState(() => initialLesson.contentUrl);
   const [textContent, setTextContent] = useState(() => initialLesson.textContent);
   const [quizQuestions, setQuizQuestions] = useState(() => initialLesson.quizQuestions);
+  const [contentFile, setContentFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(() => initialLesson.contentUrl || '');
 
   const generateQuestionId = () => `${Date.now()}-${Math.random()}`;
 
@@ -83,7 +85,20 @@ const LessonDetails = ({
     } else {
       setQuizQuestions([]);
     }
+    if (next !== 'VIDEO') {
+      setContentFile(null);
+    }
   };
+
+  useEffect(() => {
+    if (!contentFile) {
+      setPreviewUrl(contentUrl || '');
+      return undefined;
+    }
+    const objectUrl = URL.createObjectURL(contentFile);
+    setPreviewUrl(objectUrl);
+    return () => URL.revokeObjectURL(objectUrl);
+  }, [contentFile, contentUrl]);
 
   const handleAddQuestion = () => {
     const newQuestion = {
@@ -134,6 +149,7 @@ const LessonDetails = ({
       lessonType,
       contentUrl,
       textContent,
+      contentFile,
       moduleId: selectedChapterId,
     };
 
@@ -178,7 +194,7 @@ const LessonDetails = ({
     return (
       <div className="lesson-details">
         <h2 className="lesson-details-title">Chi tiết Bài học</h2>
-        <p className="lesson-details-subtitle">Cập nhật nội dung truyền tải và bài tập.</p>
+        <p className="lesson-details-subtitle">Cập nhật nội dung bài học.</p>
 
         <div className="lesson-details-view">
           <div className="lesson-details-header">
@@ -195,14 +211,14 @@ const LessonDetails = ({
             <div className="lesson-details-view-value">{title || 'Chưa có tiêu đề'}</div>
           </div>
 
-          {lessonType === 'VIDEO' && contentUrl && (
+          {lessonType === 'VIDEO' && (
             <div className="lesson-details-field">
-              <label className="lesson-details-label">LINK EMBED VIDEO</label>
-              <div className="lesson-details-view-value">
-                <a href={contentUrl} target="_blank" rel="noopener noreferrer" className="lesson-details-link">
-                  {contentUrl}
-                </a>
-              </div>
+              <label className="lesson-details-label">VIDEO BÀI GIẢNG</label>
+              {contentUrl ? (
+                <video className="lesson-details-video" controls src={contentUrl} />
+              ) : (
+                <div className="lesson-details-view-value">Chưa có video.</div>
+              )}
             </div>
           )}
 
@@ -275,7 +291,7 @@ const LessonDetails = ({
   return (
     <div className="lesson-details">
       <h2 className="lesson-details-title">Chi tiết Bài học</h2>
-      <p className="lesson-details-subtitle">Cập nhật nội dung truyền tải và bài tập.</p>
+      <p className="lesson-details-subtitle">Cập nhật nội dung bài học.</p>
 
       <form className="lesson-details-form" onSubmit={handleSubmit}>
         <div className="lesson-details-header">
@@ -322,15 +338,26 @@ const LessonDetails = ({
 
         {lessonType === 'VIDEO' && (
           <div className="lesson-details-field">
-            <label className="lesson-details-label">LINK EMBED VIDEO</label>
+            <label className="lesson-details-label">TẢI VIDEO (MP4)</label>
             <input
               className="lesson-details-input"
-              type="url"
-              placeholder="Nhập link embed video..."
-              value={contentUrl}
-              onChange={(e) => setContentUrl(e.target.value)}
+              type="file"
+              accept="video/mp4,video/*"
+              onChange={(e) => {
+                const file = e.target.files?.[0] || null;
+                setContentFile(file);
+              }}
               disabled={isLoading}
             />
+            {contentFile?.name && (
+              <div className="lesson-details-file-name">Đã chọn: {contentFile.name}</div>
+            )}
+            {!contentFile && contentUrl && (
+              <div className="lesson-details-file-name">Đang dùng video hiện tại.</div>
+            )}
+            {previewUrl && (
+              <video className="lesson-details-video" controls src={previewUrl} />
+            )}
           </div>
         )}
 
@@ -464,7 +491,7 @@ const LessonDetails = ({
           <button
             type="submit"
             className="lesson-details-btn lesson-details-btn-save"
-            disabled={isLoading || !title.trim()}
+            disabled={isLoading || !title.trim() || (lessonType === 'VIDEO' && !contentFile && !contentUrl)}
           >
             {isLoading ? (isNewLesson ? 'Đang tạo...' : 'Đang lưu...') : (isNewLesson ? 'Tạo bài học' : 'Lưu')}
           </button>

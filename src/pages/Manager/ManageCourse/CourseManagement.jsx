@@ -1,11 +1,19 @@
 import React, { useEffect, useState } from 'react';
+import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
-import { deleteCourse, getCourses, updateCourse } from '../../../api/coursesApi';
-import { createLesson, updateLesson, getLessons, deleteLesson } from '../../../api/lessionApi';
+import { createCourse, deleteCourse, getCourses, updateCourse } from '../../../api/coursesApi';
+import { createLesson, updateLesson, getLessons, deleteLesson, uploadLessonVideo } from '../../../api/lessionApi';
+import {
+  createAssignment,
+  getAssignmentQuestions,
+  getAssignmentsByCourse,
+  uploadAssignmentQuestions,
+} from '../../../api/assignmentApi';
 import { createModule, deleteModule, getModulesByCourse } from '../../../api/module';
 import DashboardLayout from '../../../components/DashboardLayout';
 import CourseCard from './components/CourseCard';
 import CourseContentLayout from './components/CourseContentLayout';
+import CourseInitForm from './components/CourseInitForm';
 import './courseManagement.css';
 
 function CourseManagement() {
@@ -16,6 +24,12 @@ function CourseManagement() {
   const [isLoadingCourses, setIsLoadingCourses] = useState(false);
   const [coursesError, setCoursesError] = useState('');
   const [courseSearch, setCourseSearch] = useState('');
+  const [courseTitle, setCourseTitle] = useState('');
+  const [courseDescription, setCourseDescription] = useState('');
+  const [courseIsPublic, setCourseIsPublic] = useState(false);
+  const [courseError, setCourseError] = useState('');
+  const [courseSuccess, setCourseSuccess] = useState('');
+  const [isSavingCourse, setIsSavingCourse] = useState(false);
   const [editCourseModal, setEditCourseModal] = useState({ isOpen: false, course: null });
   const [editCourseForm, setEditCourseForm] = useState({ title: '', description: '' });
   const [isUpdatingCourse, setIsUpdatingCourse] = useState(false);
@@ -30,6 +44,12 @@ function CourseManagement() {
   const [courseCoverImageUrl, setCourseCoverImageUrl] = useState('https://picsum.photos/seed/0.6705225405054475/800/600');
   const [selectedChapterId, setSelectedChapterId] = useState(null);
   const [selectedLessonId, setSelectedLessonId] = useState(null);
+  const [tests, setTests] = useState([]);
+  const [selectedTestId, setSelectedTestId] = useState(null);
+  const [isLoadingTests, setIsLoadingTests] = useState(false);
+  const [testsError, setTestsError] = useState('');
+  const [testError, setTestError] = useState('');
+  const [isSavingTest, setIsSavingTest] = useState(false);
   const [isCreatingLesson, setIsCreatingLesson] = useState(false);
   const [isEditingLesson, setIsEditingLesson] = useState(false); // Track chế độ edit/view
   const [moduleLessons, setModuleLessons] = useState([]); // Danh sách lessons của module đang chọn
@@ -73,12 +93,133 @@ function CourseManagement() {
     return getCourseIsActive(course);
   };
 
+  const getAssignmentId = (assignment) =>
+    assignment?.assignmentId ??
+    assignment?.id ??
+    assignment?.assignmentID ??
+    assignment?.assignment_id ??
+    null;
+
+  const mapCorrectIndexToLetter = (index) => {
+    const letters = ['A', 'B', 'C', 'D'];
+    return letters[index] ?? 'A';
+  };
+
+  const buildQuizExcelFile = (questions) => {
+    const header = ['Question', 'Option A', 'Option B', 'Option C', 'Option D', 'Correct Answer'];
+    const rows = questions.map((q) => ([
+      q.question || '',
+      q.answers?.[0] || '',
+      q.answers?.[1] || '',
+      q.answers?.[2] || '',
+      q.answers?.[3] || '',
+      mapCorrectIndexToLetter(q.correctIndex ?? 0),
+    ]));
+
+    const worksheet = XLSX.utils.aoa_to_sheet([header, ...rows]);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, 'Questions');
+    const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
+
+    return new File(
+      [buffer],
+      `quiz-${Date.now()}.xlsx`,
+      { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
+    );
+  };
+
+  const resetCourseForm = () => {
+    setCourseTitle('');
+    setCourseDescription('');
+    setCourseIsPublic(false);
+    setCourseError('');
+    setCourseSuccess('');
+  };
+
+  const openCreateCourse = () => {
+    resetCourseForm();
+    setViewMode('create');
+    setSelectedCourse(null);
+    setSelectedChapterId(null);
+    setSelectedLessonId(null);
+    setSelectedTestId(null);
+    setLessons([]);
+    setModuleLessons([]);
+    setTests([]);
+    setContentTab('general');
+  };
+
+  const handleCancelCreateCourse = () => {
+    resetCourseForm();
+    setViewMode('list');
+  };
+
+  const handleCreateCourse = async () => {
+    const trimmedTitle = courseTitle.trim();
+    const trimmedDescription = courseDescription.trim();
+
+    if (!trimmedTitle || !trimmedDescription) {
+      setCourseError('Vui lòng nhập tên khóa học và mô tả.');
+      return;
+    }
+
+    try {
+      setIsSavingCourse(true);
+      setCourseError('');
+      setCourseSuccess('');
+
+      const payload = {
+        title: trimmedTitle,
+        description: trimmedDescription,
+      };
+
+      const createdCourse = await createCourse(payload);
+      const createdCourseId = getCourseId(createdCourse) ?? createdCourse?.id ?? null;
+
+      if (!createdCourseId) {
+        throw new Error('Không thể lấy mã khóa học sau khi tạo.');
+      }
+
+      let normalizedCourse = {
+        ...createdCourse,
+        id: createdCourseId,
+        title: createdCourse?.title ?? trimmedTitle,
+        description: createdCourse?.description ?? trimmedDescription,
+      };
+
+      if (courseIsPublic) {
+        try {
+          await updateCourse(createdCourseId, { isPublic: true });
+          normalizedCourse = { ...normalizedCourse, isPublic: true };
+        } catch (error) {
+          console.error('Update course status error:', error);
+          toast.error('Đã tạo khóa học nhưng chưa cập nhật trạng thái mở.');
+        }
+      }
+
+      await loadCourses();
+      handleSelectCourse(normalizedCourse, createdCourseId);
+      setCourseSuccess('Đã tạo khóa học thành công.');
+      toast.success('Đã tạo khóa học thành công.');
+    } catch (error) {
+      const msg =
+        error?.response?.data?.message ||
+        error?.message ||
+        'Tạo khóa học thất bại. Vui lòng thử lại.';
+      setCourseError(msg);
+      toast.error(msg);
+    } finally {
+      setIsSavingCourse(false);
+    }
+  };
+
   const handleAddChapter = () => {
     const courseId = getCourseId(selectedCourse);
     if (!courseId) {
       toast.error('Không tìm thấy mã khóa học. Vui lòng chọn khóa học trước.');
       return;
     }
+    setSelectedTestId(null);
 
     // Tính orderIndex cho chương mới
     const maxOrderIndex = lessons.length > 0
@@ -240,6 +381,7 @@ function CourseManagement() {
       toast.error('Vui lòng chọn chương trước khi thêm bài học.');
       return;
     }
+    setSelectedTestId(null);
 
     // Tính orderIndex cho lesson mới (chỉ tính từ server-side lessons)
     const serverLessons = moduleLessons.filter(l => l.isServer && l.moduleId === selectedChapterId);
@@ -290,14 +432,12 @@ function CourseManagement() {
           return lessonModuleId === moduleId && isPublic === true;
         })
         .map(l => {
-          const lessonType = l.lessonType ?? 'VIDEO';
+          const rawLessonType = l.lessonType ?? 'VIDEO';
+          const lessonType = rawLessonType === 'VIDEO' || rawLessonType === 'TEXT'
+            ? rawLessonType
+            : 'TEXT';
           const contentUrl = l.contentUrl ?? '';
-          
-          // Xử lý textContent: TEXT, QUIZ, ASSIGNMENT lưu nội dung trong contentUrl
-          let textContent = '';
-          if (lessonType === 'TEXT' || lessonType === 'QUIZ' || lessonType === 'ASSIGNMENT') {
-            textContent = contentUrl;
-          }
+          const textContent = lessonType === 'TEXT' ? contentUrl : '';
           
           // Lấy lessonId từ nhiều nguồn có thể
           const lessonId = l.lessonId ?? l.id ?? l._id;
@@ -417,14 +557,18 @@ function CourseManagement() {
 
       // Xử lý contentUrl và textContent theo lessonType
       if (lessonData.lessonType === 'VIDEO') {
-        lessonPayload.contentUrl = lessonData.contentUrl || '';
+        if (lessonData.contentFile) {
+          const uploadResult = await uploadLessonVideo(lessonData.contentFile);
+          const uploadedUrl = uploadResult?.url ?? uploadResult?.data?.url ?? '';
+          if (!uploadedUrl) {
+            throw new Error('Không thể tải video lên. Vui lòng thử lại.');
+          }
+          lessonPayload.contentUrl = uploadedUrl;
+        } else {
+          lessonPayload.contentUrl = lessonData.contentUrl || '';
+        }
       } else if (lessonData.lessonType === 'TEXT') {
         lessonPayload.contentUrl = lessonData.textContent || '';
-      } else if (lessonData.lessonType === 'QUIZ') {
-        lessonPayload.contentUrl = lessonData.textContent || ''; // JSON string từ LessonDetails
-      } else if (lessonData.lessonType === 'ASSIGNMENT') {
-        // ASSIGNMENT: lưu mô tả/yêu cầu bài tập vào contentUrl (hoặc JSON nếu có metadata)
-        lessonPayload.contentUrl = lessonData.textContent || lessonData.contentUrl || '';
       } else {
         lessonPayload.contentUrl = lessonData.contentUrl || lessonData.textContent || '';
       }
@@ -877,6 +1021,223 @@ function CourseManagement() {
     }
   };
 
+  const mapCorrectAnswerToIndex = (value) => {
+    const letters = ['A', 'B', 'C', 'D'];
+    const raw = (value ?? '').toString().trim().toUpperCase();
+    const found = letters.indexOf(raw);
+    return found >= 0 ? found : 0;
+  };
+
+  const loadTestsForCourse = async (courseId) => {
+    if (!courseId) {
+      setTests([]);
+      return;
+    }
+    try {
+      setIsLoadingTests(true);
+      setTestsError('');
+      const data = await getAssignmentsByCourse(courseId);
+      const rawTests = Array.isArray(data) ? data : data?.data ?? [];
+      const normalizedTests = rawTests.map((assignment, index) => {
+        const assignmentId = getAssignmentId(assignment);
+        return {
+          ...assignment,
+          id: assignmentId ?? assignment?.id ?? `assignment-${index}`,
+          title: assignment?.title ?? '',
+          description: assignment?.description ?? '',
+          orderIndex: assignment?.orderIndex ?? index + 1,
+          isNew: false,
+          testType: assignment?.testType,
+          questions: assignment?.questions,
+        };
+      });
+      setTests((prev) => {
+        const newTests = prev.filter((t) => t.isNew);
+        return [...normalizedTests, ...newTests].sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
+      });
+    } catch (error) {
+      setTestsError('Không thể tải danh sách bài kiểm tra.');
+      console.error('Fetch tests error:', error);
+    } finally {
+      setIsLoadingTests(false);
+    }
+  };
+
+  const handleAddTest = () => {
+    const courseId = getCourseId(selectedCourse);
+    if (!courseId) {
+      toast.error('Không tìm thấy mã khóa học. Vui lòng chọn khóa học trước.');
+      return;
+    }
+    setTestError('');
+
+    const maxOrderIndex = tests.length > 0
+      ? Math.max(...tests.filter((t) => !t.isNew).map((t) => Number(t.orderIndex ?? 0)))
+      : 0;
+    const nextOrderIndex = Math.max(1, maxOrderIndex + 1);
+
+    const tempId = `temp-test-${Date.now()}`;
+    const newTest = {
+      id: tempId,
+      title: '',
+      description: '',
+      orderIndex: nextOrderIndex,
+      isNew: true,
+      testType: 'QUIZ',
+      questions: [],
+    };
+
+    setTests((prev) => [...prev, newTest]);
+    setSelectedTestId(tempId);
+    setSelectedChapterId(null);
+    setSelectedLessonId(null);
+    setIsCreatingLesson(false);
+    setIsEditingLesson(false);
+    setContentTab('test');
+  };
+
+  const handleSelectTest = async (testId) => {
+    setSelectedTestId(testId);
+    setSelectedChapterId(null);
+    setSelectedLessonId(null);
+    setIsCreatingLesson(false);
+    setIsEditingLesson(false);
+    setContentTab('test');
+    setTestError('');
+
+    const currentTest = tests.find((t) => t.id === testId);
+    if (!currentTest || currentTest.isNew || currentTest.questions) return;
+
+    try {
+      const questionsResponse = await getAssignmentQuestions(testId);
+      const rawQuestions = Array.isArray(questionsResponse)
+        ? questionsResponse
+        : questionsResponse?.data ?? [];
+      if (rawQuestions.length > 0) {
+        const mappedQuestions = rawQuestions.map((question) => ({
+          id: question.questionId ?? `${question.questionText}-${question.orderIndex}`,
+          question: question.questionText ?? '',
+          answers: [
+            question.optionA ?? '',
+            question.optionB ?? '',
+            question.optionC ?? '',
+            question.optionD ?? '',
+          ],
+          correctIndex: mapCorrectAnswerToIndex(question.correctAnswer),
+        }));
+        setTests((prev) => prev.map((t) => (
+          t.id === testId
+            ? { ...t, questions: mappedQuestions, testType: 'QUIZ' }
+            : t
+        )));
+      } else {
+        setTests((prev) => prev.map((t) => (
+          t.id === testId
+            ? { ...t, questions: [], testType: 'ASSIGNMENT' }
+            : t
+        )));
+      }
+    } catch (error) {
+      console.error('Load test questions error:', error);
+    }
+  };
+
+  const handleCancelTest = () => {
+    if (selectedTestId) {
+      const currentTest = tests.find((t) => t.id === selectedTestId);
+      if (currentTest?.isNew) {
+        setTests((prev) => prev.filter((t) => t.id !== selectedTestId));
+      }
+    }
+    setSelectedTestId(null);
+    setContentTab('general');
+    setTestError('');
+  };
+
+  const handleUpdateTest = (testId, updates) => {
+    setTests((prev) => prev.map((test) => (test.id === testId ? { ...test, ...updates } : test)));
+  };
+
+  const handleSaveTest = async (testData) => {
+    const courseId = getCourseId(selectedCourse);
+    if (!courseId) {
+      toast.error('Không tìm thấy mã khóa học.');
+      return false;
+    }
+
+    if (!testData?.title?.trim()) {
+      setTestError('Vui lòng nhập tiêu đề bài kiểm tra.');
+      return false;
+    }
+
+    try {
+      setIsSavingTest(true);
+      setTestError('');
+
+      const validOrderIndexes = tests
+        .filter((t) => !t.isNew)
+        .map((t) => Number(t.orderIndex ?? 0))
+        .filter((idx) => idx > 0);
+      const nextOrderIndex = validOrderIndexes.length > 0
+        ? Math.max(...validOrderIndexes) + 1
+        : 1;
+
+      const assignmentPayload = {
+        title: testData.title.trim(),
+        description: testData.description?.trim() || null,
+        orderIndex: nextOrderIndex,
+      };
+
+      const createdAssignment = await createAssignment(courseId, assignmentPayload);
+      const assignmentId = getAssignmentId(createdAssignment);
+      if (!assignmentId) {
+        throw new Error('Không thể lấy mã bài kiểm tra sau khi tạo.');
+      }
+
+      let updatedTest = {
+        ...createdAssignment,
+        id: assignmentId,
+        title: createdAssignment?.title ?? assignmentPayload.title,
+        description: createdAssignment?.description ?? assignmentPayload.description,
+        orderIndex: createdAssignment?.orderIndex ?? nextOrderIndex,
+        testType: testData.testType ?? 'ASSIGNMENT',
+        isNew: false,
+        questions: [],
+      };
+
+      if (testData.testType === 'QUIZ') {
+        const questions = Array.isArray(testData.quizQuestions) ? testData.quizQuestions : [];
+        if (questions.length < 25) {
+          throw new Error('Cần tối thiểu 25 câu hỏi để tạo bài trắc nghiệm.');
+        }
+        if (questions.length > 100) {
+          throw new Error('Tối đa 100 câu hỏi cho một bài trắc nghiệm.');
+        }
+        const fileToUpload = buildQuizExcelFile(questions);
+        await uploadAssignmentQuestions(assignmentId, fileToUpload);
+        updatedTest = { ...updatedTest, testType: 'QUIZ', questions };
+      }
+
+      setTests((prev) => {
+        const filtered = prev.filter((t) => t.id !== selectedTestId);
+        return [...filtered, updatedTest].sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
+      });
+      setSelectedTestId(updatedTest.id);
+      setContentTab('test');
+      setTestError('');
+      toast.success('Đã tạo bài kiểm tra thành công.');
+      return true;
+    } catch (error) {
+      const msg = error?.response?.data?.message || error?.message || 'Tạo bài kiểm tra thất bại. Vui lòng thử lại.';
+      setTestError(msg);
+      toast.error(msg);
+      console.error('Create test error:', error);
+      return false;
+    } finally {
+      setIsSavingTest(false);
+    }
+  };
+
   useEffect(() => {
     loadCourses();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -956,6 +1317,7 @@ function CourseManagement() {
   const handleSelectChapter = (chapterId) => {
     setSelectedChapterId(chapterId);
     setSelectedLessonId(null);
+    setSelectedTestId(null);
     setIsCreatingLesson(false);
     setContentTab('program');
     
@@ -976,6 +1338,7 @@ function CourseManagement() {
 
   const handleSelectLesson = (lessonId) => {
     setSelectedLessonId(lessonId);
+    setSelectedTestId(null);
     setIsCreatingLesson(false);
     setIsEditingLesson(false); // Mặc định là view mode khi click vào card
     setContentTab('lesson');
@@ -994,10 +1357,15 @@ function CourseManagement() {
     setContentTab('general');
     setSelectedChapterId(null);
     setSelectedLessonId(null);
+    setSelectedTestId(null);
     setModuleLessons([]);
     setLessonError('');
     setLessons([]);
+    setTests([]);
+    setTestError('');
+    setTestsError('');
     loadLessonsForCourse(courseId);
+    loadTestsForCourse(courseId);
     setViewMode('content');
     setActiveNavTab('management');
   };
@@ -1005,24 +1373,6 @@ function CourseManagement() {
   const handleEditCourse = (course) => {
     openEditCourseModal(course);
     setActiveNavTab('management');
-  };
-
-  const handleUpdateCourseContent = async () => {
-    const courseId = getCourseId(selectedCourse);
-    if (!courseId) {
-      toast.error('Không tìm thấy mã khóa học để cập nhật.');
-      return;
-    }
-    try {
-      await updateCourse(courseId, {
-        title: selectedCourse?.title,
-        description: selectedCourse?.description,
-      });
-      toast.success('Đã cập nhật nội dung khóa học.');
-      await loadCourses();
-    } catch {
-      toast.error('Cập nhật khóa học thất bại. Vui lòng thử lại.');
-    }
   };
 
   const handleUpdateLesson = (lessonId, updates) => {
@@ -1209,12 +1559,14 @@ function CourseManagement() {
                 contentTab={contentTab}
                 courseCoverImageUrl={courseCoverImageUrl}
                 lessons={lessons}
+                tests={tests}
                 isLoadingLessons={isLoadingLessons}
                 lessonsError={lessonsError}
                 lessonError={lessonError}
                 isSavingLesson={isSavingLesson}
                 selectedChapterId={selectedChapterId}
                 selectedLessonId={selectedLessonId}
+                selectedTestId={selectedTestId}
                 isCreatingLesson={isCreatingLesson}
                 moduleLessons={moduleLessons}
                 isReloadingLessons={isReloadingLessons}
@@ -1222,8 +1574,10 @@ function CourseManagement() {
                 onCoverImageUrlChange={setCourseCoverImageUrl}
                 onAddChapter={handleAddChapter}
                 onAddLessonItem={handleAddLessonItem}
+                onAddTest={handleAddTest}
                 onSelectChapter={handleSelectChapter}
                 onSelectLesson={handleSelectLesson}
+                onSelectTest={handleSelectTest}
                 onDeleteChapter={handleDeleteChapter}
                 onDeleteLesson={handleDeleteLesson}
                 onSaveChapter={handleSaveChapter}
@@ -1235,16 +1589,58 @@ function CourseManagement() {
                 onEditLesson={handleEditLesson}
                 onCancelEditLesson={handleCancelEditLesson}
                 isEditingLesson={isEditingLesson}
-                onSaveAndFinish={async () => {
-                  await handleUpdateCourseContent();
+                onSaveTest={handleSaveTest}
+                onCancelTest={handleCancelTest}
+                onUpdateTest={handleUpdateTest}
+                isSavingTest={isSavingTest}
+                testError={testError}
+                isLoadingTests={isLoadingTests}
+                testsError={testsError}
+                onSaveAndFinish={() => {
                   setViewMode('list');
                   setSelectedCourse(null);
                   setSelectedChapterId(null);
+                  setSelectedTestId(null);
+                  setSelectedLessonId(null);
+                  setLessons([]);
+                  setModuleLessons([]);
+                  setTests([]);
+                  setContentTab('general');
                   setActiveNavTab('management');
-                  toast.success('Đã lưu và kết thúc chỉnh sửa khóa học.');
                 }}
                 getCourseId={getCourseId}
                 formatCourseId={formatCourseId}
+              />
+            </div>
+          ) : viewMode === 'create' ? (
+            <div className="course-create">
+              <div className="course-create-header">
+                <div>
+                  <h1>Tạo khóa học mới</h1>
+                  <p>Nhập thông tin cơ bản trước khi xây dựng nội dung.</p>
+                </div>
+                <div className="course-create-actions">
+                  <button
+                    type="button"
+                    className="course-action-link"
+                    onClick={handleCancelCreateCourse}
+                  >
+                    Quay lại danh sách
+                  </button>
+                </div>
+              </div>
+              <CourseInitForm
+                courseTitle={courseTitle}
+                courseDescription={courseDescription}
+                courseIsPublic={courseIsPublic}
+                courseError={courseError}
+                courseSuccess={courseSuccess}
+                isSavingCourse={isSavingCourse}
+                onTitleChange={setCourseTitle}
+                onDescriptionChange={setCourseDescription}
+                onPublicChange={setCourseIsPublic}
+                onCancel={handleCancelCreateCourse}
+                onContinue={handleCreateCourse}
               />
             </div>
           ) : (
@@ -1254,6 +1650,13 @@ function CourseManagement() {
                   <h2>Quản lý khóa học</h2>
                   <p>Danh sách khóa học theo trạng thái hoạt động.</p>
                 </div>
+                <button
+                  type="button"
+                  className="course-action-btn primary"
+                  onClick={openCreateCourse}
+                >
+                  Tạo khóa học
+                </button>
               </div>
 
               {isLoadingCourses ? (
