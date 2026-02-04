@@ -18,9 +18,9 @@ const CourseInitForm = ({
       <div className="course-init-header">
         <div className="course-step-indicator">1</div>
         <div className="course-init-header-text">
-          <h2 className="course-init-title">Khởi tạo khóa học</h2>
+          <h2 className="course-init-title">Thông tin cơ bản</h2>
           <p className="course-init-subtitle">
-            Bước 1: Cung cấp các thông tin cơ bản để tạo ID khóa học.
+            Bước 1: Nhập thông tin và trạng thái khóa học.
           </p>
         </div>
       </div>
@@ -47,7 +47,7 @@ const CourseInitForm = ({
           <div className="course-public-text">
             <span className="course-label">TRẠNG THÁI KHÓA HỌC</span>
             <span className="course-public-hint">
-              {courseIsPublic ? 'Công khai cho học viên' : 'Riêng tư, chỉ nội bộ quản trị'}
+              {courseIsPublic ? 'Trạng thái: Mở' : 'Trạng thái: Đóng'}
             </span>
           </div>
           <label className="course-public-switch">
@@ -81,7 +81,7 @@ const CourseInitForm = ({
           onClick={onContinue}
           disabled={isSavingCourse}
         >
-          {isSavingCourse ? 'Đang tạo...' : 'Tạo khóa học'}
+          {isSavingCourse ? 'Đang lưu...' : 'Tiếp theo'}
           <span className="course-init-arrow">→</span>
         </button>
       </div>

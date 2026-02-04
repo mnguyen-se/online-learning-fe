@@ -1,20 +1,18 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { createCourse, deleteCourse, getActiveCourses, getCourses, updateCourse } from '../../../api/coursesApi';
+import { createCourse, deleteCourse, getCourses, updateCourse } from '../../../api/coursesApi';
 import { createLesson, updateLesson, getLessons, deleteLesson } from '../../../api/lessionApi';
 import { createModule, deleteModule, getModulesByCourse } from '../../../api/module';
 import DashboardLayout from '../../../components/DashboardLayout';
-import CourseList from './components/CourseList';
+import CourseCard from './components/CourseCard';
 import CourseInitForm from './components/CourseInitForm';
 import CourseContentLayout from './components/CourseContentLayout';
 import CourseContentWizard from './components/CourseContentWizard';
 import './courseManagement.css';
 
 function CourseManagement() {
-  const navigate = useNavigate();
   const [viewMode, setViewMode] = useState('list');
-  const [activeTab, setActiveTab] = useState('general');
+  const [activeNavTab, setActiveNavTab] = useState('dashboard');
   const [courseTitle, setCourseTitle] = useState('');
   const [courseDescription, setCourseDescription] = useState('');
   const [courseIsPublic, setCourseIsPublic] = useState(true);
@@ -26,7 +24,10 @@ function CourseManagement() {
   const [courses, setCourses] = useState([]);
   const [isLoadingCourses, setIsLoadingCourses] = useState(false);
   const [coursesError, setCoursesError] = useState('');
-  const [courseFilter, setCourseFilter] = useState('all');
+  const [courseSearch, setCourseSearch] = useState('');
+  const [editCourseModal, setEditCourseModal] = useState({ isOpen: false, course: null });
+  const [editCourseForm, setEditCourseForm] = useState({ title: '', description: '' });
+  const [isUpdatingCourse, setIsUpdatingCourse] = useState(false);
   const [courseStats, setCourseStats] = useState({});
   const [courseActiveStates, setCourseActiveStates] = useState({});
   const [lessonError, setLessonError] = useState('');
@@ -73,6 +74,14 @@ function CourseManagement() {
       course?.isActive ??
       course?.is_active;
     return typeof candidate === 'boolean' ? candidate : true;
+  };
+
+  const resolveCourseActiveState = (course) => {
+    const courseId = getCourseId(course);
+    if (courseId && typeof courseActiveStates[courseId] === 'boolean') {
+      return courseActiveStates[courseId];
+    }
+    return getCourseIsActive(course);
   };
 
   const handleAddChapter = () => {
@@ -834,47 +843,6 @@ function CourseManagement() {
     }
   };
 
-  const loadActiveCourses = async () => {
-    try {
-      setIsLoadingCourses(true);
-      setCoursesError('');
-      const data = await getActiveCourses();
-      const rawCoursesList = Array.isArray(data) ? data : data?.data ?? [];
-      const coursesList = rawCoursesList.map((course) => {
-        const courseId = getCourseId(course);
-        return { ...course, id: courseId || course.id };
-      });
-      setCourses(coursesList);
-
-      const statsPromises = coursesList.map(async (course) => {
-        const courseId = getCourseId(course);
-        if (courseId) {
-          const stats = await loadCourseStats(courseId);
-          return { courseId, stats };
-        }
-        return { courseId: null, stats: { modules: 0, lessons: 0 } };
-      });
-
-      const statsResults = await Promise.all(statsPromises);
-      const newStats = {};
-      const newActiveStates = {};
-      statsResults.forEach(({ courseId, stats }) => {
-        if (courseId) newStats[courseId] = stats;
-      });
-      coursesList.forEach((course) => {
-        const courseId = getCourseId(course);
-        if (courseId) newActiveStates[courseId] = getCourseIsActive(course);
-      });
-      setCourseStats(newStats);
-      setCourseActiveStates(newActiveStates);
-    } catch (error) {
-      setCoursesError('Không thể tải danh sách khóa học đang mở.');
-      console.error('Fetch active courses error:', error);
-    } finally {
-      setIsLoadingCourses(false);
-    }
-  };
-
   const loadLessonsForCourse = async (courseId) => {
     if (!courseId) {
       setLessons([]);
@@ -933,6 +901,39 @@ function CourseManagement() {
       setCourseError('Vui lòng nhập tên khóa học và mô tả tổng quan.');
       return;
     }
+    if (createdCourseId && selectedCourse?.id) {
+      try {
+        setCourseError('');
+        setIsSavingCourse(true);
+        await updateCourse(createdCourseId, {
+          title: trimmedTitle,
+          description: trimmedDescription,
+          isPublic: courseIsPublic,
+        });
+        setSelectedCourse((prev) => (
+          prev
+            ? {
+                ...prev,
+                title: trimmedTitle,
+                description: trimmedDescription,
+                isPublic: courseIsPublic,
+              }
+            : prev
+        ));
+        toast.success('Đã cập nhật thông tin khóa học.');
+        setWizardPath(null);
+        setWizardStep('content-type');
+        setViewMode('wizard');
+        setActiveNavTab('create');
+      } catch (e) {
+        const msg = e?.response?.data?.message || e?.message || 'Cập nhật khóa học thất bại. Vui lòng thử lại.';
+        setCourseError(msg);
+        toast.error(msg);
+      } finally {
+        setIsSavingCourse(false);
+      }
+      return;
+    }
     try {
       setCourseError('');
       setIsSavingCourse(true);
@@ -956,6 +957,7 @@ function CourseManagement() {
         setWizardPath(null);
         setWizardStep('content-type');
         setViewMode('wizard');
+        setActiveNavTab('create');
         toast.success('Đã tạo khóa học. Hãy chọn loại nội dung để tiếp tục.');
       } else {
         throw new Error('Không thể lấy ID khóa học sau khi tạo.');
@@ -991,14 +993,76 @@ function CourseManagement() {
   const handleWizardSaveLesson = async (lessonData) => {
     const ok = await handleSaveLesson(lessonData);
     if (ok) {
-      setWizardStep('module-finish');
+      setWizardStep('preview');
     }
     return ok;
   };
 
   const handleCreateStandaloneTest = () => {
     toast.success('Đã tạo bài kiểm tra rời (demo).');
-    setWizardStep('standalone-finish');
+    setWizardStep('preview');
+  };
+
+  const resetCreateFlow = () => {
+    setCourseTitle('');
+    setCourseDescription('');
+    setCourseIsPublic(true);
+    setCourseError('');
+    setCourseSuccess('');
+    setCreatedCourseId(null);
+    setSelectedCourse(null);
+    setLessons([]);
+    setModuleLessons([]);
+    setSelectedChapterId(null);
+    setSelectedLessonId(null);
+    setWizardStep('course');
+    setWizardPath(null);
+    setViewMode('create');
+  };
+
+  const openEditCourseModal = (course) => {
+    const courseId = getCourseId(course) ?? course?.id ?? null;
+    setEditCourseForm({
+      title: course?.title ?? '',
+      description: course?.description ?? '',
+    });
+    setEditCourseModal({ isOpen: true, course: { ...course, id: courseId } });
+  };
+
+  const closeEditCourseModal = () => {
+    setEditCourseModal({ isOpen: false, course: null });
+  };
+
+  const handleQuickUpdateCourse = async () => {
+    const courseId = getCourseId(editCourseModal.course) ?? editCourseModal.course?.id;
+    if (!courseId) {
+      toast.error('Không tìm thấy mã khóa học để cập nhật.');
+      return;
+    }
+
+    const trimmedTitle = editCourseForm.title.trim();
+    const trimmedDescription = editCourseForm.description.trim();
+
+    if (!trimmedTitle || !trimmedDescription) {
+      toast.error('Vui lòng nhập tên khóa học và mô tả tổng quan.');
+      return;
+    }
+
+    try {
+      setIsUpdatingCourse(true);
+      await updateCourse(courseId, {
+        title: trimmedTitle,
+        description: trimmedDescription,
+      });
+      toast.success('Đã cập nhật thông tin khóa học.');
+      await loadCourses();
+      closeEditCourseModal();
+    } catch (e) {
+      const msg = e?.response?.data?.message || e?.message || 'Cập nhật khóa học thất bại. Vui lòng thử lại.';
+      toast.error(msg);
+    } finally {
+      setIsUpdatingCourse(false);
+    }
   };
 
   const handleToggleActive = async (course, event) => {
@@ -1064,7 +1128,6 @@ function CourseManagement() {
 
   const handleSelectCourse = (course, courseId) => {
     setSelectedCourse(course);
-    setCreatedCourseId(courseId);
     setContentTab('general');
     setSelectedChapterId(null);
     setSelectedLessonId(null);
@@ -1073,19 +1136,12 @@ function CourseManagement() {
     setLessons([]);
     loadLessonsForCourse(courseId);
     setViewMode('content');
+    setActiveNavTab('management');
   };
 
-  const handleEditCourse = (course, courseId) => {
-    setSelectedCourse(course);
-    setCreatedCourseId(courseId);
-    setContentTab('general');
-    setSelectedChapterId(null);
-    setSelectedLessonId(null);
-    setModuleLessons([]);
-    setLessonError('');
-    setLessons([]);
-    loadLessonsForCourse(courseId);
-    setViewMode('content');
+  const handleEditCourse = (course) => {
+    openEditCourseModal(course);
+    setActiveNavTab('management');
   };
 
   const handleUpdateCourseContent = async () => {
@@ -1115,198 +1171,393 @@ function CourseManagement() {
     setModuleLessons((prev) => prev.map((lesson) => (lesson.id === lessonId ? { ...lesson, ...updates } : lesson)));
   };
 
+  const getCourseStudentCount = (course) => {
+    const candidate =
+      course?.studentCount ??
+      course?.studentsCount ??
+      course?.enrollmentCount ??
+      course?.enrolledCount ??
+      course?.totalStudents ??
+      course?.learnerCount ??
+      course?.participants;
+
+    if (typeof candidate === 'number' && !Number.isNaN(candidate)) return candidate;
+    if (Array.isArray(candidate)) return candidate.length;
+    if (Array.isArray(course?.students)) return course.students.length;
+
+    const courseId = getCourseId(course);
+    const fallback = courseStats?.[courseId]?.lessons ?? courseStats?.[courseId]?.modules ?? 0;
+    return Number(fallback) || 0;
+  };
+
+  const normalizedSearch = courseSearch.trim().toLowerCase();
+  const dashboardCourses = courses.filter((course) => {
+    if (!normalizedSearch) return true;
+    const courseId = getCourseId(course);
+    const fallbackId = formatCourseId(courseId);
+    const haystack = [
+      course?.title ?? '',
+      course?.description ?? '',
+      fallbackId,
+    ].join(' ').toLowerCase();
+    return haystack.includes(normalizedSearch);
+  });
+  const dashboardActiveCourses = dashboardCourses.filter((course) => resolveCourseActiveState(course));
+  const dashboardInactiveCourses = dashboardCourses.filter((course) => !resolveCourseActiveState(course));
+  const totalCourses = dashboardCourses.length;
+  const activePercent = totalCourses ? Math.round((dashboardActiveCourses.length / totalCourses) * 100) : 0;
+
+  const courseBars = dashboardCourses.slice(0, 6).map((course, index) => {
+    const courseId = getCourseId(course);
+    const label = course?.title || formatCourseId(courseId) || `KH${index + 1}`;
+    return {
+      id: courseId ?? `${label}-${index}`,
+      label,
+      value: getCourseStudentCount(course),
+    };
+  });
+  const maxBarValue = Math.max(1, ...courseBars.map((item) => item.value));
+
+  const managementActiveCourses = courses.filter((course) => resolveCourseActiveState(course));
+  const managementInactiveCourses = courses.filter((course) => !resolveCourseActiveState(course));
+
   return (
     <DashboardLayout
       pageTitle="Quản lý khóa học"
       pageSubtitle="Hệ thống quản lý Module & Lesson tập trung"
     >
       <section className="manager-dashboard-content">
-            {viewMode === 'list' ? (
-              <>
-                <div className="manager-hero">
-                  <div className="manager-hero-text">
-                    <h1>Manager Dashboard</h1>
-                    <p>Hệ thống quản lý Module &amp; Lesson tập trung.</p>
-                  </div>
-                  <div className="manager-hero-actions">
-                    <div className="manager-filter">
-                      <button
-                        className={`manager-filter-btn${courseFilter === 'all' ? ' is-active is-all-active' : ''}`}
-                        type="button"
-                        onClick={() => {
-                          setCourseFilter('all');
-                          loadCourses();
-                        }}
-                      >
-                        Tất cả
-                      </button>
-                      <button
-                        className={`manager-filter-btn${courseFilter === 'active' ? ' is-active is-open-active' : ''}`}
-                        type="button"
-                        onClick={() => {
-                          setCourseFilter('active');
-                          loadActiveCourses();
-                        }}
-                      >
-                        Đang mở
-                      </button>
-                    </div>
-                    <button
-                      className="manager-cta"
-                      type="button"
-                      onClick={() => {
-                        setViewMode('create');
-                        setActiveTab('general');
-                        setCourseTitle('');
-                        setCourseDescription('');
-                        setCourseIsPublic(true);
-                        setCourseError('');
-                        setCourseSuccess('');
-                        setCreatedCourseId(null);
-                        setSelectedCourse(null);
-                        setLessonError('');
-                        setLessons([]);
-                        setSelectedChapterId(null);
-                        setWizardStep('course');
-                        setWizardPath(null);
-                      }}
-                    >
-                      <span className="cta-icon">+</span>
-                      Tạo khóa học
-                    </button>
-                  </div>
-                </div>
+        <div className="course-management-nav">
+          <div className="course-management-tabs">
+            <button
+              type="button"
+              className={`course-management-tab${activeNavTab === 'dashboard' ? ' is-active' : ''}`}
+              onClick={() => setActiveNavTab('dashboard')}
+            >
+              Tổng quan
+            </button>
+            <button
+              type="button"
+              className={`course-management-tab${activeNavTab === 'management' ? ' is-active' : ''}`}
+              onClick={() => setActiveNavTab('management')}
+            >
+              Quản lý KH
+            </button>
+            <button
+              type="button"
+              className={`course-management-tab${activeNavTab === 'create' ? ' is-active' : ''}`}
+              onClick={() => {
+                if (viewMode !== 'wizard' && viewMode !== 'create') {
+                  setViewMode('create');
+                }
+                setActiveNavTab('create');
+              }}
+            >
+              Tạo KH mới
+            </button>
+          </div>
+        </div>
 
-                <div className="manager-section-header">
-                  <div>
-                    <h2>Danh sách khóa học</h2>
-                    <p>Chọn khóa học để tạo nội dung và bài học.</p>
-                  </div>
-                </div>
-
-                <div className="manager-cards">
-                  <CourseList
-                    courses={courses}
-                    isLoadingCourses={isLoadingCourses}
-                    coursesError={coursesError}
-                    courseStats={courseStats}
-                    courseActiveStates={courseActiveStates}
-                    onSelectCourse={handleSelectCourse}
-                    onToggleActive={handleToggleActive}
-                    onEditCourse={handleEditCourse}
-                    getCourseId={getCourseId}
-                    getCourseIsActive={getCourseIsActive}
-                  />
-                </div>
-              </>
-            ) : (
-              <div className={`course-create${viewMode === 'content' ? ' is-content' : ''}`}>
-                {viewMode === 'content' && selectedCourse ? (
-                  <CourseContentLayout
-                    selectedCourse={selectedCourse}
-                    contentTab={contentTab}
-                    courseCoverImageUrl={courseCoverImageUrl}
-                    lessons={lessons}
-                    isLoadingLessons={isLoadingLessons}
-                    lessonsError={lessonsError}
-                    lessonError={lessonError}
-                    isSavingLesson={isSavingLesson}
-                    selectedChapterId={selectedChapterId}
-                    selectedLessonId={selectedLessonId}
-                    isCreatingLesson={isCreatingLesson}
-                    moduleLessons={moduleLessons}
-                    isReloadingLessons={isReloadingLessons}
-                    onTabChange={setContentTab}
-                    onCoverImageUrlChange={setCourseCoverImageUrl}
-                    onAddChapter={handleAddChapter}
-                    onAddLessonItem={handleAddLessonItem}
-                    onSelectChapter={handleSelectChapter}
-                    onSelectLesson={handleSelectLesson}
-                    onDeleteChapter={handleDeleteChapter}
-                    onDeleteLesson={handleDeleteLesson}
-                    onSaveChapter={handleSaveChapter}
-                    onCancelChapter={handleCancelChapter}
-                    onSaveLesson={handleSaveLesson}
-                    onCancelLesson={handleCancelLesson}
-                    onUpdateLesson={handleUpdateLesson}
-                    onUpdateModuleLesson={handleUpdateModuleLesson}
-                    onEditLesson={handleEditLesson}
-                    onCancelEditLesson={handleCancelEditLesson}
-                    isEditingLesson={isEditingLesson}
-                    onSaveAndFinish={async () => {
-                      await handleUpdateCourseContent();
-                      setViewMode('list');
-                      setSelectedCourse(null);
-                      setSelectedChapterId(null);
-                      toast.success('Đã lưu và kết thúc chỉnh sửa khóa học.');
-                    }}
-                    getCourseId={getCourseId}
-                    formatCourseId={formatCourseId}
-                  />
-                ) : viewMode === 'wizard' && selectedCourse ? (
-                  <CourseContentWizard
-                    selectedCourse={selectedCourse}
-                    wizardStep={wizardStep}
-                    wizardPath={wizardPath}
-                    lessons={lessons}
-                    moduleLessons={moduleLessons}
-                    selectedChapterId={selectedChapterId}
-                    selectedLessonId={selectedLessonId}
-                    isSavingLesson={isSavingLesson}
-                    lessonError={lessonError}
-                    onSelectWizardPath={handleSelectWizardPath}
-                    onSetWizardStep={setWizardStep}
-                    onSaveChapter={handleWizardSaveChapter}
-                    onCancelChapter={handleCancelChapter}
-                    onSaveLesson={handleWizardSaveLesson}
-                    onCancelLesson={handleCancelLesson}
-                    onAddLessonItem={handleAddLessonItem}
-                    onUpdateLesson={handleUpdateLesson}
-                    onUpdateModuleLesson={handleUpdateModuleLesson}
-                    onCreateStandaloneTest={handleCreateStandaloneTest}
-                    onGoToContent={() => {
-                      setViewMode('content');
-                      setContentTab('general');
-                      setWizardStep('content-type');
-                    }}
-                    onGoToList={() => {
-                      setViewMode('list');
-                      setSelectedCourse(null);
-                      setSelectedChapterId(null);
-                      setSelectedLessonId(null);
-                    }}
-                  />
-                ) : viewMode === 'content' || viewMode === 'wizard' ? (
-                  <div className="course-content-empty">
-                    <h2>Chưa chọn khóa học</h2>
-                    <p>Vui lòng quay lại danh sách và chọn một khóa học.</p>
-                  </div>
-                ) : null}
-
-                {viewMode === 'create' && activeTab === 'general' ? (
-                  <CourseInitForm
-                    courseTitle={courseTitle}
-                    courseDescription={courseDescription}
-                    courseIsPublic={courseIsPublic}
-                    courseError={courseError}
-                    courseSuccess={courseSuccess}
-                    isSavingCourse={isSavingCourse}
-                    onTitleChange={setCourseTitle}
-                    onDescriptionChange={setCourseDescription}
-                    onPublicChange={setCourseIsPublic}
-                    onCancel={() => {
-                      setViewMode('list');
-                      setCourseTitle('');
-                      setCourseDescription('');
-                      setCourseIsPublic(true);
-                      setCourseError('');
-                      setCourseSuccess('');
-                    }}
-                    onContinue={handleContinueToContent}
-                  />
-                ) : null}
+        {activeNavTab === 'dashboard' && (
+          <div className="manager-overview">
+            <div className="manager-overview-header">
+              <div>
+                <h2>Tổng quan</h2>
+                <p>Báo cáo thống kê nhanh về tình hình hoạt động khóa học.</p>
               </div>
+              <div className="manager-overview-actions">
+                <div className="manager-search">
+                  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                    <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2" />
+                    <path d="M20 20L17 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                  </svg>
+                  <input
+                    type="text"
+                    placeholder="Tìm kiếm khóa học..."
+                    value={courseSearch}
+                    onChange={(event) => setCourseSearch(event.target.value)}
+                  />
+                </div>
+                <div className="manager-profile-chip">
+                  <div className="manager-profile-avatar">QL</div>
+                  <div>
+                    <div className="manager-profile-name">Course Manager</div>
+                    <div className="manager-profile-role">Quản lý hệ thống</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="manager-overview-grid">
+              <div className="manager-chart-card">
+                <div className="manager-chart-header">
+                  <h3>Trạng thái khóa học</h3>
+                  <span className="manager-chart-subtitle">{totalCourses} khóa học</span>
+                </div>
+                <div className="pie-chart">
+                  <div
+                    className="pie-chart-visual"
+                    style={{
+                      background: `conic-gradient(#22c55e 0 ${activePercent}%, #e5e7eb ${activePercent}% 100%)`,
+                    }}
+                  >
+                    <div className="pie-chart-center">
+                      <strong>{activePercent}%</strong>
+                      <span>Đang mở</span>
+                    </div>
+                  </div>
+                  <div className="pie-chart-legend">
+                    <div className="pie-chart-legend-item">
+                      <span className="legend-dot legend-dot-active" />
+                      <span>Đang mở</span>
+                      <strong>{dashboardActiveCourses.length}</strong>
+                    </div>
+                    <div className="pie-chart-legend-item">
+                      <span className="legend-dot legend-dot-inactive" />
+                      <span>Đang đóng</span>
+                      <strong>{dashboardInactiveCourses.length}</strong>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="manager-chart-card">
+                <div className="manager-chart-header">
+                  <h3>Thống kê học viên</h3>
+                  <span className="manager-chart-subtitle">Theo từng khóa học</span>
+                </div>
+                {courseBars.length ? (
+                  <div className="bar-chart">
+                    {courseBars.map((item) => (
+                      <div key={item.id} className="bar-chart-item">
+                        <div
+                          className="bar-chart-bar"
+                          style={{ height: `${Math.max(8, (item.value / maxBarValue) * 100)}%` }}
+                        >
+                          <span className="bar-chart-value">{item.value}</span>
+                        </div>
+                        <span className="bar-chart-label">{item.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="course-status">Chưa có dữ liệu khóa học.</div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeNavTab === 'management' && (
+          viewMode === 'content' && selectedCourse ? (
+            <div className="course-create is-content">
+              <CourseContentLayout
+                selectedCourse={selectedCourse}
+                contentTab={contentTab}
+                courseCoverImageUrl={courseCoverImageUrl}
+                lessons={lessons}
+                isLoadingLessons={isLoadingLessons}
+                lessonsError={lessonsError}
+                lessonError={lessonError}
+                isSavingLesson={isSavingLesson}
+                selectedChapterId={selectedChapterId}
+                selectedLessonId={selectedLessonId}
+                isCreatingLesson={isCreatingLesson}
+                moduleLessons={moduleLessons}
+                isReloadingLessons={isReloadingLessons}
+                onTabChange={setContentTab}
+                onCoverImageUrlChange={setCourseCoverImageUrl}
+                onAddChapter={handleAddChapter}
+                onAddLessonItem={handleAddLessonItem}
+                onSelectChapter={handleSelectChapter}
+                onSelectLesson={handleSelectLesson}
+                onDeleteChapter={handleDeleteChapter}
+                onDeleteLesson={handleDeleteLesson}
+                onSaveChapter={handleSaveChapter}
+                onCancelChapter={handleCancelChapter}
+                onSaveLesson={handleSaveLesson}
+                onCancelLesson={handleCancelLesson}
+                onUpdateLesson={handleUpdateLesson}
+                onUpdateModuleLesson={handleUpdateModuleLesson}
+                onEditLesson={handleEditLesson}
+                onCancelEditLesson={handleCancelEditLesson}
+                isEditingLesson={isEditingLesson}
+                onSaveAndFinish={async () => {
+                  await handleUpdateCourseContent();
+                  setViewMode('list');
+                  setSelectedCourse(null);
+                  setSelectedChapterId(null);
+                  setActiveNavTab('management');
+                  toast.success('Đã lưu và kết thúc chỉnh sửa khóa học.');
+                }}
+                getCourseId={getCourseId}
+                formatCourseId={formatCourseId}
+              />
+            </div>
+          ) : (
+            <div className="course-management-view">
+              <div className="course-management-header">
+                <div>
+                  <h2>Quản lý khóa học</h2>
+                  <p>Danh sách khóa học theo trạng thái hoạt động.</p>
+                </div>
+              </div>
+
+              {isLoadingCourses ? (
+                <div className="course-status">Đang tải khóa học...</div>
+              ) : coursesError ? (
+                <div className="course-status course-status-error">{coursesError}</div>
+              ) : (
+                <div className="course-management-sections">
+                  <div className="course-section">
+                    <div className="course-section-header">
+                      <h3>Đang mở</h3>
+                      <span className="course-section-count">{managementActiveCourses.length} khóa học</span>
+                    </div>
+                    <div className="course-section-grid">
+                      {managementActiveCourses.length ? (
+                        managementActiveCourses.map((course, index) => {
+                          const courseId = getCourseId(course);
+                          return (
+                            <CourseCard
+                              key={courseId || course.title || index}
+                              course={course}
+                              courseStats={courseStats}
+                              courseActiveStates={courseActiveStates}
+                              onSelect={() => {
+                                const nextCourseId = getCourseId(course);
+                                handleSelectCourse({ ...course, id: nextCourseId ?? course.id }, nextCourseId);
+                              }}
+                              onToggleActive={handleToggleActive}
+                              onEdit={(courseItem) => {
+                                const nextCourseId = getCourseId(courseItem);
+                                handleEditCourse({ ...courseItem, id: nextCourseId ?? courseItem.id }, nextCourseId);
+                              }}
+                              getCourseId={getCourseId}
+                              getCourseIsActive={getCourseIsActive}
+                            />
+                          );
+                        })
+                      ) : (
+                        <div className="course-status">Chưa có khóa học đang mở.</div>
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="course-section is-closed">
+                    <div className="course-section-header">
+                      <h3>Đang đóng</h3>
+                      <span className="course-section-count">{managementInactiveCourses.length} khóa học</span>
+                    </div>
+                    <div className="course-section-grid">
+                      {managementInactiveCourses.length ? (
+                        managementInactiveCourses.map((course, index) => {
+                          const courseId = getCourseId(course);
+                          return (
+                            <CourseCard
+                              key={courseId || course.title || index}
+                              course={course}
+                              courseStats={courseStats}
+                              courseActiveStates={courseActiveStates}
+                              onSelect={() => {
+                                const nextCourseId = getCourseId(course);
+                                handleSelectCourse({ ...course, id: nextCourseId ?? course.id }, nextCourseId);
+                              }}
+                              onToggleActive={handleToggleActive}
+                              onEdit={(courseItem) => {
+                                const nextCourseId = getCourseId(courseItem);
+                                handleEditCourse({ ...courseItem, id: nextCourseId ?? courseItem.id }, nextCourseId);
+                              }}
+                              getCourseId={getCourseId}
+                              getCourseIsActive={getCourseIsActive}
+                            />
+                          );
+                        })
+                      ) : (
+                        <div className="course-status">Chưa có khóa học đang đóng.</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        )}
+
+        {activeNavTab === 'create' && (
+          <div className={`course-create${viewMode === 'wizard' ? ' is-content' : ''}`}>
+            {viewMode === 'wizard' && selectedCourse ? (
+              <>
+                <div className="course-wizard-back">
+                  <button
+                    type="button"
+                    className="course-outline-btn"
+                    onClick={() => setViewMode('create')}
+                  >
+                    Quay lại bước 1
+                  </button>
+                </div>
+                <CourseContentWizard
+                  selectedCourse={selectedCourse}
+                  wizardStep={wizardStep}
+                  wizardPath={wizardPath}
+                  lessons={lessons}
+                  moduleLessons={moduleLessons}
+                  selectedChapterId={selectedChapterId}
+                  selectedLessonId={selectedLessonId}
+                  isSavingLesson={isSavingLesson}
+                  lessonError={lessonError}
+                  onSelectWizardPath={handleSelectWizardPath}
+                  onSetWizardStep={setWizardStep}
+                  onSaveChapter={handleWizardSaveChapter}
+                  onCancelChapter={handleCancelChapter}
+                  onSaveLesson={handleWizardSaveLesson}
+                  onCancelLesson={handleCancelLesson}
+                  onAddLessonItem={handleAddLessonItem}
+                  onUpdateLesson={handleUpdateLesson}
+                  onUpdateModuleLesson={handleUpdateModuleLesson}
+                  onCreateStandaloneTest={handleCreateStandaloneTest}
+                  onGoToContent={() => {
+                    setViewMode('content');
+                    setContentTab('general');
+                    setWizardStep('content-type');
+                    setActiveNavTab('management');
+                  }}
+                  onGoToList={() => {
+                    setViewMode('list');
+                    setSelectedCourse(null);
+                    setSelectedChapterId(null);
+                    setSelectedLessonId(null);
+                    setActiveNavTab('management');
+                  }}
+                />
+              </>
+            ) : viewMode === 'wizard' ? (
+              <div className="course-content-empty">
+                <h2>Chưa chọn khóa học</h2>
+                <p>Vui lòng quay lại bước 1 để tạo khóa học mới.</p>
+              </div>
+            ) : (
+              <CourseInitForm
+                courseTitle={courseTitle}
+                courseDescription={courseDescription}
+                courseIsPublic={courseIsPublic}
+                courseError={courseError}
+                courseSuccess={courseSuccess}
+                isSavingCourse={isSavingCourse}
+                onTitleChange={setCourseTitle}
+                onDescriptionChange={setCourseDescription}
+                onPublicChange={setCourseIsPublic}
+                onCancel={() => {
+                  resetCreateFlow();
+                  setViewMode('list');
+                  setActiveNavTab('management');
+                }}
+                onContinue={handleContinueToContent}
+              />
             )}
+          </div>
+        )}
       </section>
 
       {/* Modal xác nhận xóa chương */}
@@ -1369,6 +1620,61 @@ function CourseManagement() {
                 disabled={isSavingLesson}
               >
                 {isSavingLesson ? 'Đang xóa...' : 'Xóa'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {editCourseModal.isOpen && (
+        <div className="course-edit-modal-overlay" onClick={closeEditCourseModal}>
+          <div className="course-edit-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="course-edit-modal-header">
+              <h3>Cập nhật khóa học</h3>
+              <button
+                type="button"
+                className="course-edit-modal-close"
+                onClick={closeEditCourseModal}
+                aria-label="Đóng"
+              >
+                x
+              </button>
+            </div>
+            <div className="course-edit-modal-body">
+              <label className="course-edit-modal-label">Tên khóa học</label>
+              <input
+                className="course-edit-modal-input"
+                type="text"
+                value={editCourseForm.title}
+                onChange={(event) => setEditCourseForm((prev) => ({ ...prev, title: event.target.value }))}
+              />
+              <label className="course-edit-modal-label">Mô tả tổng quan</label>
+              <textarea
+                className="course-edit-modal-textarea"
+                rows={4}
+                value={editCourseForm.description}
+                onChange={(event) => setEditCourseForm((prev) => ({ ...prev, description: event.target.value }))}
+              />
+              <p className="course-edit-modal-note">
+                Trạng thái mở/đóng được cập nhật trực tiếp trên thẻ khóa học.
+              </p>
+            </div>
+            <div className="course-edit-modal-footer">
+              <button
+                type="button"
+                className="course-edit-modal-btn"
+                onClick={closeEditCourseModal}
+                disabled={isUpdatingCourse}
+              >
+                Hủy
+              </button>
+              <button
+                type="button"
+                className="course-edit-modal-btn primary"
+                onClick={handleQuickUpdateCourse}
+                disabled={isUpdatingCourse}
+              >
+                {isUpdatingCourse ? 'Đang lưu...' : 'Cập nhật'}
               </button>
             </div>
           </div>
