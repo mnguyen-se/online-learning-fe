@@ -26,3 +26,14 @@ export const getLessonView = async () => {
   const response = await apiClient.get('/lessons/view');
   return response.data;
 };
+
+export const uploadLessonVideo = async (file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await apiClient.post('/lessons/upload-video', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+  return response.data;
+};

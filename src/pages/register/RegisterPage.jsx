@@ -8,6 +8,7 @@ import {
   getDistrictsByProvinceCode,
   getWardsByDistrictCode,
 } from '../../api/addressApi';
+import Header from '../../components/Header/header';
 import './RegisterPage.css';
 
 const RegisterPage = () => {
@@ -199,8 +200,10 @@ const RegisterPage = () => {
   };
 
   return (
-    <div className="register-page">
-      <div className="register-container">
+    <div className="auth-page">
+      <Header />
+      <div className="register-page">
+        <div className="register-container">
           {/* Header */}
           <div className="register-header">
             <div className="logo-icon">
@@ -471,6 +474,7 @@ const RegisterPage = () => {
         </div>
       </div>
     </div>
+  </div>
   );
 };
 

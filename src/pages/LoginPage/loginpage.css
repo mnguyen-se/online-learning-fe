@@ -1,10 +1,18 @@
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #E0F2F1;
+}
+
 .login-page {
   display: flex;
-  height: 100vh;
+  flex: 1;
+  min-height: 0;
   width: 100%;
   position: relative;
   overflow: hidden;
-  background: #E0F2F1;
+  background: transparent;
   padding: 20px;
   box-sizing: border-box;
 }

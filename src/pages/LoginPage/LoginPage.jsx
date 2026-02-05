@@ -4,6 +4,7 @@ import { useDispatch } from 'react-redux';
 import { toast } from 'react-toastify';
 import { login as loginAction } from '../../store/slices/userSlice';
 import { login, getUserInfo } from '../../api/userApi';
+import Header from '../../components/Header/header';
 import './loginpage.css';
 
 const LoginPage = () => {
@@ -105,75 +106,77 @@ const LoginPage = () => {
   };
 
   return (
-    <div className="login-page">
-      {/* Left Section - Promotional Content */}
-      <div className="login-left">
-        <div className="promotional-cards">
-          <div className="promo-card">
-            <div className="promo-icon">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+    <div className="auth-page">
+      <Header />
+      <div className="login-page">
+        {/* Left Section - Promotional Content */}
+        <div className="login-left">
+          <div className="promotional-cards">
+            <div className="promo-card">
+              <div className="promo-icon">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M2 17L12 22L22 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M2 12L12 17L22 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <h3>Học tập thông minh với AI</h3>
+              <p>Trợ lý AI cá nhân hóa giúp bạn học hiệu quả hơn, giải đáp thắc mắc nhanh chóng và hỗ trợ 24/7</p>
             </div>
-            <h3>Học tập thông minh với AI</h3>
-            <p>Trợ lý AI cá nhân hóa giúp bạn học hiệu quả hơn, giải đáp thắc mắc nhanh chóng và hỗ trợ 24/7</p>
-          </div>
 
-          <div className="promo-card">
-            <div className="promo-icon">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M3 3V21H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M7 16L12 11L16 15L21 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M21 10V3H14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+            <div className="promo-card">
+              <div className="promo-icon">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M3 3V21H21" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M7 16L12 11L16 15L21 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M21 10V3H14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <h3>Lộ trình học tập cá nhân</h3>
+              <p>AI phân tích năng lực và đề xuất lộ trình học phù hợp, giúp bạn đạt mục tiêu nhanh nhất</p>
             </div>
-            <h3>Lộ trình học tập cá nhân</h3>
-            <p>AI phân tích năng lực và đề xuất lộ trình học phù hợp, giúp bạn đạt mục tiêu nhanh nhất</p>
-          </div>
 
-          <div className="promo-card">
-            <div className="promo-icon">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M6.5 2H20V22H6.5A2.5 2.5 0 0 1 4 19.5V4.5A2.5 2.5 0 0 1 6.5 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+            <div className="promo-card">
+              <div className="promo-icon">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M6.5 2H20V22H6.5A2.5 2.5 0 0 1 4 19.5V4.5A2.5 2.5 0 0 1 6.5 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <h3>Kho tài liệu phong phú</h3>
+              <p>Hàng ngàn khóa học, bài giảng và tài liệu chất lượng cao từ các chuyên gia hàng đầu</p>
             </div>
-            <h3>Kho tài liệu phong phú</h3>
-            <p>Hàng ngàn khóa học, bài giảng và tài liệu chất lượng cao từ các chuyên gia hàng đầu</p>
-          </div>
 
-          <div className="promo-card">
-            <div className="promo-icon">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
+            <div className="promo-card">
+              <div className="promo-icon">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </div>
+              <h3>Theo dõi tiến độ chi tiết</h3>
+              <p>Thống kê học tập trực quan, nhận chứng chỉ và huy hiệu khi hoàn thành mục tiêu</p>
             </div>
-            <h3>Theo dõi tiến độ chi tiết</h3>
-            <p>Thống kê học tập trực quan, nhận chứng chỉ và huy hiệu khi hoàn thành mục tiêu</p>
           </div>
         </div>
-      </div>
 
-      {/* Right Section - Login Form */}
-      <div className="login-right">
-        <div className="login-container">
-          {/* Header */}
-          <div className="login-header">
-            <div className="logo-icon">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                {/* Rounded container */}
-                <rect x="4" y="4" width="16" height="16" rx="4" ry="4" fill="#8B5CF6" opacity="0.1" stroke="#8B5CF6" strokeWidth="2"/>
-                {/* Academic cap icon inside */}
-                <path d="M12 3L2 7L12 11L22 7L12 3Z" stroke="#8B5CF6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                <path d="M2 17L12 21L22 17" stroke="#8B5CF6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-                <path d="M2 12L12 16L22 12" stroke="#8B5CF6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
-              </svg>
+        {/* Right Section - Login Form */}
+        <div className="login-right">
+          <div className="login-container">
+            {/* Header */}
+            <div className="login-header">
+              <div className="logo-icon">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  {/* Rounded container */}
+                  <rect x="4" y="4" width="16" height="16" rx="4" ry="4" fill="#8B5CF6" opacity="0.1" stroke="#8B5CF6" strokeWidth="2"/>
+                  {/* Academic cap icon inside */}
+                  <path d="M12 3L2 7L12 11L22 7L12 3Z" stroke="#8B5CF6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                  <path d="M2 17L12 21L22 17" stroke="#8B5CF6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                  <path d="M2 12L12 16L22 12" stroke="#8B5CF6" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+                </svg>
+              </div>
+              <h1 className="brand-name">EduLearn AI</h1>
+              <p className="tagline">Nền Tảng Học Tập Thông Minh</p>
             </div>
-            <h1 className="brand-name">EduLearn AI</h1>
-            <p className="tagline">Nền Tảng Học Tập Thông Minh</p>
-          </div>
 
           {/* Login Form */}
           <form className="login-form" onSubmit={handleSubmit}>
@@ -249,6 +252,7 @@ const LoginPage = () => {
         </div>
       </div>
     </div>
+  </div>
   );
 };
 

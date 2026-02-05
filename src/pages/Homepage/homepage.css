@@ -1,13 +1,13 @@
 /* Homepage Layout with Sidebar */
 .homepage-layout {
   min-height: 100vh;
-  background: #F9FAFB;
+  background: #F5F7FB;
 }
 
 .homepage-main-layout {
-  margin-left: 100px;
+  margin-left: 0;
   min-height: 100vh;
-  width: calc(100% - 100px);
+  width: 100%;
   overflow-x: hidden;
 }
 
@@ -115,11 +115,20 @@
 
 /* Homepage Content */
 .homepage-content {
-  padding: 10px;
+  padding: 32px 0 80px;
   max-width: 100%;
   margin: 0;
   width: 100%;
   box-sizing: border-box;
+}
+
+.homepage-inner {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
 }
 
 /* Legacy styles */
@@ -141,12 +150,13 @@
 
 /* Hero Banner */
 .hero-banner {
-  background: linear-gradient(135deg, #14B8A6 0%, #0D9488 100%);
-  border-radius: 24px;
-  padding: 3rem 4rem;
-  margin-bottom: 3rem;
+  background: #FFFFFF;
+  border-radius: 28px;
+  padding: 3.5rem 4rem;
   position: relative;
   overflow: hidden;
+  border: 1px solid #E5E7EB;
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
 }
 
 .hero-content {
@@ -157,7 +167,7 @@
 
 .hero-text {
   flex: 1;
-  color: #FFFFFF;
+  color: #0F172A;
 }
 
 .hero-title {
@@ -165,20 +175,20 @@
   font-weight: 700;
   margin: 0 0 1.5rem 0;
   line-height: 1.2;
-  color: #FFFFFF;
+  color: #0F172A;
 }
 
 .hero-description {
   font-size: 1.1rem;
   line-height: 1.7;
   margin: 0 0 2rem 0;
-  color: rgba(255, 255, 255, 0.95);
+  color: #475569;
 }
 
 .hero-button {
-  background: #FFFFFF;
-  color: #14B8A6;
-  border: none;
+  background: #FF6B4A;
+  color: #FFFFFF;
+  border: 1px solid #FF6B4A;
   padding: 16px 32px;
   border-radius: 12px;
   font-size: 16px;
@@ -187,11 +197,14 @@
   transition: all 0.3s ease;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  box-shadow: 0 12px 24px rgba(255, 107, 74, 0.25);
 }
 
 .hero-button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.2);
+  background: #FF5722;
+  border-color: #FF5722;
+  box-shadow: 0 14px 28px rgba(255, 107, 74, 0.35);
 }
 
 .hero-buttons {
@@ -202,13 +215,16 @@
 }
 
 .hero-button-dashboard {
-  background: #FF6B4A !important;
+  background: #111827 !important;
   color: #FFFFFF !important;
+  border-color: #111827 !important;
+  box-shadow: 0 12px 24px rgba(17, 24, 39, 0.2);
 }
 
 .hero-button-dashboard:hover {
-  background: #FF5722 !important;
+  background: #0F172A !important;
   color: #FFFFFF !important;
+  border-color: #0F172A !important;
 }
 
 .hero-image {
@@ -221,33 +237,39 @@
   height: 300px;
   border-radius: 16px;
   overflow: hidden;
-  background: rgba(255, 255, 255, 0.1);
+  background: #F1F5F9;
+  border: 1px solid #E2E8F0;
 }
 
 .hero-indicators {
   display: flex;
   justify-content: center;
   gap: 8px;
-  margin-top: 2rem;
+  margin-top: 1.5rem;
 }
 
 .hero-indicators span {
   width: 40px;
   height: 6px;
   border-radius: 3px;
-  background: rgba(255, 255, 255, 0.3);
+  background: #E2E8F0;
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
 .hero-indicators span.active {
-  background: #FFFFFF;
+  background: #FF6B4A;
   width: 60px;
 }
 
 /* Courses Section */
 .courses-section {
-  margin-bottom: 4rem;
+  margin-bottom: 0;
+  background: #FFFFFF;
+  border-radius: 24px;
+  padding: 32px;
+  border: 1px solid #E5E7EB;
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.06);
 }
 
 .section-header {
@@ -260,7 +282,7 @@
 .section-title {
   font-size: 2rem;
   font-weight: 700;
-  color: #000000;
+  color: #0F172A;
   margin: 0;
   display: flex;
   align-items: center;
@@ -281,7 +303,7 @@
 .courses-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
-  gap: 1.5rem;
+  gap: 24px;
 }
 
 /* Pro Courses */
@@ -421,17 +443,21 @@
 /* Responsive Design */
 @media (max-width: 1024px) {
   .homepage-main-layout {
-    margin-left: 80px;
-    width: calc(100% - 80px);
+    margin-left: 0;
+    width: 100%;
   }
 
-  .homepage-content,
-  .main-content {
-    padding: 10px;
+  .homepage-content {
+    padding: 24px 0 64px;
+  }
+
+  .homepage-inner {
+    padding: 0 20px;
+    gap: 32px;
   }
 
   .hero-banner {
-    padding: 2rem;
+    padding: 2.5rem;
   }
 
   .hero-content {
@@ -449,13 +475,12 @@
 
   .courses-grid {
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 1rem;
+    gap: 20px;
   }
 }
 
 @media (max-width: 768px) {
   .homepage-main-layout {
-    margin-left: 0;
     width: 100%;
   }
 
@@ -481,12 +506,17 @@
   }
 
   .homepage-content {
-    padding: 10px;
+    padding: 20px 0 56px;
+  }
+
+  .homepage-inner {
+    padding: 0 16px;
+    gap: 24px;
   }
 
   .hero-banner {
-    padding: 1.5rem;
-    border-radius: 16px;
+    padding: 1.75rem;
+    border-radius: 20px;
   }
 
   .hero-title {
@@ -503,6 +533,10 @@
 
   .courses-grid {
     grid-template-columns: 1fr;
+  }
+
+  .courses-section {
+    padding: 24px;
   }
 
   .course-card,

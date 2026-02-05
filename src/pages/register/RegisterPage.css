@@ -1,8 +1,16 @@
+.auth-page {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #E0F2F1;
+}
+
 .register-page {
   display: flex;
-  min-height: 100vh;
+  flex: 1;
+  min-height: 0;
   width: 100%;
-  background: #E0F2F1;
+  background: transparent;
   padding: 20px;
   box-sizing: border-box;
   align-items: center;

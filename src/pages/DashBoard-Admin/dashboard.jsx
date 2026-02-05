@@ -41,7 +41,7 @@ const Dashboard = () => {
         'Học viên': 'STUDENT',
         'Giáo viên': 'TEACHER',
         'Quản trị': 'ADMIN',
-        'Quản lý': 'MANAGER',
+        'Quản lý': 'COURSE_MANAGER',
       };
       filtered = filtered.filter(user => user.role === roleMap[activeFilter]);
     }
@@ -88,6 +88,7 @@ const Dashboard = () => {
       STUDENT: 'Học viên',
       TEACHER: 'Giáo viên',
       ADMIN: 'Quản trị viên',
+      COURSE_MANAGER: 'Quản lý',
       MANAGER: 'Quản lý',
     };
     return roleMap[role] || role;
@@ -98,6 +99,7 @@ const Dashboard = () => {
       STUDENT: 'badge-student',
       TEACHER: 'badge-teacher',
       ADMIN: 'badge-admin',
+      COURSE_MANAGER: 'badge-manager',
       MANAGER: 'badge-manager',
     };
     return roleMap[role] || '';
@@ -766,7 +768,7 @@ const Dashboard = () => {
                         <option value="STUDENT">Học viên</option>
                         <option value="TEACHER">Giáo viên</option>
                         <option value="ADMIN">Quản trị viên</option>
-                        <option value="MANAGER">Quản lý</option>
+                        <option value="COURSE_MANAGER">Quản lý</option>
                       </select>
                     </div>
                   </div>

@@ -4,12 +4,16 @@ const CourseContentSidebar = ({
   selectedCourse,
   contentTab,
   lessons,
+  tests = [],
   selectedChapterId,
+  selectedTestId,
   onTabChange,
   onAddChapter,
   onAddLessonItem,
+  onAddTest,
   onSelectChapter,
   onSelectLesson,
+  onSelectTest,
   onDeleteChapter,
   onDeleteLesson,
   onSaveAndFinish,
@@ -17,10 +21,13 @@ const CourseContentSidebar = ({
   formatCourseId,
   isLoadingLessons,
   lessonsError,
+  isLoadingTests,
+  testsError,
   isSavingLesson,
   moduleLessons = [],
   selectedLessonId,
   isReloadingLessons = false,
+  isSavingTest = false,
 }) => {
   return (
     <div className="course-content-sidebar">
@@ -181,6 +188,63 @@ const CourseContentSidebar = ({
         )}
       </div>
 
+      <div className="course-program-section">
+        <div className="course-program-header">
+          <span className="course-program-title">BÀI KIỂM TRA</span>
+          <button
+            className="course-program-add"
+            type="button"
+            aria-label="Thêm bài kiểm tra"
+            disabled={isSavingTest}
+            onClick={() => {
+              onTabChange('test');
+              if (onAddTest) {
+                onAddTest();
+              }
+            }}
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M8 3V13M3 8H13" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+            </svg>
+          </button>
+        </div>
+
+        {isLoadingTests && <div className="course-program-status">Đang tải bài kiểm tra...</div>}
+        {testsError && <div className="course-program-status course-program-status-error">{testsError}</div>}
+        {!isLoadingTests && !testsError && tests.length > 0 && (
+          <ul className="course-program-list">
+            {tests.map((testItem, index) => {
+              const orderIndex = testItem.orderIndex ?? index + 1;
+              const title = testItem.title?.trim() || '';
+              const label = `Bài kiểm tra ${orderIndex || 1}: ${title || 'Chưa đặt tên'}`;
+              const isSelected = selectedTestId === testItem.id;
+              return (
+                <li key={testItem.id}>
+                  <div className="course-program-item-wrapper">
+                    <button
+                      type="button"
+                      className={`course-program-item ${isSelected ? 'is-selected' : ''}`}
+                      onClick={() => {
+                        onTabChange('test');
+                        if (onSelectTest) {
+                          onSelectTest(testItem.id);
+                        }
+                      }}
+                    >
+                      <span className="course-program-item-icon" aria-hidden>≡</span>
+                      <span className="course-program-item-label">{label}</span>
+                    </button>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {!isLoadingTests && !testsError && tests.length === 0 && (
+          <div className="course-program-status">Chưa có bài kiểm tra.</div>
+        )}
+      </div>
+
       <button
         className="course-save-finish-btn"
         type="button"
@@ -189,7 +253,7 @@ const CourseContentSidebar = ({
         <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
           <path d="M17.5 5.83333L9.16667 14.1667L4.16667 9.16667" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
-        Lưu & Kết thúc
+        Hoàn thành
       </button>
     </div>
   );

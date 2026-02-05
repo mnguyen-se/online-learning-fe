@@ -10,6 +10,7 @@ import LoginPage from './pages/LoginPage/LoginPage';
 import RegisterPage from './pages/register';
 import Profile from './pages/Profile/profile';
 import Dashboard from './pages/DashBoard-Admin/dashboard';
+import AdminCourseManagement from './pages/Admin/ManageCourse/AdminCourseManagement';
 import CourseManagement from './pages/Manager/ManageCourse/CourseManagement';
 import TeacherPage from './pages/Teacher/TeacherPage';
 import LessonsView from './pages/Lessons/LessonsView';
@@ -34,15 +35,15 @@ function App() {
       element: <Profile />,
     },
     {
-      path: '/dashboard',
+      path: '/dashboard-admin',
       element: (
         <PrivateRoute allowedRoles={['ADMIN']} element={<Dashboard />} />
       ),
     },
     {
-      path: '/dashboard-admin',
+      path: '/admin-courses',
       element: (
-        <PrivateRoute allowedRoles={['ADMIN']} element={<Dashboard />} />
+        <PrivateRoute allowedRoles={['ADMIN']} element={<AdminCourseManagement />} />
       ),
     },
     {

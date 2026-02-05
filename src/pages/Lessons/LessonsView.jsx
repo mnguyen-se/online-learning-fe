@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { getLessonView } from '../../api/lessionApi';
 import { toast } from 'react-toastify';
+import Header from '../../components/Header/header';
 import './LessonsView.css';
 
 function LessonsView() {
@@ -147,9 +148,12 @@ function LessonsView() {
 
   if (isLoading) {
     return (
-      <div className="lessons-view-container">
-        <div className="lessons-loading">
-          <p>Đang tải danh sách bài học...</p>
+      <div className="lessons-page">
+        <Header />
+        <div className="lessons-view-container">
+          <div className="lessons-loading">
+            <p>Đang tải danh sách bài học...</p>
+          </div>
         </div>
       </div>
     );
@@ -157,81 +161,87 @@ function LessonsView() {
 
   if (error) {
     return (
-      <div className="lessons-view-container">
-        <div className="lessons-error">
-          <p>{error}</p>
-          <button onClick={loadLessons} className="retry-button">
-            Thử lại
-          </button>
+      <div className="lessons-page">
+        <Header />
+        <div className="lessons-view-container">
+          <div className="lessons-error">
+            <p>{error}</p>
+            <button onClick={loadLessons} className="retry-button">
+              Thử lại
+            </button>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="lessons-view-container">
-      <div className="lessons-header">
-        <h1 className="lessons-title">Danh sách Bài học</h1>
-        <p className="lessons-subtitle">Xem và học các bài học đã được công bố</p>
-      </div>
-
-      <div className="lessons-layout">
-        <div className="lessons-sidebar">
-          <h2 className="lessons-sidebar-title">Bài học ({lessons.length})</h2>
-          {lessons.length === 0 ? (
-            <div className="lessons-empty">
-              <p>Chưa có bài học nào được công bố</p>
-            </div>
-          ) : (
-            <div className="lessons-list">
-              {lessons.map((lesson, index) => (
-                <div
-                  key={lesson.lessonId || lesson.id || index}
-                  className={`lesson-item ${selectedLesson?.lessonId === lesson.lessonId ? 'active' : ''}`}
-                  onClick={() => setSelectedLesson(lesson)}
-                >
-                  <div className="lesson-item-number">{index + 1}</div>
-                  <div className="lesson-item-content">
-                    <div className="lesson-item-title">{lesson.title || 'Chưa có tiêu đề'}</div>
-                    <div className="lesson-item-type">
-                      {lesson.lessonType === 'VIDEO' && '📹 Video'}
-                      {lesson.lessonType === 'TEXT' && '📄 Văn bản'}
-                      {lesson.lessonType === 'QUIZ' && '❓ Trắc nghiệm'}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+    <div className="lessons-page">
+      <Header />
+      <div className="lessons-view-container">
+        <div className="lessons-header">
+          <h1 className="lessons-title">Danh sách Bài học</h1>
+          <p className="lessons-subtitle">Xem và học các bài học đã được công bố</p>
         </div>
 
-        <div className="lessons-main">
-          {selectedLesson ? (
-            <div className="lesson-detail">
-              <div className="lesson-detail-header">
-                <h2 className="lesson-detail-title">{selectedLesson.title || 'Chưa có tiêu đề'}</h2>
-                <div className="lesson-detail-meta">
-                  <span className="lesson-type-badge">
-                    {selectedLesson.lessonType === 'VIDEO' && 'Video Bài giảng'}
-                    {selectedLesson.lessonType === 'TEXT' && 'Tài liệu đọc'}
-                    {selectedLesson.lessonType === 'QUIZ' && 'Trắc nghiệm'}
-                  </span>
-                  {selectedLesson.sectionTitle && (
-                    <span className="lesson-section-badge">{selectedLesson.sectionTitle}</span>
-                  )}
+        <div className="lessons-layout">
+          <div className="lessons-sidebar">
+            <h2 className="lessons-sidebar-title">Bài học ({lessons.length})</h2>
+            {lessons.length === 0 ? (
+              <div className="lessons-empty">
+                <p>Chưa có bài học nào được công bố</p>
+              </div>
+            ) : (
+              <div className="lessons-list">
+                {lessons.map((lesson, index) => (
+                  <div
+                    key={lesson.lessonId || lesson.id || index}
+                    className={`lesson-item ${selectedLesson?.lessonId === lesson.lessonId ? 'active' : ''}`}
+                    onClick={() => setSelectedLesson(lesson)}
+                  >
+                    <div className="lesson-item-number">{index + 1}</div>
+                    <div className="lesson-item-content">
+                      <div className="lesson-item-title">{lesson.title || 'Chưa có tiêu đề'}</div>
+                      <div className="lesson-item-type">
+                        {lesson.lessonType === 'VIDEO' && '📹 Video'}
+                        {lesson.lessonType === 'TEXT' && '📄 Văn bản'}
+                        {lesson.lessonType === 'QUIZ' && '❓ Trắc nghiệm'}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div className="lessons-main">
+            {selectedLesson ? (
+              <div className="lesson-detail">
+                <div className="lesson-detail-header">
+                  <h2 className="lesson-detail-title">{selectedLesson.title || 'Chưa có tiêu đề'}</h2>
+                  <div className="lesson-detail-meta">
+                    <span className="lesson-type-badge">
+                      {selectedLesson.lessonType === 'VIDEO' && 'Video Bài giảng'}
+                      {selectedLesson.lessonType === 'TEXT' && 'Tài liệu đọc'}
+                      {selectedLesson.lessonType === 'QUIZ' && 'Trắc nghiệm'}
+                    </span>
+                    {selectedLesson.sectionTitle && (
+                      <span className="lesson-section-badge">{selectedLesson.sectionTitle}</span>
+                    )}
+                  </div>
+                </div>
+                <div className="lesson-detail-content">
+                  {renderLessonContent(selectedLesson)}
                 </div>
               </div>
-              <div className="lesson-detail-content">
-                {renderLessonContent(selectedLesson)}
+            ) : (
+              <div className="lesson-placeholder">
+                <div className="lesson-placeholder-icon">📚</div>
+                <h3>Chọn một bài học để xem</h3>
+                <p>Nhấp vào một bài học ở bên trái để bắt đầu học</p>
               </div>
-            </div>
-          ) : (
-            <div className="lesson-placeholder">
-              <div className="lesson-placeholder-icon">📚</div>
-              <h3>Chọn một bài học để xem</h3>
-              <p>Nhấp vào một bài học ở bên trái để bắt đầu học</p>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </div>
     </div>
