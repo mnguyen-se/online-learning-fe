@@ -13,6 +13,19 @@ const MyCourses = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
+  const formatDateOnly = (value) => {
+    if (!value) return "Chưa có";
+    if (typeof value === "string") {
+      const [datePart] = value.split("T");
+      return datePart || value;
+    }
+    try {
+      return new Date(value).toISOString().split("T")[0];
+    } catch {
+      return String(value);
+    }
+  };
+
   useEffect(() => {
     let mounted = true;
     const fetchData = async () => {
@@ -109,7 +122,11 @@ const MyCourses = () => {
         </div>
 
         {filteredCourses.length === 0 ? (
-          <div className="state-card">Bạn chưa đăng ký khóa học nào.</div>
+          <div className="state-card">
+            {activeTab === "completed"
+              ? "Bạn chưa hoàn thành khóa học nào"
+              : "Bạn chưa đăng ký khóa học nào."}
+          </div>
         ) : (
           <div className="course-grid">
             {filteredCourses.map((course) => (
@@ -147,7 +164,7 @@ const MyCourses = () => {
                   <p className="course-desc">{course.courseDescription}</p>
 
                   <div className="course-meta">
-                    <div>Ngày đăng ký: {course.enrolledAt}</div>
+                    <div>Ngày đăng ký: {formatDateOnly(course.enrolledAt)}</div>
                     <div>Lần truy cập gần nhất: Chưa có</div>
                   </div>
 

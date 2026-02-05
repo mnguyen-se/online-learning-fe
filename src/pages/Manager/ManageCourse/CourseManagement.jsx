@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
-import { createCourse, deleteCourse, getCourses, updateCourse } from '../../../api/coursesApi';
+import { createCourse, getCourses, updateCourse } from '../../../api/coursesApi';
 import { getEnrolledStudentsByCourse } from '../../../api/enrollmentApi';
 import { createLesson, updateLesson, getLessons, deleteLesson, uploadLessonVideo } from '../../../api/lessionApi';
 import {
@@ -1362,16 +1362,46 @@ function CourseManagement() {
       typeof courseActiveStates[courseId] === 'boolean'
         ? courseActiveStates[courseId]
         : getCourseIsActive(course);
-    const newActiveState = !currentState;
+    const nextFromEvent =
+      typeof event?.target?.checked === 'boolean' ? event.target.checked : null;
+    const newActiveState = nextFromEvent !== null ? nextFromEvent : !currentState;
     setCourseActiveStates((prev) => ({ ...prev, [courseId]: newActiveState }));
-    if (!newActiveState) {
-      try {
-        await deleteCourse(courseId);
-        toast.success('Đã đánh dấu khóa học là INACTIVE.');
-      } catch {
-        setCourseActiveStates((prev) => ({ ...prev, [courseId]: true }));
-        toast.error('Đánh dấu khóa học thất bại. Vui lòng thử lại.');
-      }
+    setCourses((prev) =>
+      prev.map((item) =>
+        getCourseId(item) === courseId
+          ? {
+              ...item,
+              isPublic: newActiveState,
+              is_public: newActiveState,
+              isActive: newActiveState,
+              is_active: newActiveState,
+            }
+          : item
+      )
+    );
+    try {
+      const payload = {
+        isPublic: newActiveState,
+        is_public: newActiveState,
+        public: newActiveState,
+        isActive: newActiveState,
+        is_active: newActiveState,
+        courseId: Number(courseId),
+        id: Number(courseId),
+      };
+      if (course?.title) payload.title = course.title;
+      if (course?.description) payload.description = course.description;
+      const normalizedCourseId = Number.isNaN(Number(courseId)) ? courseId : Number(courseId);
+      await updateCourse(normalizedCourseId, payload);
+      toast.success(newActiveState ? 'Đã mở khóa học (PUBLIC).' : 'Đã đóng khóa học.');
+    } catch {
+      setCourseActiveStates((prev) => ({ ...prev, [courseId]: currentState }));
+      setCourses((prev) =>
+        prev.map((item) =>
+          getCourseId(item) === courseId ? { ...item, isPublic: currentState } : item
+        )
+      );
+      toast.error('Cập nhật trạng thái khóa học thất bại. Vui lòng thử lại.');
     }
   };
 

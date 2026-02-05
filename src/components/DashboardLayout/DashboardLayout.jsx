@@ -16,7 +16,7 @@ const getSidebarItems = (role) => {
       ...base,
       { key: '/dashboard-admin', label: 'Dashboard', path: '/dashboard-admin' },
       { key: 'users', label: 'Quản lý người dùng', path: '/dashboard-admin' },
-      { key: 'courses', label: 'Khóa học', path: '/dashboard-admin' },
+      { key: '/admin-courses', label: 'Quản lý khóa học', path: '/admin-courses' },
     ];
   }
   if (role === 'COURSE_MANAGER') {

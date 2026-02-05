@@ -74,8 +74,8 @@ const CourseCard = ({
           <div className="manager-card-status">
             <label 
               className="manager-card-toggle"
-              onClick={(event) => onToggleActive(course, event)}
               onMouseDown={(event) => event.stopPropagation()}
+              onClick={(event) => event.stopPropagation()}
             >
               <input
                 type="checkbox"
@@ -85,7 +85,7 @@ const CourseCard = ({
               />
               <span className="manager-card-toggle-slider"></span>
               <span className="manager-card-status-text">
-                {isActive ? 'ACTIVE' : 'INACTIVE'}
+                {isActive ? 'Công khai' : 'Riêng tư'}
               </span>
             </label>
           </div>
