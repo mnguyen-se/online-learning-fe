@@ -69,7 +69,7 @@ const LessonDetails = ({
     : availableLessonTypes[0];
   const [title, setTitle] = useState(() => initialLesson.title);
   const [lessonType, setLessonType] = useState(() => normalizedLessonType);
-  const [contentUrl, setContentUrl] = useState(() => initialLesson.contentUrl);
+  const [contentUrl] = useState(() => initialLesson.contentUrl); //tui xoá setContentUrl khỏi initialLesson vì nó ko cần thiết lắm
   const [textContent, setTextContent] = useState(() => initialLesson.textContent);
   const [quizQuestions, setQuizQuestions] = useState(() => initialLesson.quizQuestions);
   const [contentFile, setContentFile] = useState(null);
