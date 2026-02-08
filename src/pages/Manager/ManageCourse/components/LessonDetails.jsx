@@ -73,7 +73,6 @@ const LessonDetails = ({
   const [textContent, setTextContent] = useState(() => initialLesson.textContent);
   const [quizQuestions, setQuizQuestions] = useState(() => initialLesson.quizQuestions);
   const [contentFile, setContentFile] = useState(null);
-  const [previewUrl, setPreviewUrl] = useState(() => initialLesson.contentUrl || '');
 
   const generateQuestionId = () => `${Date.now()}-${Math.random()}`;
 
@@ -90,15 +89,19 @@ const LessonDetails = ({
     }
   };
 
-  useEffect(() => {
-    if (!contentFile) {
-      setPreviewUrl(contentUrl || '');
-      return undefined;
-    }
-    const objectUrl = URL.createObjectURL(contentFile);
-    setPreviewUrl(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
+  const previewUrl = useMemo(() => {
+    if (!contentFile) return contentUrl || '';
+      return URL.createObjectURL(contentFile);
   }, [contentFile, contentUrl]);
+
+  useEffect(() => {
+    return () => {
+      if (previewUrl?.startsWith('blob:')) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
+
 
   const handleAddQuestion = () => {
     const newQuestion = {

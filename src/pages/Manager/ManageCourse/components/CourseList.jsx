@@ -18,7 +18,11 @@ const CourseList = ({
   }
 
   if (coursesError) {
-    return <div className="course-status course-status-error">{coursesError}</div>;
+    return (
+      <div className="course-status course-status-error">
+        {coursesError}
+      </div>
+    );
   }
 
   if (courses.length === 0) {
@@ -29,29 +33,37 @@ const CourseList = ({
     <>
       {courses.map((course) => {
         const courseId = getCourseId(course);
+
         if (!courseId) {
           console.warn('Course missing ID:', course);
         }
+
         return (
           <CourseCard
-            key={courseId || course.title || Math.random()}
+            key={courseId ?? course.title} // 👈 KHÔNG Math.random
             course={course}
             courseStats={courseStats}
             courseActiveStates={courseActiveStates}
             onSelect={() => {
               const nextCourseId = getCourseId(course);
-              onSelectCourse({
-                ...course,
-                id: nextCourseId ?? course.id,
-              }, nextCourseId);
+              onSelectCourse(
+                {
+                  ...course,
+                  id: nextCourseId ?? course.id,
+                },
+                nextCourseId
+              );
             }}
             onToggleActive={onToggleActive}
             onEdit={(course) => {
               const nextCourseId = getCourseId(course);
-              onEditCourse({
-                ...course,
-                id: nextCourseId ?? course.id,
-              }, nextCourseId);
+              onEditCourse(
+                {
+                  ...course,
+                  id: nextCourseId ?? course.id,
+                },
+                nextCourseId
+              );
             }}
             getCourseId={getCourseId}
             getCourseIsActive={getCourseIsActive}
