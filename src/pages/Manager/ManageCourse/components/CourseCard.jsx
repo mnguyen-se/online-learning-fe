@@ -1,10 +1,10 @@
 import React from 'react';
 
-const CourseCard = ({ 
-  course, 
-  courseStats, 
-  courseActiveStates, 
-  onSelect, 
+const CourseCard = ({
+  course,
+  courseStats,
+  courseActiveStates,
+  onSelect,
   onToggleActive,
   onEdit,
   getCourseId,
@@ -37,13 +37,36 @@ const CourseCard = ({
       onClick={onSelect}
       role="button"
       tabIndex={0}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter') {
-          onSelect();
-        }
-      }}
     >
-      {/* phần JSX còn lại giữ nguyên */}
+      <h3>{course.title}</h3>
+
+      <div className="manager-card-meta">
+        <span>{chaptersCount} Chương</span>
+        <span>{lessonsCount} Bài học</span>
+        <span>{testsCount} Bài kiểm tra</span>
+      </div>
+
+      <div className="manager-card-footer">
+        <label>
+          <input
+            type="checkbox"
+            checked={isActive}
+            onChange={(e) => onToggleActive(course, e)}
+            onClick={(e) => e.stopPropagation()}
+          />
+          {isActive ? 'Công khai' : 'Riêng tư'}
+        </label>
+
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onEdit(course);
+          }}
+        >
+          Cập nhật
+        </button>
+      </div>
     </article>
   );
 };
