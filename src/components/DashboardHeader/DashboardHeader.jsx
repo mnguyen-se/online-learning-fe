@@ -14,7 +14,7 @@ import './DashboardHeader.css';
 function DashboardHeader() {
   const navigate = useNavigate();
   const dispatch = useDispatch();
-  const { role, isStaff, isLoggedIn, getDashboardPath } = useAuth();
+  const { isStaff, isLoggedIn, getDashboardPath } = useAuth(); //role chưa dùng thì tui tạm thời xoá nhen,nó nằm trước isStaff
   const [showDropdown, setShowDropdown] = useState(false);
   const dropdownRef = useRef(null);
 
