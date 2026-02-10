@@ -1,19 +1,44 @@
-import axios from "axios";
+import axios from 'axios';
 
-const api = axios.create({
-  baseURL: "http://localhost:8080/api/",
+const apiClient = axios.create({
+  baseURL: import.meta.env.DEV ? '/api/v1' : 'http://localhost:8080/api/v1',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  timeout: 10000, // 10 seconds timeout
 });
 
-api.interceptors.request.use(
-    function (config) {
-      const token = localStorage.getItem("token");
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
-      }
-      return config;
-    },
-    function (error) {
-      return Promise.reject(error);
+// Request interceptor để thêm token vào header
+apiClient.interceptors.request.use(
+  (config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
     }
-  );
-  export default api;
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Response interceptor để xử lý lỗi
+apiClient.interceptors.response.use(
+  (response) => {
+    return response;
+  },
+  (error) => {
+    if (error.response?.status === 401) {
+      // Không redirect khi 401 từ chính request đăng nhập (sai user/pass) – để form hiển thị lỗi
+      const isLoginRequest = error.config?.url?.includes('auth/login');
+      if (!isLoginRequest) {
+        // Token hết hạn hoặc không hợp lệ khi gọi API khác → đăng xuất và về trang login
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+      }
+    }
+    return Promise.reject(error);
+  }
+);
+
+export default apiClient;
