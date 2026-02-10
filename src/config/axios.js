@@ -29,9 +29,13 @@ apiClient.interceptors.response.use(
   },
   (error) => {
     if (error.response?.status === 401) {
-      // Token hết hạn hoặc không hợp lệ
-      localStorage.removeItem('token');
-      window.location.href = '/login';
+      // Không redirect khi 401 từ chính request đăng nhập (sai user/pass) – để form hiển thị lỗi
+      const isLoginRequest = error.config?.url?.includes('auth/login');
+      if (!isLoginRequest) {
+        // Token hết hạn hoặc không hợp lệ khi gọi API khác → đăng xuất và về trang login
+        localStorage.removeItem('token');
+        window.location.href = '/login';
+      }
     }
     return Promise.reject(error);
   }

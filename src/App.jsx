@@ -23,14 +23,6 @@ function App() {
       element: <HomePage />,
     },
     {
-      path: '/login',
-      element: <LoginPage />,
-    },
-    {
-      path: '/register',
-      element: <RegisterPage />,
-    },
-    {
       path: '/profile',
       element: <Profile />,
     },
@@ -74,8 +66,19 @@ function App() {
       path: '/lessons',
       element: <LessonsView />,
     },
-    { path: "/my-courses", 
-      element: <MyCourses /> },
+    {
+      path: "/my-courses",
+      element: <MyCourses />
+    },
+
+    {
+      path: '/login',
+      element: <LoginPage />,
+    },
+    {
+      path: '/register',
+      element: <RegisterPage />,
+    },
   ]);
 
   return (
