@@ -2,10 +2,14 @@ import React from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { toast } from 'react-toastify';
+import { LayoutDashboard, BookOpen, Feather, MessageSquare, Home } from 'lucide-react';
 import { logout } from '../../store/slices/userSlice';
 import { useAuth } from '../../hooks';
 import Header from '../Header/header';
+import logoImg from '../../assets/logo.png';
 import './DashboardLayout.css';
+
+const ICON_SIZE = 22;
 
 const getSidebarItems = (role) => {
   const base = [
@@ -28,7 +32,10 @@ const getSidebarItems = (role) => {
   if (role === 'TEACHER') {
     return [
       ...base,
-      { key: '/teacher-page', label: 'Trang giáo viên', path: '/teacher-page' },
+      { key: '/teacher-page', label: 'Dashboard', path: '/teacher-page', icon: 'dashboard' },
+      { key: '/teacher-page/courses', label: 'Khóa học của tôi', path: '/teacher-page/courses', icon: 'book' },
+      { key: '/teacher-page/grade', label: 'Chấm bài', path: '/teacher-page/grade', icon: 'clipboard' },
+      { key: '/teacher-page/feedback', label: 'Feedback', path: '/teacher-page/feedback', icon: 'message' },
     ];
   }
   return base;
@@ -36,24 +43,20 @@ const getSidebarItems = (role) => {
 
 function DashboardLayout({
   children,
-  pageTitle,
-  pageSubtitle,
+  pageTitle: _pageTitle,
+  pageSubtitle: _pageSubtitle,
   showSidebar = true,
-  showTopbar = true,
+  showTopbar: _showTopbar = true,
 }) {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
-  const { role, username } = useAuth();
+  const { role } = useAuth();
 
   const handleLogout = () => {
     dispatch(logout());
     toast.success('Đã đăng xuất.');
     navigate('/login');
-  };
-
-  const handleBackToHome = () => {
-    navigate('/');
   };
 
   const sidebarItems = showSidebar ? getSidebarItems(role) : [];
@@ -69,44 +72,39 @@ function DashboardLayout({
       {showSidebar && (
         <aside className="shared-dashboard-sidebar">
           <div className="shared-sidebar-header">
-            <button type="button" className="shared-sidebar-logo-btn" onClick={handleBackToHome} title="Back to Home">
-              <div className="shared-sidebar-logo">
-                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="4" y="4" width="16" height="16" rx="3" fill="#FF6B4A" />
-                  <text x="12" y="16" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold">日</text>
-                </svg>
-                <span>EduLearn</span>
-              </div>
-            </button>
-            <div className="shared-sidebar-user-below-logo">
-              <span className="shared-sidebar-username">{username || 'User'}</span>
-              <span className="shared-sidebar-role">{role || '—'}</span>
-            </div>
+            <Link to="/" className="shared-sidebar-logo-link" aria-label="Trang chủ">
+              <img src={logoImg} alt="Logo" className="shared-sidebar-logo-img" />
+            </Link>
           </div>
-
           <nav className="shared-sidebar-nav">
-            {sidebarItems.map((item) => (
-              <Link
-                key={item.key}
-                to={item.path}
-                className={`shared-nav-item ${location.pathname === item.path ? 'active' : ''}`}
-              >
-                {item.key === '/' ? (
-                  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="20" height="20">
-                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                    <polyline points="9 22 9 12 15 12 15 22" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                ) : (
-                  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" width="20" height="20">
-                    <rect x="3" y="3" width="7" height="7" stroke="currentColor" strokeWidth="2" fill="none" />
-                    <rect x="14" y="3" width="7" height="7" stroke="currentColor" strokeWidth="2" fill="none" />
-                    <rect x="14" y="14" width="7" height="7" stroke="currentColor" strokeWidth="2" fill="none" />
-                    <rect x="3" y="14" width="7" height="7" stroke="currentColor" strokeWidth="2" fill="none" />
-                  </svg>
-                )}
-                <span>{item.label}</span>
-              </Link>
-            ))}
+            {sidebarItems.map((item) => {
+              const isTeacherSub = role === 'TEACHER' && item.path !== '/';
+              const isActive = isTeacherSub
+                ? (item.path === '/teacher-page' ? location.pathname === '/teacher-page' : location.pathname.startsWith(item.path))
+                : location.pathname === item.path;
+              return (
+                <Link
+                  key={item.key}
+                  to={item.path}
+                  className={`shared-nav-item ${isActive ? 'active' : ''}`}
+                >
+                  {item.key === '/' ? (
+                    <Home size={ICON_SIZE} strokeWidth={2} />
+                  ) : item.icon === 'dashboard' ? (
+                    <LayoutDashboard size={ICON_SIZE} strokeWidth={2} />
+                  ) : item.icon === 'book' ? (
+                    <BookOpen size={ICON_SIZE} strokeWidth={2} />
+                  ) : item.icon === 'clipboard' ? (
+                    <Feather size={ICON_SIZE} strokeWidth={2} />
+                  ) : item.icon === 'message' ? (
+                    <MessageSquare size={ICON_SIZE} strokeWidth={2} />
+                  ) : (
+                    <LayoutDashboard size={ICON_SIZE} strokeWidth={2} />
+                  )}
+                  <span>{item.label}</span>
+                </Link>
+              );
+            })}
           </nav>
 
           <div className="shared-sidebar-footer">
@@ -124,19 +122,6 @@ function DashboardLayout({
 
       <div className="shared-dashboard-main">
         <Header headerTitle={headerTitle} />
-        {showTopbar && (
-          <header className="shared-dashboard-topbar">
-            <div className="shared-topbar-left">
-              {(pageTitle || pageSubtitle) && (
-                <div className="shared-topbar-title">
-                  {pageTitle && <h1 className="shared-topbar-title-text">{pageTitle}</h1>}
-                  {pageSubtitle && <p className="shared-topbar-subtitle">{pageSubtitle}</p>}
-                </div>
-              )}
-            </div>
-          </header>
-        )}
-
         <main className="shared-dashboard-content">
           {children}
         </main>

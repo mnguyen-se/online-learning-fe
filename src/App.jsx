@@ -12,7 +12,11 @@ import Profile from './pages/Profile/profile';
 import Dashboard from './pages/DashBoard-Admin/dashboard';
 import AdminCourseManagement from './pages/Admin/ManageCourse/AdminCourseManagement';
 import CourseManagement from './pages/Manager/ManageCourse/CourseManagement';
-import TeacherPage from './pages/Teacher/TeacherPage';
+import TeacherLayout from './pages/Teacher/TeacherLayout';
+import TeacherDashboard from './pages/Teacher/TeacherDashboard';
+import TeacherMyCourses from './pages/Teacher/TeacherMyCourses';
+import TeacherGrading from './pages/Teacher/TeacherGrading';
+import TeacherFeedback from './pages/Teacher/TeacherFeedback';
 import LessonsView from './pages/Lessons/LessonsView';
 import MyCourses from "./pages/MyCourses/MyCourses";
 
@@ -55,8 +59,14 @@ function App() {
     {
       path: '/teacher-page',
       element: (
-        <PrivateRoute allowedRoles={['TEACHER']} element={<TeacherPage />} />
+        <PrivateRoute allowedRoles={['TEACHER']} element={<TeacherLayout />} />
       ),
+      children: [
+        { index: true, element: <TeacherDashboard /> },
+        { path: 'courses', element: <TeacherMyCourses /> },
+        { path: 'grade', element: <TeacherGrading /> },
+        { path: 'feedback', element: <TeacherFeedback /> },
+      ],
     },
     {
       path: '/teacher',
