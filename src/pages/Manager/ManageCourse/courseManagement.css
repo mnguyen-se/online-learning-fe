@@ -322,12 +322,20 @@
   position: absolute;
   top: 12px;
   left: 12px;
-  background: #dcfce7;
-  color: #15803d;
   padding: 4px 10px;
   border-radius: 999px;
   font-size: 12px;
   font-weight: 600;
+}
+
+.manager-card-badge--public {
+  background: #dcfce7;
+  color: #15803d;
+}
+
+.manager-card-badge--private {
+  background: #f1f5f9;
+  color: #64748b;
 }
 
 .manager-card-body {
@@ -2688,32 +2696,38 @@
 .course-management-nav {
   background: #ffffff;
   border: 1px solid #e5e7eb;
-  border-radius: 16px;
-  padding: 8px;
-  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.06);
+  border-radius: 14px;
+  padding: 6px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
 }
 
 .course-management-tabs {
   display: flex;
-  gap: 8px;
+  gap: 4px;
   flex-wrap: wrap;
 }
 
 .course-management-tab {
   border: none;
   background: transparent;
-  color: #475569;
-  padding: 10px 18px;
-  border-radius: 999px;
+  color: #64748b;
+  padding: 12px 22px;
+  border-radius: 10px;
   font-weight: 600;
   font-size: 14px;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+.course-management-tab:hover:not(.is-active) {
+  background: #f1f5f9;
+  color: #475569;
 }
 
 .course-management-tab.is-active {
-  background: #0f172a;
+  background: #1e293b;
   color: #ffffff;
+  box-shadow: 0 2px 8px rgba(30, 41, 59, 0.2);
 }
 
 /* Overview dashboard */
@@ -2964,26 +2978,53 @@
 /* Course management sections */
 .course-management-view {
   display: grid;
-  gap: 20px;
+  gap: 24px;
 }
 
 .course-management-header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  gap: 16px;
+  gap: 20px;
   flex-wrap: wrap;
+}
+
+.course-management-header-text {
+  flex: 1;
+  min-width: 0;
 }
 
 .course-management-header h2 {
   margin: 0 0 6px;
-  font-size: 20px;
+  font-size: 22px;
+  font-weight: 700;
   color: #0f172a;
 }
 
 .course-management-header p {
   margin: 0;
+  font-size: 14px;
   color: #6b7280;
+}
+
+.course-management-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.course-management-search {
+  min-width: 260px;
+}
+
+.course-management-search input {
+  width: 100%;
+  min-width: 200px;
+}
+
+.course-management-cta {
+  flex-shrink: 0;
 }
 
 .course-management-sections {
@@ -2994,14 +3035,16 @@
 .course-section {
   border: 1px solid #e5e7eb;
   border-radius: 16px;
-  padding: 16px;
+  padding: 20px;
   background: #ffffff;
   display: grid;
-  gap: 12px;
+  gap: 16px;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.04);
 }
 
 .course-section.is-closed {
   background: #f8fafc;
+  border-color: #e2e8f0;
 }
 
 .course-section-header {
@@ -3013,23 +3056,24 @@
 
 .course-section-header h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: 17px;
+  font-weight: 700;
   color: #0f172a;
 }
 
 .course-section-count {
   background: #f1f5f9;
-  color: #0f172a;
-  font-size: 12px;
-  padding: 4px 10px;
+  color: #475569;
+  font-size: 13px;
+  padding: 5px 12px;
   border-radius: 999px;
   font-weight: 600;
 }
 
 .course-section-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 320px));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 20px;
 }
 
 /* Course edit modal */
