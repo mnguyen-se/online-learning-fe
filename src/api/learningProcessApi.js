@@ -10,3 +10,14 @@ export const getLearningProcess = async (courseId) => {
   });
   return response.data;
 };
+
+/**
+ * POST /api/v1/learning-process/enroll?courseId= – Tạo learning process khi user bắt đầu học (enroll).
+ */
+export const enrollLearningProcess = async (courseId) => {
+  const response = await apiClient.post('/learning-process/enroll', null, {
+    params: { courseId },
+    skipSuccessToast: true,
+  });
+  return response.data;
+};

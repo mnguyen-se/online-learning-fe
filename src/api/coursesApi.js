@@ -5,6 +5,12 @@ export const getCourses = async () => {
   return response.data;
 };
 
+/** GET /api/v1/courses/my-courses – Danh sách khóa học của giáo viên đang đăng nhập */
+export const getMyCourses = async () => {
+  const response = await apiClient.get('/courses/my-courses');
+  return response.data;
+};
+
 export const getActiveCourses = async () => {
   const response = await apiClient.get('/courses/active');
   return response.data;
