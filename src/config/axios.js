@@ -34,6 +34,16 @@ apiClient.interceptors.response.use(
       if (!isLoginRequest) {
         // Token hết hạn hoặc không hợp lệ khi gọi API khác → đăng xuất và về trang login
         localStorage.removeItem('token');
+        localStorage.removeItem('username');
+        window.location.href = '/login';
+      }
+    }
+    if (error.response?.status === 403) {
+      // Tài khoản bị vô hiệu hóa hoặc không có quyền truy cập
+      const isAuthRequest = error.config?.url?.includes('auth/');
+      if (!isAuthRequest) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('username');
         window.location.href = '/login';
       }
     }
