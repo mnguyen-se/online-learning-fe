@@ -17,6 +17,7 @@ import TeacherDashboard from './pages/Teacher/TeacherDashboard';
 import TeacherMyCourses from './pages/Teacher/TeacherMyCourses';
 import TeacherGrading from './pages/Teacher/TeacherGrading';
 import TeacherFeedback from './pages/Teacher/TeacherFeedback';
+import TeacherCourseDetail from './pages/Teacher/TeacherCourseDetail';
 import LessonsView from './pages/Lessons/LessonsView';
 import MyCourses from "./pages/MyCourses/MyCourses";
 
@@ -64,6 +65,7 @@ function App() {
       children: [
         { index: true, element: <TeacherDashboard /> },
         { path: 'courses', element: <TeacherMyCourses /> },
+        { path: 'courses/:courseId', element: <TeacherCourseDetail /> },
         { path: 'grade', element: <TeacherGrading /> },
         { path: 'feedback', element: <TeacherFeedback /> },
       ],

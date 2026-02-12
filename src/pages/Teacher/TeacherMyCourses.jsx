@@ -1,119 +1,69 @@
 import React, { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { BookOpen, FileText, ClipboardList } from 'lucide-react';
-import { getTeacherCourses } from '../../api/teacherApi';
-import { getModulesByCourse } from '../../api/module';
-import { getLessons } from '../../api/lessionApi';
+import { getMyCourses } from '../../api/coursesApi';
+import CourseCard from './components/CourseCard';
 import './TeacherPages.css';
-
-function getCourseId(course) {
-  return course?.courseId ?? course?.id ?? course?.course_id ?? null;
-}
 
 function TeacherMyCourses() {
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [courseStats, setCourseStats] = useState({});
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
 
-    getTeacherCourses()
-      .then((data) => {
+    const fetchCourses = async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const data = await getMyCourses();
         const list = Array.isArray(data) ? data : [];
-        if (cancelled) return;
-        setCourses(list);
-
-        const ids = list.map((c) => getCourseId(c)).filter(Boolean);
-        if (ids.length === 0) return;
-
-        Promise.all(
-          ids.map(async (courseId) => {
-            try {
-              const [modulesRes, lessonsRes] = await Promise.all([
-                getModulesByCourse(courseId).catch(() => []),
-                getLessons({ courseId }).catch(() => []),
-              ]);
-              const modules = Array.isArray(modulesRes) ? modulesRes : [];
-              const lessonsRaw = Array.isArray(lessonsRes) ? lessonsRes : lessonsRes?.data ?? [];
-              const lessons = Array.isArray(lessonsRaw) ? lessonsRaw : [];
-              return {
-                courseId,
-                chapters: modules.length,
-                lessons: lessons.length,
-              };
-            } catch {
-              return { courseId, chapters: 0, lessons: 0 };
-            }
-          })
-        ).then((results) => {
-          if (cancelled) return;
-          const stats = {};
-          results.forEach((r) => {
-            stats[r.courseId] = { chapters: r.chapters, lessons: r.lessons };
-          });
-          setCourseStats(stats);
-        });
-      })
-      .catch(() => {
-        if (!cancelled) setCourses([]);
-      })
-      .finally(() => {
+        if (!cancelled) setCourses(list);
+      } catch (err) {
+        if (!cancelled) {
+          const message = err?.response?.data?.message ?? err?.message ?? 'Không thể tải danh sách khóa học.';
+          setError(message);
+          setCourses([]);
+        }
+      } finally {
         if (!cancelled) setLoading(false);
-      });
+      }
+    };
 
+    fetchCourses();
     return () => { cancelled = true; };
   }, []);
 
   return (
     <div className="teacher-page-wrap">
-      <div className="teacher-courses-view">
-        <div className="teacher-courses-header">
-          <div>
-            <h2>Khóa học của tôi</h2>
-            <p>Danh sách khóa học bạn đang giảng dạy.</p>
-          </div>
+      <div className="tmc-view">
+        <div className="tmc-header">
+          <h2 className="tmc-header-title">Khóa học của tôi</h2>
+          <p className="tmc-header-desc">Danh sách khóa học được gán cho bạn.</p>
         </div>
 
-        {loading ? (
-          <p className="teacher-course-status">Đang tải khóa học...</p>
-        ) : courses.length === 0 ? (
-          <p className="teacher-course-status">Chưa có khóa học nào.</p>
-        ) : (
-          <div className="teacher-course-cards">
-            {courses.map((course) => {
-              const courseId = getCourseId(course);
-              const stats = courseStats[courseId] || { chapters: 0, lessons: 0 };
-              const title = course.title || course.name || course.courseName || 'Khóa học';
+        {loading && (
+          <div className="tmc-state tmc-state--loading">
+            <p>Đang tải khóa học...</p>
+          </div>
+        )}
 
-              return (
-                <article key={courseId ?? title} className="teacher-course-card">
-                  <div className="teacher-course-card-image" />
-                  <div className="teacher-course-card-body">
-                    <h3 className="teacher-course-card-title">{title}</h3>
-                    <div className="teacher-course-card-meta">
-                      <span>
-                        <BookOpen size={16} strokeWidth={2} />
-                        {stats.chapters} Chương
-                      </span>
-                      <span>
-                        <FileText size={16} strokeWidth={2} />
-                        {stats.lessons} Bài học
-                      </span>
-                    </div>
-                    <div className="teacher-course-card-footer">
-                      <Link
-                        to={`/teacher-page/grade?courseId=${courseId}`}
-                        className="teacher-course-card-btn"
-                      >
-                        <ClipboardList size={18} strokeWidth={2} />
-                        Chấm bài
-                      </Link>
-                    </div>
-                  </div>
-                </article>
-              );
-            })}
+        {!loading && error && (
+          <div className="tmc-state tmc-state--error">
+            <p>{error}</p>
+          </div>
+        )}
+
+        {!loading && !error && courses.length === 0 && (
+          <div className="tmc-state tmc-state--empty">
+            <p>Chưa có khóa học nào được gán cho bạn.</p>
+          </div>
+        )}
+
+        {!loading && !error && courses.length > 0 && (
+          <div className="tmc-grid">
+            {courses.map((course) => (
+              <CourseCard key={course?.courseId ?? course?.id ?? course?.courseName ?? Math.random()} course={course} />
+            ))}
           </div>
         )}
       </div>

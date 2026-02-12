@@ -5,6 +5,9 @@
   max-width: 100%;
   background: #F0F7FF;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .teacher-page-wrap {
@@ -953,12 +956,524 @@
   font-size: 0.9375rem;
 }
 
+/* ========== Teacher My Courses (Card layout) ========== */
+.tmc-view {
+  width: 100%;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.tmc-header {
+  margin-bottom: 1.5rem;
+}
+
+.tmc-header-title {
+  margin: 0 0 0.25rem 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e3a5f;
+}
+
+.tmc-header-desc {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: #64748b;
+}
+
+.tmc-state {
+  padding: 1.5rem;
+  text-align: center;
+  border-radius: 12px;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.tmc-state--loading,
+.tmc-state--empty {
+  color: #64748b;
+}
+
+.tmc-state--error {
+  color: #dc2626;
+  background: #fef2f2;
+}
+
+.tmc-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.5rem;
+}
+
+.tmc-card {
+  background: #fff;
+  border-radius: 10px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.tmc-card:hover {
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.tmc-card-body {
+  padding: 1rem 1.25rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  flex: 1;
+}
+
+.tmc-card-title {
+  margin: 0;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tmc-card-description {
+  margin: 0;
+  font-size: 0.875rem;
+  color: #64748b;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.tmc-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.tmc-card-meta-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+
+.tmc-card-meta-item svg {
+  flex-shrink: 0;
+  color: #94a3b8;
+}
+
+.tmc-card-progress {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.tmc-card-progress-label {
+  font-size: 0.8125rem;
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+.tmc-card-progress-bar {
+  flex: 1;
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.tmc-card-progress-fill {
+  height: 100%;
+  background: #2563eb;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.tmc-card-progress-pct {
+  font-size: 0.8125rem;
+  color: #64748b;
+  flex-shrink: 0;
+  min-width: 2.5ch;
+}
+
+.tmc-card-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  margin-top: 0.25rem;
+  padding: 0.6rem 1rem;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  background: #fff;
+  color: #2563eb;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  transition: background 0.2s ease, border-color 0.2s ease;
+  width: 100%;
+}
+
+.tmc-card-btn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+}
+
+/* ========== Teacher Course Detail – Trang học video (Xem chi tiết) ========== */
+/* Nằm dưới Header, bên phải Sidebar hệ thống. Bố cục 2 cột 70% / 30%. */
+.tcd-wrap {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+  background: #f8fafc;
+}
+
+.tcd-top-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  flex-shrink: 0;
+  margin-bottom: 1rem;
+}
+
+.tcd-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.5rem 1rem;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: #475569;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.tcd-back-btn:hover {
+  background: #f1f5f9;
+  border-color: #cbd5e1;
+}
+
+.tcd-drawer-toggle {
+  display: none;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.tcd-drawer-toggle:hover {
+  background: #1d4ed8;
+}
+
+.tcd-main {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 1.5rem;
+  flex: 1;
+  min-height: 0;
+}
+
+.tcd-video-col {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.tcd-video-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.tcd-video-wrap {
+  position: relative;
+  width: 100%;
+  padding-bottom: 56.25%;
+  height: 0;
+  background: #0f172a;
+}
+
+.tcd-video-iframe,
+.tcd-video-el {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.tcd-video-el {
+  object-fit: contain;
+}
+
+.tcd-video-placeholder {
+  width: 100%;
+  padding-bottom: 56.25%;
+  background: #e2e8f0;
+  position: relative;
+}
+
+.tcd-video-placeholder p {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  color: #64748b;
+  font-size: 0.9375rem;
+}
+
+.tcd-video-title {
+  margin: 0;
+  padding: 1rem 1.25rem;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1e293b;
+  border-top: 1px solid #f1f5f9;
+}
+
+/* Sidebar nội dung khóa học – nền trắng, scroll riêng */
+.tcd-sidebar-col {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.tcd-sidebar-card {
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  max-height: calc(100vh - 220px);
+}
+
+.tcd-sidebar-inner {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.tcd-sidebar-heading {
+  margin: 0;
+  padding: 1rem 1.25rem;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+  border-bottom: 1px solid #f1f5f9;
+  flex-shrink: 0;
+}
+
+.tcd-sidebar-empty {
+  padding: 1.5rem;
+  text-align: center;
+  color: #64748b;
+  font-size: 0.9375rem;
+}
+
+.tcd-accordion {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0.5rem 0;
+}
+
+.tcd-accordion-item {
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.tcd-accordion-item:last-child {
+  border-bottom: none;
+}
+
+.tcd-accordion-head {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: transparent;
+  border: none;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #334155;
+  cursor: pointer;
+  text-align: left;
+  transition: background 0.15s;
+}
+
+.tcd-accordion-head:hover {
+  background: #f8fafc;
+}
+
+.tcd-accordion-chevron {
+  font-size: 0.7rem;
+  color: #94a3b8;
+}
+
+.tcd-accordion-title {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tcd-accordion-count {
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: #94a3b8;
+}
+
+.tcd-accordion-body {
+  padding: 0 0 0.5rem 0;
+}
+
+.tcd-lesson-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  padding: 0.6rem 1.25rem 0.6rem 2.25rem;
+  background: transparent;
+  border: none;
+  font-size: 0.9375rem;
+  color: #475569;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.tcd-lesson-row:hover:not(.tcd-lesson-row--locked) {
+  background: #f8fafc;
+}
+
+.tcd-lesson-row--active {
+  background: #eff6ff;
+  color: #2563eb;
+  font-weight: 500;
+}
+
+.tcd-lesson-row--done .tcd-lesson-icon {
+  color: #16a34a;
+}
+
+.tcd-lesson-row--locked {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+.tcd-lesson-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+}
+
+.tcd-lesson-row--active .tcd-lesson-icon {
+  color: #2563eb;
+}
+
+.tcd-lesson-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tcd-loading,
+.tcd-error {
+  padding: 2rem;
+  text-align: center;
+  color: #64748b;
+}
+
+.tcd-error {
+  color: #dc2626;
+}
+
+.tcd-error .tcd-back-btn {
+  margin-top: 1rem;
+}
+
+/* Responsive: drawer cho Nội dung khóa học */
+@media (max-width: 900px) {
+  .tcd-main {
+    grid-template-columns: 1fr;
+  }
+
+  .tcd-sidebar-col {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: 320px;
+    max-width: 90vw;
+    z-index: 100;
+    transform: translateX(100%);
+    transition: transform 0.25s ease;
+    padding: 1rem;
+    padding-top: 3rem;
+  }
+
+  .tcd-sidebar-col--open {
+    transform: translateX(0);
+  }
+
+  .tcd-sidebar-card {
+    max-height: 100%;
+  }
+
+  .tcd-drawer-toggle {
+    display: inline-flex;
+  }
+
+  .tcd-sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    z-index: 99;
+  }
+}
+
 @media (max-width: 640px) {
   .teacher-cards {
     grid-template-columns: 1fr;
   }
 
   .teacher-course-cards {
+    grid-template-columns: 1fr;
+  }
+
+  .tmc-grid {
     grid-template-columns: 1fr;
   }
 
