@@ -1,6 +1,5 @@
 .header {
   background: #FFFFFF;
-  border-bottom: 1px solid #E5E7EB;
   position: sticky;
   top: 0;
   z-index: 100;
@@ -23,10 +22,22 @@
   min-width: 0;
 }
 
+.header-brand-text {
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #111827;
+  text-decoration: none;
+}
+
+.header-brand-text:hover {
+  color: #FF6B4A;
+}
+
 .header-page-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #0f172a;
+  margin: 0 0 0 -2px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: #111827;
   white-space: nowrap;
 }
 
@@ -67,12 +78,13 @@
   white-space: nowrap;
 }
 
+/* Thanh tìm kiếm – thiết kế tối giản, bo góc rõ, viền xám nhạt */
 .header-search-section {
   flex: 1;
-  max-width: 550px;
+  max-width: 480px;
   display: flex;
   align-items: center;
-  gap: 8px;
+  min-width: 0;
 }
 
 .search-bar {
@@ -80,30 +92,48 @@
   position: relative;
   display: flex;
   align-items: center;
+  width: 100%;
 }
 
 .search-icon {
   position: absolute;
-  left: 16px;
+  left: 18px;
+  top: 50%;
+  transform: translateY(-50%);
   color: #9ca3af;
   pointer-events: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.search-icon svg {
+  width: 20px;
+  height: 20px;
 }
 
 .search-bar input {
   width: 100%;
-  padding: 10px 16px 10px 44px;
-  border: 1px solid #E5E7EB;
-  border-radius: 24px;
+  padding: 12px 18px 12px 48px;
+  border: 1px solid #e5e7eb;
+  border-radius: 15px;
   font-size: 14px;
-  background: #FFFFFF;
-  transition: all 0.3s ease;
+  font-family: inherit;
+  background: #ffffff;
+  color: #111827;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
   box-sizing: border-box;
+  appearance: none;
+}
+
+.search-bar input:hover {
+  border-color: #d1d5db;
 }
 
 .search-bar input:focus {
   outline: none;
-  border-color: #D1D5DB;
-  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.05);
+  border-color: #d1d5db;
+  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.04);
 }
 
 .search-bar input::placeholder {
@@ -831,7 +861,7 @@
   }
 
   .header-page-title {
-    font-size: 14px;
+    font-size: 1.125rem;
   }
 }
 
@@ -851,7 +881,7 @@
   }
 
   .header-page-title {
-    font-size: 13px;
+    font-size: 1rem;
   }
 
   .header-search-section {

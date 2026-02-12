@@ -27,6 +27,12 @@ export const getLessonView = async () => {
   return response.data;
 };
 
+/**
+ * Upload video cho bài học.
+ * OpenAPI: POST /lessons/{lessonId}/upload-video.
+ * FE hiện gọi POST /lessons/upload-video (không lessonId) để tương thích flow tạo lesson trước khi có id.
+ * Nếu backend chỉ hỗ trợ có lessonId, gọi uploadLessonVideoForLesson(lessonId, file).
+ */
 export const uploadLessonVideo = async (file) => {
   const formData = new FormData();
   formData.append('file', file);
@@ -35,5 +41,21 @@ export const uploadLessonVideo = async (file) => {
       'Content-Type': 'multipart/form-data',
     },
   });
+  return response.data;
+};
+
+/** POST /lessons/{lessonId}/upload-video – Đúng OpenAPI (dùng khi đã có lessonId) */
+export const uploadLessonVideoForLesson = async (lessonId, file) => {
+  const formData = new FormData();
+  formData.append('file', file);
+  const response = await apiClient.post(
+    `/lessons/${lessonId}/upload-video`,
+    formData,
+    {
+      headers: {
+        'Content-Type': 'multipart/form-data',
+      },
+    }
+  );
   return response.data;
 };

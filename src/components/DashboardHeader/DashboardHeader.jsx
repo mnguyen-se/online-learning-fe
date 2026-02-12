@@ -4,6 +4,7 @@ import { useDispatch } from 'react-redux';
 import { toast } from 'react-toastify';
 import { logout } from '../../store/slices/userSlice';
 import { useAuth } from '../../hooks';
+import logoImg from '../../assets/logo.png';
 import './DashboardHeader.css';
 
 /**
@@ -44,13 +45,7 @@ function DashboardHeader() {
     <header className="dashboard-header-bar">
       <div className="dashboard-header-container">
         <Link to="/" className="dashboard-header-logo">
-          <div className="dashboard-header-logo-icon">
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <rect x="2" y="2" width="20" height="20" rx="4" fill="#FF6B4A" />
-              <text x="12" y="16" textAnchor="middle" fill="white" fontSize="12" fontWeight="bold">日</text>
-            </svg>
-          </div>
-          <h2>EduLearn</h2>
+          <img src={logoImg} alt="Logo" className="dashboard-header-logo-img" />
         </Link>
 
         <div className="dashboard-header-actions">

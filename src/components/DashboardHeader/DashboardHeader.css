@@ -25,17 +25,11 @@
   flex-shrink: 0;
 }
 
-.dashboard-header-logo-icon {
-  width: 40px;
-  height: 40px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.dashboard-header-logo-icon svg {
-  width: 100%;
-  height: 100%;
+.dashboard-header-logo-img {
+  width: 95.33px;
+  height: 52px;
+  object-fit: contain;
+  display: block;
 }
 
 .dashboard-header-logo h2 {
