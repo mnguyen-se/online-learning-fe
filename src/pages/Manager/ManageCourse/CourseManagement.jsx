@@ -1545,29 +1545,11 @@ function CourseManagement() {
     <DashboardLayout
       pageTitle="Quản lý khóa học"
       pageSubtitle="Hệ thống quản lý Module & Lesson tập trung"
-      showSidebar={false}
-      showTopbar={false}
+      showSidebar={true}
+      managerSidebarTab={activeNavTab}
+      onManagerSidebarTabChange={setActiveNavTab}
     >
       <section className="manager-dashboard-content">
-        <div className="course-management-nav">
-          <div className="course-management-tabs">
-            <button
-              type="button"
-              className={`course-management-tab${activeNavTab === 'dashboard' ? ' is-active' : ''}`}
-              onClick={() => setActiveNavTab('dashboard')}
-            >
-              Tổng quan
-            </button>
-            <button
-              type="button"
-              className={`course-management-tab${activeNavTab === 'management' ? ' is-active' : ''}`}
-              onClick={() => setActiveNavTab('management')}
-            >
-              Quản lý KH
-            </button>
-          </div>
-        </div>
-
         {activeNavTab === 'dashboard' && (
           <div className="manager-overview">
             <div className="manager-overview-header">

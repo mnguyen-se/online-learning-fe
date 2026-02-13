@@ -1,8 +1,23 @@
+/* Ryugo header – navy/gold, sticky, subtle shadow */
 .header {
-  background: #FFFFFF;
+  background: var(--ryugo-white);
   position: sticky;
   top: 0;
   z-index: 100;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.04);
+  animation: headerSlideDown 0.35s ease-out;
+}
+
+@keyframes headerSlideDown {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .header-container {
@@ -22,22 +37,55 @@
   min-width: 0;
 }
 
-.header-brand-text {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #111827;
+/* Logo Ryugo: emblem + RYUGO + 竜五 */
+.header-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
   text-decoration: none;
+  flex-shrink: 0;
+  transition: transform 0.25s ease, opacity 0.25s ease;
 }
 
-.header-brand-text:hover {
-  color: #FF6B4A;
+.header-logo:hover {
+  transform: scale(1.02);
+  opacity: 0.95;
+}
+
+.header-logo-img {
+  height: 52px;
+  width: auto;
+  display: block;
+  object-fit: contain;
+}
+
+.header-logo-text {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0;
+  line-height: 1.2;
+}
+
+.header-logo-name {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--ryugo-navy);
+  letter-spacing: 0.05em;
+}
+
+.header-logo-ja {
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--ryugo-navy-mid);
+  font-family: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif;
 }
 
 .header-page-title {
   margin: 0 0 0 -2px;
   font-size: 1.25rem;
   font-weight: 700;
-  color: #111827;
+  color: var(--ryugo-navy);
   white-space: nowrap;
 }
 
@@ -72,7 +120,7 @@
 
 .logo h2 {
   margin: 0;
-  color: #000000;
+  color: var(--ryugo-navy);
   font-size: 1.1rem;
   font-weight: 700;
   white-space: nowrap;
@@ -132,8 +180,8 @@
 
 .search-bar input:focus {
   outline: none;
-  border-color: #d1d5db;
-  box-shadow: 0 0 0 2px rgba(0, 0, 0, 0.04);
+  border-color: var(--ryugo-gold);
+  box-shadow: 0 0 0 2px var(--ryugo-gold-bg);
 }
 
 .search-bar input::placeholder {
@@ -150,7 +198,7 @@
 .header-greeting {
   font-size: 14px;
   font-weight: 600;
-  color: #111827;
+  color: var(--ryugo-navy);
   white-space: nowrap;
 }
 
@@ -175,20 +223,20 @@
 }
 
 .header-menu-btn:hover {
-  border-color: #ff6b4a;
-  background: #fff5f3;
+  border-color: var(--ryugo-gold);
+  background: var(--ryugo-gold-bg);
 }
 
 .menu-line {
   width: 18px;
   height: 2px;
-  background: #6b7280;
+  background: var(--ryugo-navy-light);
   border-radius: 2px;
   transition: background 0.2s ease;
 }
 
 .header-menu-btn:hover .menu-line {
-  background: #ff6b4a;
+  background: var(--ryugo-gold);
 }
 
 .header-icon-link {
@@ -210,43 +258,46 @@
 }
 
 .header-icon-link:hover {
-  border-color: #ff6b4a;
-  background: #fff5f3;
-  color: #ff6b4a;
+  border-color: var(--ryugo-gold);
+  background: var(--ryugo-gold-bg);
+  color: var(--ryugo-gold);
 }
 
 .btn-register,
 .btn-login {
   padding: 8px 20px;
-  border-radius: 8px;
+  border-radius: 10px;
   text-decoration: none;
-  font-weight: 500;
+  font-weight: 600;
   font-size: 14px;
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
   white-space: nowrap;
   cursor: pointer;
 }
 
 .btn-register {
-  background: #FFFFFF;
-  color: #374151;
-  border: 1px solid #E5E7EB;
+  background: var(--ryugo-white);
+  color: var(--ryugo-navy);
+  border: 2px solid var(--ryugo-navy-mid);
 }
 
 .btn-register:hover {
-  background: #f9fafb;
-  border-color: #d1d5db;
+  background: var(--ryugo-off-white);
+  border-color: var(--ryugo-gold);
+  color: var(--ryugo-gold);
 }
 
 .btn-login {
-  background: #FF6B4A;
-  color: #FFFFFF;
-  border: 1px solid #FF6B4A;
+  background: var(--ryugo-gold);
+  color: var(--ryugo-navy);
+  border: 2px solid var(--ryugo-gold);
 }
 
 .btn-login:hover {
-  background: #FF5722;
-  border-color: #FF5722;
+  background: var(--ryugo-gold-light);
+  border-color: var(--ryugo-gold-light);
+  color: var(--ryugo-navy);
+  box-shadow: 0 4px 12px rgba(201, 162, 39, 0.3);
 }
 
 /* Translate Icon Button */
@@ -271,9 +322,9 @@
 }
 
 .translate-icon-btn:hover {
-  background: #FFF5F3;
-  border-color: #FF6B4A;
-  color: #FF6B4A;
+  background: var(--ryugo-gold-bg);
+  border-color: var(--ryugo-gold);
+  color: var(--ryugo-gold);
 }
 
 /* Profile Dropdown Styles */
@@ -302,12 +353,12 @@
 }
 
 .profile-icon-btn:hover {
-  border-color: #ff6b4a;
-  background: #fff5f3;
+  border-color: var(--ryugo-gold);
+  background: var(--ryugo-gold-bg);
 }
 
 .profile-icon-btn:hover svg {
-  color: #ff6b4a;
+  color: var(--ryugo-gold);
 }
 
 .dropdown-menu {
@@ -366,12 +417,12 @@
 }
 
 .dropdown-item:hover {
-  background: #f9fafb;
-  color: #111827;
+  background: var(--ryugo-gold-bg);
+  color: var(--ryugo-navy);
 }
 
 .dropdown-item:hover svg {
-  color: #ff6b4a;
+  color: var(--ryugo-gold);
 }
 
 .logout-item {
@@ -446,13 +497,13 @@
 }
 
 .tab-btn:hover {
-  color: #ff6b4a;
+  color: var(--ryugo-gold);
   background: #fff5f3;
 }
 
 .tab-btn.active {
-  color: #ff6b4a;
-  border-bottom-color: #ff6b4a;
+  color: var(--ryugo-gold);
+  border-bottom-color: var(--ryugo-gold);
   background: #ffffff;
 }
 
@@ -512,14 +563,14 @@
 }
 
 .direction-btn:hover {
-  border-color: #ff6b4a;
-  color: #ff6b4a;
+  border-color: var(--ryugo-gold);
+  color: var(--ryugo-gold);
 }
 
 .direction-btn.active {
-  border-color: #ff6b4a;
+  border-color: var(--ryugo-gold);
   background: #fff5f3;
-  color: #ff6b4a;
+  color: var(--ryugo-gold);
 }
 
 .translate-input-section,
@@ -543,8 +594,8 @@
 
 .translate-input:focus {
   outline: none;
-  border-color: #ff6b4a;
-  box-shadow: 0 0 0 3px rgba(255, 107, 74, 0.1);
+  border-color: var(--ryugo-gold);
+  box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.1);
 }
 
 .translate-output {
@@ -563,7 +614,7 @@
 .translate-action-btn {
   flex: 1;
   padding: 10px 16px;
-  background: #ff6b4a;
+  background: var(--ryugo-gold);
   color: #ffffff;
   border: none;
   border-radius: 8px;
@@ -576,7 +627,7 @@
 .translate-action-btn:hover:not(:disabled) {
   background: #ff5722;
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(255, 107, 74, 0.3);
+  box-shadow: 0 4px 8px rgba(201, 162, 39, 0.3);
 }
 
 .translate-action-btn:disabled {
@@ -630,8 +681,8 @@
 
 .copy-btn:hover {
   background: #f3f4f6;
-  border-color: #ff6b4a;
-  color: #ff6b4a;
+  border-color: var(--ryugo-gold);
+  color: var(--ryugo-gold);
 }
 
 .copy-btn svg {
@@ -663,8 +714,8 @@
 
 .kanji-input:focus {
   outline: none;
-  border-color: #ff6b4a;
-  box-shadow: 0 0 0 3px rgba(255, 107, 74, 0.1);
+  border-color: var(--ryugo-gold);
+  box-shadow: 0 0 0 3px rgba(201, 162, 39, 0.1);
 }
 
 .kanji-actions {
@@ -677,7 +728,7 @@
 .kanji-lookup-btn {
   flex: 1;
   padding: 10px 16px;
-  background: #ff6b4a;
+  background: var(--ryugo-gold);
   color: #ffffff;
   border: none;
   border-radius: 8px;
@@ -690,7 +741,7 @@
 .kanji-lookup-btn:hover:not(:disabled) {
   background: #ff5722;
   transform: translateY(-1px);
-  box-shadow: 0 4px 8px rgba(255, 107, 74, 0.3);
+  box-shadow: 0 4px 8px rgba(201, 162, 39, 0.3);
 }
 
 .kanji-lookup-btn:disabled {
@@ -856,6 +907,10 @@
     font-size: 0.95rem;
   }
 
+  .header-logo-img {
+    height: 44px;
+  }
+
   .logo-image {
     height: 52px;
   }
@@ -870,6 +925,10 @@
     padding: 12px 16px;
     flex-wrap: wrap;
     gap: 12px;
+  }
+
+  .header-logo-img {
+    height: 40px;
   }
 
   .logo-image {

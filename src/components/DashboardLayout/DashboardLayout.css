@@ -1,12 +1,20 @@
-/* Shared Dashboard Layout - dùng chung cho Admin, Manager, Teacher */
+/* Shared Dashboard Layout - Header trên cùng, Sidebar nằm dưới header (trong body) */
 .shared-dashboard-layout {
   display: flex;
+  flex-direction: column;
   min-height: 100vh;
-  height: 100vh;
   background: #F9FAFB;
 }
 
-/* Sidebar: chiếm toàn bộ chiều cao, nút logout luôn sát đáy, không khoảng cách */
+/* Body: Sidebar (trái) + Content (phải), nằm dưới header */
+.shared-dashboard-body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Sidebar: bên trái body, không có logo */
 .shared-dashboard-sidebar {
   width: 260px;
   flex-shrink: 0;
@@ -14,98 +22,27 @@
   border-right: 1px solid #E5E7EB;
   display: flex;
   flex-direction: column;
-  height: 100%;
   min-height: 0;
   overflow: hidden;
   padding: 0;
 }
 
-.shared-sidebar-header {
-  padding: 0 14px;
-  border-bottom: 1px solid #E5E7EB;
-  flex-shrink: 0;
-}
-
-.shared-sidebar-logo-link {
-  display: block;
-  line-height: 0;
-}
-
-.shared-sidebar-logo-link:hover {
-  opacity: 0.9;
-}
-
-.shared-sidebar-logo-btn {
-  display: block;
-  width: 100%;
-  padding: 0;
-  margin: 0;
-  border: none;
-  background: none;
-  cursor: pointer;
-  text-align: left;
-  transition: opacity 0.2s ease;
-}
-
-.shared-sidebar-logo-btn:hover {
-  opacity: 0.85;
-}
-
-.shared-sidebar-logo {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #111827;
-}
-
-.shared-sidebar-logo svg,
-.shared-sidebar-logo-img {
-  width: 110px;
-  height: 67px;
-  object-fit: contain;
-  flex-shrink: 0;
-}
-
-.shared-sidebar-user-below-logo {
-  margin-top: 12px;
-  padding: 0;
-  border-top: 1px solid #E5E7EB;
-  font-size: 13px;
-}
-
-.shared-sidebar-user-below-logo .shared-sidebar-username {
-  display: block;
-  font-weight: 600;
-  color: #111827;
-  margin-bottom: 2px;
-}
-
-.shared-sidebar-user-below-logo .shared-sidebar-role {
-  display: block;
-  font-size: 12px;
-  color: #6B7280;
-}
-
-.shared-sidebar-page-title {
-  padding: 0;
-  font-size: 1rem;
-  font-weight: 700;
-  color: #111827;
-  border-bottom: 1px solid #E5E7EB;
-  flex-shrink: 0;
-}
-
 .shared-sidebar-nav {
   flex: 1 1 0%;
   min-height: 0;
-  padding: 8px 14px;
+  padding: 12px 14px;
   overflow-y: auto;
   overflow-x: hidden;
   display: flex;
   flex-direction: column;
   gap: 6px;
+}
+
+.shared-sidebar-nav .shared-nav-item {
+  font-family: inherit;
+  text-align: left;
+  width: 100%;
+  cursor: pointer;
 }
 
 /* Khung chứa từng mục: icon + chữ, inactive xám, active nền xanh nhạt bo góc */
@@ -121,6 +58,14 @@
   transition: background 0.2s ease, color 0.2s ease;
   border-radius: 10px;
   border: none;
+  background: none;
+  margin: 0;
+  box-sizing: border-box;
+}
+
+button.shared-nav-item {
+  font-family: inherit;
+  cursor: pointer;
 }
 
 .shared-nav-item svg {
@@ -190,49 +135,11 @@
   color: #B91C1C;
 }
 
-/* Main area */
-.shared-dashboard-main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  min-width: 0;
-}
-
-.shared-dashboard-topbar {
-  background: #FFFFFF;
-  border-bottom: 1px solid #E5E7EB;
-  padding: 1rem 1.5rem;
-  flex-shrink: 0;
-}
-
-.shared-topbar-left {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  flex-wrap: wrap;
-}
-
-.shared-topbar-title {
-  margin: 0;
-}
-
-.shared-topbar-title-text {
-  margin: 0;
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #111827;
-}
-
-.shared-topbar-subtitle {
-  margin: 4px 0 0 0;
-  font-size: 13px;
-  color: #6B7280;
-}
-
+/* Content area (bên phải sidebar) */
 .shared-dashboard-content {
   flex: 1;
   padding: 1.25rem 1.5rem 1rem;
-  overflow-x: auto;
+  overflow: auto;
   min-width: 0;
 }
 
@@ -242,24 +149,12 @@
     padding: 0 5px;
   }
 
-  .shared-sidebar-header {
-    padding: 0;
-  }
-
-  .shared-sidebar-logo span {
-    display: none;
-  }
-
   .shared-nav-item span {
     display: none;
   }
 
   .shared-nav-item {
     justify-content: center;
-    padding: 5px;
-  }
-
-  .shared-sidebar-user-below-logo {
-    display: none;
+    padding: 8px;
   }
 }

@@ -1,5 +1,17 @@
 @import "tailwindcss";
 
+/* ========== Ryugo brand (Trung tâm Nhật ngữ) ========== */
+:root {
+  --ryugo-navy: #0f172a;
+  --ryugo-navy-mid: #1e3a5f;
+  --ryugo-navy-light: #334155;
+  --ryugo-gold: #c9a227;
+  --ryugo-gold-light: #e6c04a;
+  --ryugo-gold-bg: rgba(201, 162, 39, 0.12);
+  --ryugo-white: #ffffff;
+  --ryugo-off-white: #f8fafc;
+}
+
 * {
   margin: 0;
   padding: 0;
