@@ -1764,7 +1764,7 @@ function CourseManagement() {
                 <div className="course-management-sections">
                   <div className="course-section">
                     <div className="course-section-header">
-                      <h3>Đang mở</h3>
+                      <h3>Công khai</h3>
                       <span className="course-section-count">{managementActiveCourses.length} khóa học</span>
                     </div>
                     <div className="course-section-grid">
