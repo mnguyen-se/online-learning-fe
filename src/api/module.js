@@ -27,8 +27,19 @@ export const createModule = async (moduleData) => {
   return response.data;
 };
 
-/** GET /api/v1/modules/course/{courseId} – lấy danh sách module theo khóa học */
+/** GET /api/v1/modules/course/{courseId} – lấy danh sách module theo khóa học.
+ *  Nếu backend trả 404 (course chưa có module) thì coi là danh sách rỗng, không ném lỗi. */
 export const getModulesByCourse = async (courseId) => {
-  const response = await apiClient.get(`${base}/course/${courseId}`);
-  return response.data;
+  try {
+    const response = await apiClient.get(`${base}/course/${courseId}`);
+    return response.data;
+  } catch (err) {
+    const status = err?.response?.status;
+    const detail = (err?.response?.data?.message || err?.response?.data?.chiTiet || '').toLowerCase();
+    const isNoModules = status === 404 || detail.includes('không có module') || detail.includes('no module');
+    if (isNoModules) {
+      return [];
+    }
+    throw err;
+  }
 };

@@ -74,11 +74,17 @@ apiClient.interceptors.response.use(
         window.location.href = '/login';
       }
     } else if (error.config?.skipErrorToast !== true) {
-      // Thông báo lỗi tiếng Việt (trừ khi component tự xử lý)
-      const text =
-        error.response?.data?.message ||
-        (error.code === 'ECONNABORTED' ? 'Kết nối quá thời gian. Vui lòng thử lại.' : 'Đã xảy ra lỗi. Vui lòng thử lại.');
-      toast.error(text);
+      // Không toast khi 404 "course chưa có module" – frontend coi là danh sách rỗng
+      const isModulesByCourse404 =
+        error.response?.status === 404 &&
+        error.config?.url != null &&
+        /\/?modules\/course\/\d+$/.test(String(error.config.url || '').replace(/^\//, ''));
+      if (!isModulesByCourse404) {
+        const text =
+          error.response?.data?.message ||
+          (error.code === 'ECONNABORTED' ? 'Kết nối quá thời gian. Vui lòng thử lại.' : 'Đã xảy ra lỗi. Vui lòng thử lại.');
+        toast.error(text);
+      }
     }
 
     return Promise.reject(error);
