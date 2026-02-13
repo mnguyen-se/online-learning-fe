@@ -1,3 +1,15 @@
+/* Trang Manager dùng cùng wrapper & nền như Teacher (teacher-area) */
+.teacher-area {
+  min-height: 100%;
+  width: 100%;
+  max-width: 100%;
+  background: #f1f5f9;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
 .manager-shell {
   min-height: 100vh;
   background: #f5f6f8;
@@ -1051,6 +1063,29 @@
 .course-init-form .course-input::placeholder,
 .course-init-form .course-textarea::placeholder {
   color: #9ca3af;
+}
+
+.course-init-teacher-wrap {
+  margin-bottom: 1rem;
+}
+
+.course-init-teacher-select {
+  width: 100%;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  padding: 10px 14px;
+  font-size: 14px;
+  color: #111827;
+  background: #ffffff;
+  font-family: inherit;
+  appearance: auto;
+  cursor: pointer;
+}
+
+.course-init-teacher-select:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
 }
 
 .course-init-actions {
@@ -3263,6 +3298,75 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 20px;
+}
+
+/* Manager course card – không ảnh, có trạng thái công khai + nút Cập nhật */
+.manager-course-card {
+  border-radius: 12px;
+  background: #ffffff;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.06);
+  padding: 20px;
+  cursor: pointer;
+  transition: box-shadow 0.2s ease, transform 0.15s ease;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.manager-course-card:hover {
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.1);
+  transform: translateY(-1px);
+}
+
+.manager-course-card:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+
+.manager-course-card__title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #4338ca;
+  line-height: 1.35;
+}
+
+.manager-course-card__meta {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.manager-course-card__meta-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+
+.manager-course-card__meta-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.manager-course-card__meta-icon svg {
+  display: block;
+}
+
+.manager-course-card__footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 8px;
+  border-top: 1px solid #f1f5f9;
 }
 
 /* Course edit modal */

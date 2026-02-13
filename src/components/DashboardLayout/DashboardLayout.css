@@ -6,6 +6,20 @@
   background: #F9FAFB;
 }
 
+/* Biến thể Teacher: sidebar & header cùng thiết kế như trang Teacher, content nền #f1f5f9 */
+.shared-dashboard-layout--teacher {
+  background: #f1f5f9;
+}
+
+.shared-dashboard-layout--teacher .shared-dashboard-sidebar {
+  background: #ffffff;
+  border-right: 1px solid #e5e7eb;
+}
+
+.shared-dashboard-layout--teacher .shared-dashboard-content {
+  background: #f1f5f9;
+}
+
 /* Body: Sidebar (trái) + Content (phải), nằm dưới header */
 .shared-dashboard-body {
   display: flex;

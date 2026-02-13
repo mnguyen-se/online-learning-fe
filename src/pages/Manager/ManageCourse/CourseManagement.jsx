@@ -28,6 +28,7 @@ function CourseManagement() {
   const [courseTitle, setCourseTitle] = useState('');
   const [courseDescription, setCourseDescription] = useState('');
   const [courseIsPublic, setCourseIsPublic] = useState(false);
+  const [courseTeacherId, setCourseTeacherId] = useState('');
   const [courseError, setCourseError] = useState('');
   const [courseSuccess, setCourseSuccess] = useState('');
   const [isSavingCourse, setIsSavingCourse] = useState(false);
@@ -135,6 +136,7 @@ function CourseManagement() {
     setCourseTitle('');
     setCourseDescription('');
     setCourseIsPublic(false);
+    setCourseTeacherId('');
     setCourseError('');
     setCourseSuccess('');
   };
@@ -175,6 +177,10 @@ function CourseManagement() {
         title: trimmedTitle,
         description: trimmedDescription,
       };
+      if (courseTeacherId && courseTeacherId.trim()) {
+        const tid = Number(courseTeacherId);
+        if (!Number.isNaN(tid)) payload.teacherId = tid;
+      }
 
       const createdCourse = await createCourse(payload);
       const createdCourseId = getCourseId(createdCourse) ?? createdCourse?.id ?? null;
@@ -1317,6 +1323,17 @@ function CourseManagement() {
     }
   }, [viewMode, selectedCourse]);
 
+  useEffect(() => {
+    if (viewMode === 'create') {
+      getTeachers()
+        .then((data) => {
+          const list = Array.isArray(data) ? data : data?.data ?? [];
+          setTeachers(list);
+        })
+        .catch(() => setTeachers([]));
+    }
+  }, [viewMode]);
+
 
   const openEditCourseModal = (course) => {
     const courseId = getCourseId(course) ?? course?.id ?? null;
@@ -1619,12 +1636,14 @@ function CourseManagement() {
 
   return (
     <DashboardLayout
+      layoutVariant="teacher"
       pageTitle="Quản lý khóa học"
       pageSubtitle="Hệ thống quản lý Module & Lesson tập trung"
       showSidebar={true}
       managerSidebarTab={activeNavTab}
       onManagerSidebarTabChange={setActiveNavTab}
     >
+      <div className="teacher-area">
       <section className="manager-dashboard-content">
         {activeNavTab === 'dashboard' && (
           <div className="manager-overview">
@@ -1801,12 +1820,15 @@ function CourseManagement() {
                 courseTitle={courseTitle}
                 courseDescription={courseDescription}
                 courseIsPublic={courseIsPublic}
+                courseTeacherId={courseTeacherId}
+                teachers={teachers}
                 courseError={courseError}
                 courseSuccess={courseSuccess}
                 isSavingCourse={isSavingCourse}
                 onTitleChange={setCourseTitle}
                 onDescriptionChange={setCourseDescription}
                 onPublicChange={setCourseIsPublic}
+                onTeacherChange={setCourseTeacherId}
                 onCancel={handleCancelCreateCourse}
                 onContinue={handleCreateCourse}
               />
@@ -2045,6 +2067,7 @@ function CourseManagement() {
           </div>
         </div>
       )}
+      </div>
     </DashboardLayout>
   );
 }
