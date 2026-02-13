@@ -1604,36 +1604,28 @@ function CourseManagement() {
   });
   const maxBarValue = Math.max(1, ...courseBars.map((item) => item.value));
 
-  const managementActiveCourses = courses.filter((course) => resolveCourseActiveState(course));
-  const managementInactiveCourses = courses.filter((course) => !resolveCourseActiveState(course));
+  const courseSearchLower = (courseSearch || '').trim().toLowerCase();
+  const matchesSearch = (course) => {
+    if (!courseSearchLower) return true;
+    const title = (course?.title || '').toLowerCase();
+    return title.includes(courseSearchLower);
+  };
+  const managementActiveCourses = courses
+    .filter((course) => resolveCourseActiveState(course))
+    .filter(matchesSearch);
+  const managementInactiveCourses = courses
+    .filter((course) => !resolveCourseActiveState(course))
+    .filter(matchesSearch);
 
   return (
     <DashboardLayout
       pageTitle="Quản lý khóa học"
       pageSubtitle="Hệ thống quản lý Module & Lesson tập trung"
-      showSidebar={false}
-      showTopbar={false}
+      showSidebar={true}
+      managerSidebarTab={activeNavTab}
+      onManagerSidebarTabChange={setActiveNavTab}
     >
       <section className="manager-dashboard-content">
-        <div className="course-management-nav">
-          <div className="course-management-tabs">
-            <button
-              type="button"
-              className={`course-management-tab${activeNavTab === 'dashboard' ? ' is-active' : ''}`}
-              onClick={() => setActiveNavTab('dashboard')}
-            >
-              Tổng quan
-            </button>
-            <button
-              type="button"
-              className={`course-management-tab${activeNavTab === 'management' ? ' is-active' : ''}`}
-              onClick={() => setActiveNavTab('management')}
-            >
-              Quản lý KH
-            </button>
-          </div>
-        </div>
-
         {activeNavTab === 'dashboard' && (
           <div className="manager-overview">
             <div className="manager-overview-header">
@@ -1822,17 +1814,32 @@ function CourseManagement() {
           ) : (
             <div className="course-management-view">
               <div className="course-management-header">
-                <div>
+                <div className="course-management-header-text">
                   <h2>Quản lý khóa học</h2>
                   <p>Danh sách khóa học theo trạng thái hoạt động.</p>
                 </div>
-                <button
-                  type="button"
-                  className="course-action-btn primary"
-                  onClick={openCreateCourse}
-                >
-                  Tạo khóa học
-                </button>
+                <div className="course-management-header-actions">
+                  <div className="manager-search course-management-search">
+                    <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                      <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2" />
+                      <path d="M20 20L17 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                    </svg>
+                    <input
+                      type="text"
+                      placeholder="Tìm kiếm khóa học, học viên..."
+                      value={courseSearch}
+                      onChange={(e) => setCourseSearch(e.target.value)}
+                      aria-label="Tìm kiếm khóa học"
+                    />
+                  </div>
+                  <button
+                    type="button"
+                    className="course-action-btn primary course-management-cta"
+                    onClick={openCreateCourse}
+                  >
+                    Tạo khóa học
+                  </button>
+                </div>
               </div>
 
               {isLoadingCourses ? (

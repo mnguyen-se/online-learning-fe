@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { useDispatch } from "react-redux";
 import { logout } from "../../store/slices/userSlice";
 import { useAuth } from "../../hooks";
+import logoImg from "../../assets/logo.png";
 import "./header.css";
 
 const Header = ({ headerTitle = '' }) => {
@@ -44,7 +45,13 @@ const Header = ({ headerTitle = '' }) => {
     <header className="header">
       <div className="header-container">
         <div className="header-brand">
-          <Link to="/" className="header-brand-text" aria-label="Quay lại trang chủ" />
+          <Link to="/" className="header-logo" aria-label="Ryugo - Trang chủ">
+            <img src={logoImg} alt="Ryugo" className="header-logo-img" />
+            <div className="header-logo-text">
+              <span className="header-logo-name">RYUGO</span>
+              <span className="header-logo-ja" aria-hidden="true">竜五</span>
+            </div>
+          </Link>
           {headerTitle && (
             <h1 className="header-page-title">{headerTitle}</h1>
           )}

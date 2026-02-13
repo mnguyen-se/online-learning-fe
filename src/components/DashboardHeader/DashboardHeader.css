@@ -1,6 +1,6 @@
 .dashboard-header-bar {
-  background: #FFFFFF;
-  border-bottom: 1px solid #E5E7EB;
+  background: var(--ryugo-white);
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
   position: sticky;
   top: 0;
   z-index: 100;
@@ -21,8 +21,13 @@
   align-items: center;
   gap: 12px;
   text-decoration: none;
-  color: #111827;
+  color: var(--ryugo-navy);
   flex-shrink: 0;
+  transition: opacity 0.2s ease;
+}
+
+.dashboard-header-logo:hover {
+  opacity: 0.9;
 }
 
 .dashboard-header-logo-img {
@@ -51,18 +56,19 @@
   align-items: center;
   gap: 8px;
   padding: 8px 20px;
-  background: #FF6B4A;
-  color: #FFFFFF;
+  background: var(--ryugo-gold);
+  color: var(--ryugo-navy);
   border: none;
-  border-radius: 8px;
+  border-radius: 10px;
   font-size: 14px;
   font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.25s ease;
 }
 
 .dashboard-header-btn-primary:hover {
-  background: #FF5722;
+  background: var(--ryugo-gold-light);
+  box-shadow: 0 4px 12px rgba(201, 162, 39, 0.3);
 }
 
 .dashboard-header-btn-primary svg {
@@ -92,14 +98,15 @@
 }
 
 .dashboard-header-btn-login {
-  background: #FF6B4A;
-  color: #FFFFFF;
-  border: 1px solid #FF6B4A;
+  background: var(--ryugo-gold);
+  color: var(--ryugo-navy);
+  border: 2px solid var(--ryugo-gold);
 }
 
 .dashboard-header-btn-login:hover {
-  background: #FF5722;
-  border-color: #FF5722;
+  background: var(--ryugo-gold-light);
+  border-color: var(--ryugo-gold-light);
+  box-shadow: 0 4px 12px rgba(201, 162, 39, 0.3);
 }
 
 .dashboard-header-dropdown {
@@ -127,12 +134,12 @@
 }
 
 .dashboard-header-profile-btn:hover {
-  border-color: #FF6B4A;
-  background: #FFF5F3;
+  border-color: var(--ryugo-gold);
+  background: var(--ryugo-gold-bg);
 }
 
 .dashboard-header-profile-btn:hover svg {
-  color: #FF6B4A;
+  color: var(--ryugo-gold);
 }
 
 .dashboard-header-dropdown-menu {

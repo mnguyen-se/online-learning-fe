@@ -1,7 +1,10 @@
-/* Homepage Layout with Sidebar */
+/* Homepage Layout – Ryugo (navy/gold) + decorative background */
 .homepage-layout {
   min-height: 100vh;
-  background: #F5F7FB;
+  background: var(--ryugo-off-white);
+  position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 .homepage-main-layout {
@@ -9,18 +12,103 @@
   min-height: 100vh;
   width: 100%;
   overflow-x: hidden;
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 }
 
-/* Homepage Header */
+/* Decorative background – dots pattern + floating shapes (WaniKani-style) */
+.homepage-bg-deco {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.homepage-bg-dots {
+  position: absolute;
+  inset: 0;
+  background-image: radial-gradient(circle at 1px 1px, rgba(15, 23, 42, 0.06) 1px, transparent 0);
+  background-size: 28px 28px;
+  opacity: 0.8;
+}
+
+.float-shape {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(1px);
+  animation: floatShape 18s ease-in-out infinite;
+}
+
+.float-shape-1 {
+  width: 280px;
+  height: 280px;
+  background: linear-gradient(135deg, rgba(201, 162, 39, 0.08) 0%, transparent 60%);
+  top: 10%;
+  right: 5%;
+  animation-delay: 0s;
+}
+
+.float-shape-2 {
+  width: 180px;
+  height: 180px;
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.05) 0%, transparent 70%);
+  top: 50%;
+  left: 3%;
+  animation-delay: -4s;
+  animation-duration: 22s;
+}
+
+.float-shape-3 {
+  width: 220px;
+  height: 220px;
+  background: linear-gradient(225deg, rgba(201, 162, 39, 0.06) 0%, transparent 55%);
+  bottom: 25%;
+  right: 15%;
+  animation-delay: -8s;
+  animation-duration: 20s;
+}
+
+.float-shape-4 {
+  width: 120px;
+  height: 120px;
+  background: linear-gradient(90deg, rgba(15, 23, 42, 0.04) 0%, transparent 60%);
+  bottom: 15%;
+  left: 10%;
+  animation-delay: -2s;
+  animation-duration: 24s;
+}
+
+.float-shape-5 {
+  width: 160px;
+  height: 160px;
+  background: linear-gradient(315deg, rgba(201, 162, 39, 0.07) 0%, transparent 65%);
+  top: 35%;
+  left: 20%;
+  animation-delay: -6s;
+  animation-duration: 19s;
+}
+
+@keyframes floatShape {
+  0%, 100% { transform: translate(0, 0) scale(1); opacity: 0.7; }
+  25% { transform: translate(15px, -20px) scale(1.05); opacity: 1; }
+  50% { transform: translate(-10px, 15px) scale(0.98); opacity: 0.8; }
+  75% { transform: translate(-20px, -10px) scale(1.02); opacity: 0.9; }
+}
+
+/* Homepage Header overrides */
 .homepage-header {
-  background: #FFFFFF !important;
+  background: var(--ryugo-white) !important;
   padding: 0 24px !important;
   height: 64px !important;
   line-height: 64px !important;
   display: flex !important;
   align-items: center !important;
   gap: 24px;
-  border-bottom: 1px solid #E5E7EB;
+  border-bottom: 1px solid rgba(15, 23, 42, 0.08);
   position: sticky;
   top: 0;
   z-index: 99;
@@ -35,7 +123,7 @@
 .header-logo-icon {
   width: 36px;
   height: 36px;
-  background: #FF6B4A;
+  background: var(--ryugo-gold);
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -44,7 +132,7 @@
 }
 
 .header-logo-icon span {
-  color: #FFFFFF;
+  color: var(--ryugo-navy);
   font-size: 18px;
   font-weight: 700;
 }
@@ -52,7 +140,7 @@
 .header-logo-text {
   font-size: 16px;
   font-weight: 700;
-  color: #111827;
+  color: var(--ryugo-navy);
   white-space: nowrap;
 }
 
@@ -95,8 +183,8 @@
 }
 
 .homepage-header-actions .btn-register:hover {
-  border-color: #FF6B4A !important;
-  color: #FF6B4A !important;
+  border-color: var(--ryugo-gold) !important;
+  color: var(--ryugo-gold) !important;
 }
 
 .homepage-header-actions .btn-login {
@@ -104,28 +192,35 @@
   padding: 0 20px;
   border-radius: 8px;
   font-weight: 500;
-  background: #FF6B4A !important;
-  border-color: #FF6B4A !important;
+  background: var(--ryugo-gold) !important;
+  border-color: var(--ryugo-gold) !important;
+  color: var(--ryugo-navy) !important;
 }
 
 .homepage-header-actions .btn-login:hover {
-  background: #FF5722 !important;
-  border-color: #FF5722 !important;
+  background: var(--ryugo-gold-light) !important;
+  border-color: var(--ryugo-gold-light) !important;
+  color: var(--ryugo-navy) !important;
 }
 
-/* Homepage Content */
+/* Homepage Content – flex để footer luôn sát đáy, không dư khoảng trắng */
 .homepage-content {
-  padding: 32px 0 80px;
+  padding: 32px 0 0;
   max-width: 100%;
   margin: 0;
   width: 100%;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
 }
 
 .homepage-inner {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 0 24px;
+  padding: 0 24px 48px;
+  width: 100%;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 40px;
@@ -148,15 +243,27 @@
   box-sizing: border-box;
 }
 
-/* Hero Banner */
+/* Hero Banner – Ryugo, animations */
 .hero-banner {
-  background: #FFFFFF;
+  background: var(--ryugo-white);
   border-radius: 28px;
   padding: 3.5rem 4rem;
   position: relative;
   overflow: hidden;
-  border: 1px solid #E5E7EB;
-  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.06);
+  animation: heroFadeIn 0.6s ease-out;
+}
+
+@keyframes heroFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 .hero-content {
@@ -167,7 +274,7 @@
 
 .hero-text {
   flex: 1;
-  color: #0F172A;
+  color: var(--ryugo-navy);
 }
 
 .hero-title {
@@ -175,20 +282,25 @@
   font-weight: 700;
   margin: 0 0 1.5rem 0;
   line-height: 1.2;
-  color: #0F172A;
+  color: var(--ryugo-navy);
+}
+
+.hero-title-accent {
+  color: var(--ryugo-gold);
+  position: relative;
 }
 
 .hero-description {
   font-size: 1.1rem;
   line-height: 1.7;
   margin: 0 0 2rem 0;
-  color: #475569;
+  color: var(--ryugo-navy-light);
 }
 
 .hero-button {
-  background: #FF6B4A;
-  color: #FFFFFF;
-  border: 1px solid #FF6B4A;
+  background: var(--ryugo-gold);
+  color: var(--ryugo-navy);
+  border: 2px solid var(--ryugo-gold);
   padding: 16px 32px;
   border-radius: 12px;
   font-size: 16px;
@@ -197,14 +309,14 @@
   transition: all 0.3s ease;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  box-shadow: 0 12px 24px rgba(255, 107, 74, 0.25);
+  box-shadow: 0 8px 20px rgba(201, 162, 39, 0.25);
 }
 
 .hero-button:hover {
   transform: translateY(-2px);
-  background: #FF5722;
-  border-color: #FF5722;
-  box-shadow: 0 14px 28px rgba(255, 107, 74, 0.35);
+  background: var(--ryugo-gold-light);
+  border-color: var(--ryugo-gold-light);
+  box-shadow: 0 12px 28px rgba(201, 162, 39, 0.35);
 }
 
 .hero-buttons {
@@ -215,21 +327,33 @@
 }
 
 .hero-button-dashboard {
-  background: #111827 !important;
-  color: #FFFFFF !important;
-  border-color: #111827 !important;
-  box-shadow: 0 12px 24px rgba(17, 24, 39, 0.2);
+  background: var(--ryugo-navy) !important;
+  color: var(--ryugo-white) !important;
+  border-color: var(--ryugo-navy) !important;
+  box-shadow: 0 8px 20px rgba(15, 23, 42, 0.2);
 }
 
 .hero-button-dashboard:hover {
-  background: #0F172A !important;
-  color: #FFFFFF !important;
-  border-color: #0F172A !important;
+  background: var(--ryugo-navy-mid) !important;
+  color: var(--ryugo-white) !important;
+  border-color: var(--ryugo-navy-mid) !important;
 }
 
 .hero-image {
   flex: 1;
   max-width: 500px;
+  animation: heroImageIn 0.7s ease-out 0.15s both;
+}
+
+@keyframes heroImageIn {
+  from {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 .hero-image-wrapper {
@@ -237,8 +361,25 @@
   height: 300px;
   border-radius: 16px;
   overflow: hidden;
-  background: #F1F5F9;
-  border: 1px solid #E2E8F0;
+  background: linear-gradient(135deg, var(--ryugo-gold-bg) 0%, rgba(15, 23, 42, 0.04) 100%);
+  border: 1px solid rgba(201, 162, 39, 0.2);
+  animation: heroIllustrationPulse 8s ease-in-out infinite;
+}
+
+@keyframes heroIllustrationPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(201, 162, 39, 0.1); }
+  50% { box-shadow: 0 0 0 8px rgba(201, 162, 39, 0.05); }
+}
+
+.hero-illustration {
+  display: block;
+}
+
+.hero-illustration-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: inherit;
 }
 
 .hero-indicators {
@@ -252,24 +393,487 @@
   width: 40px;
   height: 6px;
   border-radius: 3px;
-  background: #E2E8F0;
+  background: rgba(15, 23, 42, 0.15);
   cursor: pointer;
   transition: all 0.3s ease;
 }
 
 .hero-indicators span.active {
-  background: #FF6B4A;
+  background: var(--ryugo-gold);
   width: 60px;
 }
 
-/* Courses Section */
+/* Scroll reveal – sections animate in when in view (WaniKani-style) */
+.reveal {
+  opacity: 0;
+  transform: translateY(28px);
+  transition: opacity 0.6s ease-out, transform 0.6s ease-out;
+}
+
+.reveal.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.reveal.is-visible .stat-item { animation: statPop 0.5s ease-out both; }
+.reveal.is-visible .stat-item:nth-child(1) { animation-delay: 0.05s; }
+.reveal.is-visible .stat-item:nth-child(2) { animation-delay: 0.15s; }
+.reveal.is-visible .stat-item:nth-child(3) { animation-delay: 0.25s; }
+.reveal.is-visible .stat-item:nth-child(4) { animation-delay: 0.35s; }
+
+.reveal.is-visible .feature-card { animation: cardReveal 0.5s ease-out both; }
+.reveal.is-visible .feature-card:nth-child(1) { animation-delay: 0.08s; }
+.reveal.is-visible .feature-card:nth-child(2) { animation-delay: 0.18s; }
+.reveal.is-visible .feature-card:nth-child(3) { animation-delay: 0.28s; }
+.reveal.is-visible .feature-card:nth-child(4) { animation-delay: 0.38s; }
+
+@keyframes statPop {
+  from { opacity: 0; transform: translateY(16px) scale(0.96); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes cardReveal {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Stats strip – số liệu nổi bật */
+.homepage-stats {
+  background: linear-gradient(135deg, var(--ryugo-navy) 0%, var(--ryugo-navy-mid) 100%);
+  border-radius: 24px;
+  padding: 2.5rem 2rem;
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.2);
+  border: 1px solid rgba(201, 162, 39, 0.15);
+}
+
+.homepage-stats-inner {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 2rem;
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+.stat-item {
+  text-align: center;
+  color: var(--ryugo-white);
+}
+
+.stat-icon {
+  display: inline-block;
+  width: 48px;
+  height: 48px;
+  line-height: 48px;
+  font-size: 1.5rem;
+  font-weight: 700;
+  background: rgba(201, 162, 39, 0.25);
+  color: var(--ryugo-gold-light);
+  border-radius: 12px;
+  margin-bottom: 0.75rem;
+  font-family: "Hiragino Mincho ProN", "Yu Mincho", "Noto Serif JP", serif;
+  transition: transform 0.3s ease, background 0.3s ease;
+}
+
+.stat-item:hover .stat-icon {
+  transform: scale(1.08);
+  background: rgba(201, 162, 39, 0.4);
+}
+
+.stat-value {
+  display: block;
+  font-size: 2rem;
+  font-weight: 800;
+  color: var(--ryugo-gold-light);
+  margin-bottom: 0.25rem;
+  letter-spacing: 0.02em;
+}
+
+.stat-label {
+  font-size: 0.95rem;
+  color: rgba(255, 255, 255, 0.85);
+  font-weight: 500;
+}
+
+/* Tại sao chọn Ryugo – feature cards */
+.homepage-features {
+  background: var(--ryugo-white);
+  border-radius: 24px;
+  padding: 3rem 2rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.06);
+}
+
+.features-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--ryugo-navy);
+  margin: 0 0 0.5rem 0;
+  text-align: center;
+}
+
+.features-subtitle {
+  text-align: center;
+  color: var(--ryugo-navy-light);
+  font-size: 1.05rem;
+  margin: 0 0 2.5rem 0;
+  max-width: 520px;
+  margin-left: auto;
+  margin-right: auto;
+  margin-bottom: 2.5rem;
+}
+
+.features-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1.5rem;
+}
+
+.feature-card {
+  background: var(--ryugo-off-white);
+  border-radius: 20px;
+  padding: 1.75rem;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
+}
+
+.feature-card:hover {
+  transform: translateY(-6px);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+  border-color: rgba(201, 162, 39, 0.25);
+}
+
+.feature-card-icon-wrap {
+  width: 56px;
+  height: 56px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--ryugo-gold-bg) 0%, rgba(201, 162, 39, 0.08) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 1.25rem;
+  color: var(--ryugo-gold);
+  transition: transform 0.35s ease, background 0.35s ease;
+}
+
+.feature-card:hover .feature-card-icon-wrap {
+  transform: scale(1.1);
+  background: linear-gradient(135deg, rgba(201, 162, 39, 0.2) 0%, rgba(201, 162, 39, 0.12) 100%);
+}
+
+.feature-icon {
+  width: 28px;
+  height: 28px;
+}
+
+.feature-card-title {
+  font-size: 1.2rem;
+  font-weight: 700;
+  color: var(--ryugo-navy);
+  margin: 0 0 0.5rem 0;
+}
+
+.feature-card-desc {
+  font-size: 0.95rem;
+  color: var(--ryugo-navy-light);
+  line-height: 1.55;
+  margin: 0;
+}
+
+/* CTA block – Bắt đầu học (WaniKani-style) */
+.homepage-cta {
+  background: linear-gradient(135deg, var(--ryugo-navy) 0%, var(--ryugo-navy-mid) 100%);
+  border-radius: 24px;
+  padding: 3.5rem 2rem;
+  text-align: center;
+  border: 1px solid rgba(201, 162, 39, 0.2);
+  box-shadow: 0 20px 50px rgba(15, 23, 42, 0.2);
+}
+
+.homepage-cta-inner {
+  max-width: 560px;
+  margin: 0 auto;
+}
+
+.homepage-cta-title {
+  font-size: 1.85rem;
+  font-weight: 700;
+  color: var(--ryugo-white);
+  margin: 0 0 0.5rem 0;
+  line-height: 1.3;
+}
+
+.homepage-cta-desc {
+  font-size: 1.05rem;
+  color: rgba(255, 255, 255, 0.85);
+  margin: 0 0 1.75rem 0;
+}
+
+.homepage-cta-btn {
+  display: inline-block;
+  padding: 16px 40px;
+  background: var(--ryugo-gold);
+  color: var(--ryugo-navy);
+  border: 2px solid var(--ryugo-gold);
+  border-radius: 12px;
+  font-size: 1.1rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: transform 0.3s ease, box-shadow 0.3s ease, background 0.3s ease;
+}
+
+.homepage-cta-btn:hover {
+  transform: translateY(-2px);
+  background: var(--ryugo-gold-light);
+  border-color: var(--ryugo-gold-light);
+  box-shadow: 0 8px 24px rgba(201, 162, 39, 0.4);
+}
+
+/* Role-based section: Guest / Admin / Manager (banner + image), Student / Teacher (course list) */
+.homepage-role-section {
+  background: var(--ryugo-white);
+  border-radius: 24px;
+  padding: 0;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.06);
+  overflow: hidden;
+}
+
+/* Role banners (Guest, Admin, Manager) – hình ảnh + nội dung */
+.role-banner {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  min-height: 320px;
+  align-items: stretch;
+}
+
+.role-banner-image {
+  position: relative;
+  min-height: 280px;
+  overflow: hidden;
+}
+
+.role-banner-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.role-banner-content {
+  padding: 2.5rem 3rem;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+.role-banner-title {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--ryugo-navy);
+  margin: 0 0 0.75rem 0;
+  line-height: 1.3;
+}
+
+.role-banner-desc {
+  font-size: 1rem;
+  color: var(--ryugo-navy-light);
+  line-height: 1.6;
+  margin: 0 0 1.5rem 0;
+}
+
+.role-banner-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.role-banner-btn {
+  padding: 12px 24px;
+  border-radius: 10px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+  border: 2px solid transparent;
+}
+
+.role-banner-btn.primary {
+  background: var(--ryugo-gold);
+  color: var(--ryugo-navy);
+  border-color: var(--ryugo-gold);
+}
+
+.role-banner-btn.primary:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(201, 162, 39, 0.35);
+  background: var(--ryugo-gold-light);
+  border-color: var(--ryugo-gold-light);
+}
+
+.role-banner-btn.secondary {
+  background: var(--ryugo-white);
+  color: var(--ryugo-navy);
+  border-color: var(--ryugo-navy-mid);
+}
+
+.role-banner-btn.secondary:hover {
+  border-color: var(--ryugo-gold);
+  color: var(--ryugo-gold);
+}
+
+/* Student / Teacher: khóa học đang học / đang dạy */
+.role-courses-block {
+  padding: 2rem 2.5rem;
+}
+
+.role-courses-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 1.5rem;
+}
+
+.role-courses-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--ryugo-navy);
+  margin: 0;
+}
+
+.role-courses-subtitle {
+  font-size: 0.95rem;
+  color: var(--ryugo-navy-light);
+  margin: 0;
+  flex: 1;
+}
+
+.role-courses-link {
+  color: var(--ryugo-gold);
+  font-weight: 600;
+  text-decoration: none;
+  transition: color 0.2s ease;
+}
+
+.role-courses-link:hover {
+  color: var(--ryugo-gold-light);
+}
+
+.role-courses-loading,
+.role-courses-empty {
+  text-align: center;
+  padding: 2rem;
+  color: var(--ryugo-navy-light);
+}
+
+.role-courses-empty .role-banner-btn {
+  margin-top: 1rem;
+}
+
+.role-courses-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 1.5rem;
+}
+
+.role-course-card {
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  background: var(--ryugo-off-white);
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.role-course-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.1);
+}
+
+.role-course-card-image {
+  position: relative;
+  height: 160px;
+  overflow: hidden;
+}
+
+.role-course-card-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.role-course-badge {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.role-course-badge.active {
+  background: var(--ryugo-gold);
+  color: var(--ryugo-navy);
+}
+
+.role-course-badge.completed {
+  background: var(--ryugo-navy-mid);
+  color: var(--ryugo-white);
+}
+
+.role-course-card-body {
+  padding: 1.25rem;
+}
+
+.role-course-card-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--ryugo-navy);
+  margin: 0 0 0.5rem 0;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.role-course-card-progress,
+.role-course-card-meta {
+  font-size: 0.9rem;
+  color: var(--ryugo-navy-light);
+  margin: 0 0 0.5rem 0;
+}
+
+.role-course-progress-bar {
+  height: 6px;
+  background: rgba(15, 23, 42, 0.1);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-top: 0.5rem;
+}
+
+.role-course-progress-fill {
+  height: 100%;
+  background: var(--ryugo-gold);
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}
+
+/* Courses Section – legacy (kept for any other use) */
 .courses-section {
   margin-bottom: 0;
-  background: #FFFFFF;
+  background: var(--ryugo-white);
   border-radius: 24px;
   padding: 32px;
-  border: 1px solid #E5E7EB;
+  border: 1px solid rgba(15, 23, 42, 0.08);
   box-shadow: 0 18px 50px rgba(15, 23, 42, 0.06);
+}
+
+.courses-section.reveal.is-visible {
+  animation: none;
 }
 
 .section-header {
@@ -282,7 +886,7 @@
 .section-title {
   font-size: 2rem;
   font-weight: 700;
-  color: #0F172A;
+  color: var(--ryugo-navy);
   margin: 0;
   display: flex;
   align-items: center;
@@ -290,8 +894,8 @@
 }
 
 .new-badge {
-  background: #0EA5E9;
-  color: #FFFFFF;
+  background: var(--ryugo-gold);
+  color: var(--ryugo-navy);
   padding: 4px 12px;
   border-radius: 12px;
   font-size: 0.875rem;
@@ -323,24 +927,51 @@
 }
 
 .pro-courses .course-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  transform: translateY(-6px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.22);
+}
+
+.pro-courses .course-card .course-crown-filled,
+.pro-courses .course-card .course-crown-outline {
+  transition: transform 0.35s ease;
+}
+
+.pro-courses .course-card:hover .course-crown-filled,
+.pro-courses .course-card:hover .course-crown-outline {
+  transform: scale(1.15);
 }
 
 .n5-card {
-  background: linear-gradient(135deg, #3B82F6 0%, #2563EB 100%);
+  background: linear-gradient(135deg, var(--ryugo-navy) 0%, var(--ryugo-navy-mid) 100%);
 }
 
 .n4-card {
-  background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+  background: linear-gradient(135deg, var(--ryugo-gold) 0%, var(--ryugo-gold-light) 100%);
+  color: var(--ryugo-navy);
 }
 
 .n3-card {
-  background: linear-gradient(135deg, #EC4899 0%, #DB2777 100%);
+  background: linear-gradient(135deg, var(--ryugo-navy-mid) 0%, var(--ryugo-navy) 100%);
 }
 
 .n2-card {
-  background: linear-gradient(135deg, #8B5CF6 0%, #7C3AED 100%);
+  background: linear-gradient(135deg, var(--ryugo-gold) 0%, #b8860b 100%);
+  color: var(--ryugo-navy);
+}
+
+.n4-card .course-title,
+.n4-card .course-subtitle,
+.n2-card .course-title,
+.n2-card .course-subtitle {
+  color: var(--ryugo-navy);
+}
+
+.n4-card .course-crown-filled,
+.n4-card .course-crown-outline,
+.n2-card .course-crown-filled,
+.n2-card .course-crown-outline {
+  fill: var(--ryugo-navy);
+  stroke: var(--ryugo-navy);
 }
 
 .course-header {
@@ -387,8 +1018,16 @@
 }
 
 .free-courses .free-course-card:hover {
-  transform: translateY(-4px);
-  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.12);
+  transform: translateY(-6px);
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+}
+
+.free-courses .free-course-card .free-course-icon {
+  transition: transform 0.35s ease;
+}
+
+.free-courses .free-course-card:hover .free-course-icon {
+  transform: scale(1.1);
 }
 
 .free-course-icon {
@@ -448,7 +1087,7 @@
   }
 
   .homepage-content {
-    padding: 24px 0 64px;
+    padding: 24px 0 0;
   }
 
   .homepage-inner {
@@ -476,6 +1115,32 @@
   .courses-grid {
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 20px;
+  }
+
+  .homepage-stats-inner {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+
+  .features-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .role-banner {
+    grid-template-columns: 1fr;
+    min-height: auto;
+  }
+
+  .role-banner-image {
+    min-height: 220px;
+  }
+
+  .role-banner-content {
+    padding: 2rem;
+  }
+
+  .role-courses-grid {
+    grid-template-columns: repeat(2, 1fr);
   }
 }
 
@@ -506,7 +1171,7 @@
   }
 
   .homepage-content {
-    padding: 20px 0 56px;
+    padding: 20px 0 0;
   }
 
   .homepage-inner {
@@ -542,5 +1207,63 @@
   .course-card,
   .free-course-card {
     padding: 1.5rem;
+  }
+
+  .homepage-stats {
+    padding: 2rem 1.5rem;
+  }
+
+  .homepage-stats-inner {
+    grid-template-columns: 1fr;
+    gap: 1.25rem;
+  }
+
+  .stat-value {
+    font-size: 1.65rem;
+  }
+
+  .features-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .homepage-features {
+    padding: 2rem 1.5rem;
+  }
+
+  .features-title {
+    font-size: 1.5rem;
+  }
+
+  .float-shape {
+    opacity: 0.5;
+  }
+
+  .homepage-cta {
+    padding: 2.5rem 1.5rem;
+  }
+
+  .homepage-cta-title {
+    font-size: 1.5rem;
+  }
+
+  .homepage-cta-btn {
+    padding: 14px 32px;
+    font-size: 1rem;
+  }
+
+  .role-banner-title {
+    font-size: 1.4rem;
+  }
+
+  .role-banner-content {
+    padding: 1.5rem;
+  }
+
+  .role-courses-block {
+    padding: 1.5rem;
+  }
+
+  .role-courses-grid {
+    grid-template-columns: 1fr;
   }
 }

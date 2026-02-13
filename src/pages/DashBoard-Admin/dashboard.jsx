@@ -16,7 +16,7 @@ const Dashboard = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
-  const [editFormData, setEditFormData] = useState({ name: '', address: '', dateOfBirth: '' });
+  const [editFormData, setEditFormData] = useState({ name: '', address: '', dateOfBirth: '', active: true });
   const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [showAddUserModal, setShowAddUserModal] = useState(false);
@@ -30,6 +30,8 @@ const Dashboard = () => {
     role: 'STUDENT'
   });
   const [isCreating, setIsCreating] = useState(false);
+  const [showViewDetailModal, setShowViewDetailModal] = useState(false);
+  const [viewingUser, setViewingUser] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -148,6 +150,7 @@ const Dashboard = () => {
       name: user.name || '',
       address: user.address || '',
       dateOfBirth: user.dateOfBirth ? user.dateOfBirth.split('T')[0] : '',
+      active: user.active !== false,
     });
     setShowEditModal(true);
   };
@@ -155,7 +158,7 @@ const Dashboard = () => {
   const handleCancelEdit = () => {
     setShowEditModal(false);
     setEditingUser(null);
-    setEditFormData({ name: '', address: '', dateOfBirth: '' });
+    setEditFormData({ name: '', address: '', dateOfBirth: '', active: true });
   };
 
   const handleEditSubmit = async (e) => {
@@ -168,19 +171,20 @@ const Dashboard = () => {
         name: editFormData.name,
         address: editFormData.address,
         dateOfBirth: editFormData.dateOfBirth,
+        active: editFormData.active,
       });
 
       // Update local state
       setUsers(users.map(user => 
         user.id === editingUser.id 
-          ? { ...user, name: editFormData.name, address: editFormData.address, dateOfBirth: editFormData.dateOfBirth }
+          ? { ...user, name: editFormData.name, address: editFormData.address, dateOfBirth: editFormData.dateOfBirth, active: editFormData.active }
           : user
       ));
 
       setSuccessMessage('Chỉnh sửa thông tin người dùng thành công!');
       setShowEditModal(false);
       setEditingUser(null);
-      setEditFormData({ name: '', address: '', dateOfBirth: '' });
+      setEditFormData({ name: '', address: '', dateOfBirth: '', active: true });
 
       // Hide success message after 5 seconds
       setTimeout(() => {
@@ -276,6 +280,15 @@ const Dashboard = () => {
         localStorage.removeItem('token');
         localStorage.removeItem('username');
         toast.error('Phiên đăng nhập đã hết hạn. Vui lòng đăng nhập lại.');
+        navigate('/login');
+      } else if (error.response?.status === 403) {
+        const message = error.response?.data?.message || error.response?.data;
+        const isInactive = typeof message === 'string' && message.toLowerCase().includes('inactive');
+        toast.error(isInactive
+          ? 'Tài khoản của bạn đã bị vô hiệu hóa. Vui lòng liên hệ quản trị viên.'
+          : 'Bạn không có quyền truy cập trang này.');
+        localStorage.removeItem('token');
+        localStorage.removeItem('username');
         navigate('/login');
       } else {
         toast.error('Không thể tải danh sách người dùng. Vui lòng thử lại.');
@@ -542,7 +555,14 @@ const Dashboard = () => {
                     </td>
                     <td>
                       <div className="table-actions">
-                        <button className="action-icon-btn" title="Xem chi tiết">
+                        <button
+                          className="action-icon-btn"
+                          title="Xem chi tiết"
+                          onClick={() => {
+                            setViewingUser(user);
+                            setShowViewDetailModal(true);
+                          }}
+                        >
                           <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                             <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                             <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
@@ -576,6 +596,82 @@ const Dashboard = () => {
             </tbody>
           </table>
         </div>
+
+      {/* View User Detail Modal */}
+      {showViewDetailModal && viewingUser && (
+        <div className="modal-overlay" onClick={() => { setShowViewDetailModal(false); setViewingUser(null); }}>
+          <div className="modal-container modal-view-detail" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Thông tin chi tiết người dùng</h2>
+              <button className="modal-close" onClick={() => { setShowViewDetailModal(false); setViewingUser(null); }}>
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              </button>
+            </div>
+            <div className="modal-body modal-view-detail-body">
+              <div className="view-detail-avatar">
+                <span>{viewingUser.name?.[0]?.toUpperCase() || viewingUser.username?.[0]?.toUpperCase() || 'U'}</span>
+              </div>
+              <div className="view-detail-grid">
+                <div className="view-detail-row">
+                  <span className="view-detail-label">ID</span>
+                  <span className="view-detail-value">#{viewingUser.id}</span>
+                </div>
+                <div className="view-detail-row">
+                  <span className="view-detail-label">Tên đăng nhập</span>
+                  <span className="view-detail-value">{viewingUser.username || '—'}</span>
+                </div>
+                <div className="view-detail-row">
+                  <span className="view-detail-label">Họ và tên</span>
+                  <span className="view-detail-value">{viewingUser.name || '—'}</span>
+                </div>
+                <div className="view-detail-row">
+                  <span className="view-detail-label">Email</span>
+                  <span className="view-detail-value">{viewingUser.email || 'Chưa có'}</span>
+                </div>
+                <div className="view-detail-row">
+                  <span className="view-detail-label">Vai trò</span>
+                  <span className={`role-badge ${getRoleBadgeClass(viewingUser.role)}`}>{getRoleLabel(viewingUser.role)}</span>
+                </div>
+                <div className="view-detail-row">
+                  <span className="view-detail-label">Trạng thái</span>
+                  <span className={`status-badge ${viewingUser.active ? 'status-active' : 'status-inactive'}`}>
+                    {viewingUser.active ? 'Hoạt động' : 'Không hoạt động'}
+                  </span>
+                </div>
+                <div className="view-detail-row">
+                  <span className="view-detail-label">Địa chỉ</span>
+                  <span className="view-detail-value">{viewingUser.address || 'Chưa có'}</span>
+                </div>
+                <div className="view-detail-row">
+                  <span className="view-detail-label">Ngày sinh</span>
+                  <span className="view-detail-value">{formatDate(viewingUser.dateOfBirth)}</span>
+                </div>
+              </div>
+            </div>
+            <div className="modal-footer">
+              <button
+                className="modal-btn modal-btn-cancel"
+                onClick={() => { setShowViewDetailModal(false); setViewingUser(null); }}
+              >
+                Đóng
+              </button>
+              <button
+                className="modal-btn modal-btn-confirm"
+                onClick={() => {
+                  setShowViewDetailModal(false);
+                  setViewingUser(null);
+                  handleEditClick(viewingUser);
+                }}
+              >
+                Chỉnh sửa
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
@@ -653,6 +749,21 @@ const Dashboard = () => {
                     value={editFormData.dateOfBirth}
                     onChange={(e) => setEditFormData({ ...editFormData, dateOfBirth: e.target.value })}
                   />
+                </div>
+
+                <div className="form-group form-group-toggle">
+                  <label htmlFor="edit-active">Trạng thái hoạt động</label>
+                  <button
+                    type="button"
+                    id="edit-active"
+                    role="switch"
+                    aria-checked={editFormData.active}
+                    className={`toggle-active-btn ${editFormData.active ? 'toggle-active-on' : 'toggle-active-off'}`}
+                    onClick={() => setEditFormData({ ...editFormData, active: !editFormData.active })}
+                  >
+                    <span className="toggle-active-slider" />
+                    <span className="toggle-active-label">{editFormData.active ? 'Hoạt động' : 'Không hoạt động'}</span>
+                  </button>
                 </div>
               </div>
               <div className="modal-footer">
