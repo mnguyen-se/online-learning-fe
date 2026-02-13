@@ -23,22 +23,9 @@ apiClient.interceptors.request.use(
   }
 );
 
-// Chỉ hiển thị toast thành công cho method thay đổi dữ liệu (tránh spam khi GET)
-const MUTATING_METHODS = ['post', 'put', 'patch', 'delete'];
-
-// Response interceptor: thông báo thành công tiếng Việt, log lỗi ra console
+// Response interceptor: log lỗi ra console (không tự hiện toast thành công; từng màn hình tự gọi toast nếu cần)
 apiClient.interceptors.response.use(
-  (response) => {
-    const method = (response.config?.method || '').toLowerCase();
-    const skipSuccessToast = response.config?.skipSuccessToast === true;
-    if (
-      !skipSuccessToast &&
-      MUTATING_METHODS.includes(method)
-    ) {
-      toast.success('Thao tác thành công.');
-    }
-    return response;
-  },
+  (response) => response,
   (error) => {
     // Log lỗi ra console (tiếng Việt + chi tiết)
     const url = error.config?.url ?? '(không rõ URL)';

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
-import { createCourse, getCourses, updateCourse } from '../../../api/coursesApi';
+import { createCourse, getCourses, getTeachers, updateCourse } from '../../../api/coursesApi';
 import { getEnrolledStudentsByCourse } from '../../../api/enrollmentApi';
 import { createLesson, updateLesson, getLessons, deleteLesson, uploadLessonVideo } from '../../../api/lessionApi';
 import {
@@ -34,6 +34,7 @@ function CourseManagement() {
   const [editCourseModal, setEditCourseModal] = useState({ isOpen: false, course: null });
   const [editCourseForm, setEditCourseForm] = useState({ title: '', description: '' });
   const [isUpdatingCourse, setIsUpdatingCourse] = useState(false);
+  const [isSavingGeneralConfig, setIsSavingGeneralConfig] = useState(false);
   const [courseStats, setCourseStats] = useState({});
   const [courseActiveStates, setCourseActiveStates] = useState({});
   const [lessonError, setLessonError] = useState('');
@@ -57,6 +58,7 @@ function CourseManagement() {
   const [deleteConfirmModal, setDeleteConfirmModal] = useState({ isOpen: false, chapterId: null });
   const [deleteLessonModal, setDeleteLessonModal] = useState({ isOpen: false, lessonId: null });
   const [isReloadingLessons, setIsReloadingLessons] = useState(false);
+  const [teachers, setTeachers] = useState([]);
 
   // Utility functions
   const getCourseId = (course) =>
@@ -1304,6 +1306,17 @@ function CourseManagement() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (viewMode === 'content' && selectedCourse) {
+      getTeachers()
+        .then((data) => {
+          const list = Array.isArray(data) ? data : data?.data ?? [];
+          setTeachers(list);
+        })
+        .catch(() => setTeachers([]));
+    }
+  }, [viewMode, selectedCourse]);
+
 
   const openEditCourseModal = (course) => {
     const courseId = getCourseId(course) ?? course?.id ?? null;
@@ -1347,6 +1360,69 @@ function CourseManagement() {
       toast.error(msg);
     } finally {
       setIsUpdatingCourse(false);
+    }
+  };
+
+  /** Bấm "Lưu thay đổi" trong Cấu hình khóa học → gọi PUT /api/v1/courses/:id */
+  const handleSaveGeneralConfig = async (payload) => {
+    const courseId = getCourseId(selectedCourse);
+    if (!courseId) {
+      toast.error('Không tìm thấy mã khóa học.');
+      return;
+    }
+    const trimmedTitle = (payload?.title ?? '').trim();
+    if (!trimmedTitle) {
+      toast.error('Vui lòng nhập tên khóa học hiển thị.');
+      return;
+    }
+    const teacherId = payload?.teacherId ?? null;
+    const updatePayload = {
+      title: trimmedTitle,
+      description: (payload?.description ?? '').trim(),
+      isPublic: payload?.isPublic ?? true,
+      is_public: payload?.isPublic ?? true,
+    };
+    if (teacherId != null) updatePayload.teacherId = teacherId;
+
+    try {
+      setIsSavingGeneralConfig(true);
+      await updateCourse(courseId, updatePayload);
+      setCourseActiveStates((prev) => ({ ...prev, [courseId]: payload?.isPublic ?? true }));
+      setCourses((prev) =>
+        prev.map((item) =>
+          getCourseId(item) === courseId
+            ? {
+                ...item,
+                title: trimmedTitle,
+                description: (payload?.description ?? '').trim(),
+                isPublic: payload?.isPublic ?? true,
+                is_public: payload?.isPublic ?? true,
+                teacherId: teacherId ?? item.teacherId,
+                teacher_id: teacherId ?? item.teacher_id,
+              }
+            : item
+        )
+      );
+      setSelectedCourse((prev) =>
+        prev && getCourseId(prev) === courseId
+          ? {
+              ...prev,
+              title: trimmedTitle,
+              description: (payload?.description ?? '').trim(),
+              isPublic: payload?.isPublic ?? true,
+              is_public: payload?.isPublic ?? true,
+              teacherId: teacherId ?? prev.teacherId,
+              teacher_id: teacherId ?? prev.teacher_id,
+            }
+          : prev
+      );
+      await loadCourses();
+      toast.success('Đã lưu thay đổi cấu hình khóa học.');
+    } catch (e) {
+      const msg = e?.response?.data?.message || e?.message || 'Lưu cấu hình thất bại. Vui lòng thử lại.';
+      toast.error(msg);
+    } finally {
+      setIsSavingGeneralConfig(false);
     }
   };
 
@@ -1706,7 +1782,10 @@ function CourseManagement() {
                   setActiveNavTab('management');
                 }}
                 getCourseId={getCourseId}
-                formatCourseId={formatCourseId}
+                getCourseIsActive={getCourseIsActive}
+                onSaveGeneralConfig={handleSaveGeneralConfig}
+                isSavingGeneralConfig={isSavingGeneralConfig}
+                teachers={teachers}
               />
             </div>
           ) : viewMode === 'create' ? (

@@ -16,6 +16,12 @@ export const getActiveCourses = async () => {
   return response.data;
 };
 
+/** GET /api/v1/courses/teachers – Danh sách giáo viên (COURSE_MANAGER / ADMIN) */
+export const getTeachers = async () => {
+  const response = await apiClient.get('/courses/teachers');
+  return response.data;
+};
+
 export const createCourse = async (courseData) => {
   const response = await apiClient.post('/courses', courseData);
   // Nếu response.data rỗng hoặc undefined, trả về courseData với status
@@ -29,6 +35,7 @@ export const createCourse = async (courseData) => {
   return response.data;
 };
 
+/** PUT /api/v1/courses/:id – Cập nhật khóa học (gọi khi bấm "Lưu thay đổi" trong Cấu hình khóa học) */
 export const updateCourse = async (courseId, courseData) => {
   const response = await apiClient.put(`/courses/${courseId}`, courseData);
   return response.data;

@@ -18,7 +18,6 @@ const CourseContentSidebar = ({
   onDeleteLesson,
   onSaveAndFinish,
   getCourseId,
-  formatCourseId,
   isLoadingLessons,
   lessonsError,
   isLoadingTests,
@@ -31,22 +30,13 @@ const CourseContentSidebar = ({
 }) => {
   return (
     <div className="course-content-sidebar">
-      <div className="course-id-display">
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M16.6667 5L7.50004 14.1667L3.33337 10" stroke="#22c55e" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-        </svg>
-        <span className="course-id-text">
-          ĐÃ CẤP ID: {formatCourseId(getCourseId(selectedCourse))}
-        </span>
-      </div>
-
       <button
         className={`course-sidebar-btn ${contentTab === 'general' ? 'is-active' : ''}`}
         type="button"
         onClick={() => onTabChange('general')}
       >
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M10 2.5C10.6904 2.5 11.25 3.05964 11.25 3.75V5H13.75C14.4404 5 15 5.55964 15 6.25V16.25C15 16.9404 14.4404 17.5 13.75 17.5H6.25C5.55964 17.5 5 16.9404 5 16.25V6.25C5 5.55964 5.55964 5 6.25 5H8.75V3.75C8.75 3.05964 9.30964 2.5 10 2.5ZM10 4.375H8.75V6.25H10V4.375Z" fill="currentColor"/>
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M10 3.333v1.667a.833.833 0 0 1-1.667 0V3.333a.833.833 0 0 1 1.667 0zM10 15v1.667a.833.833 0 0 1-1.667 0V15a.833.833 0 0 1 1.667 0zM3.333 10a.833.833 0 0 1 .834-.833h1.666a.833.833 0 0 1 0 1.667H4.167A.833.833 0 0 1 3.333 10zM15 10a.833.833 0 0 1 .833-.833h1.667a.833.833 0 0 1 0 1.667H15.833A.833.833 0 0 1 15 10zM5.05 5.05a.833.833 0 0 1 1.179 0l1.179 1.178a.833.833 0 0 1-1.179 1.179L5.05 6.23a.833.833 0 0 1 0-1.178zM13.772 13.772a.833.833 0 0 1 1.178 1.179l-1.178 1.178a.833.833 0 0 1-1.179-1.178l1.179-1.179zM5.05 14.95a.833.833 0 0 1 0-1.179l1.178-1.178a.833.833 0 0 1 1.179 1.178L6.23 14.95a.833.833 0 0 1-1.179 0zM13.772 6.228a.833.833 0 0 1 1.179 0l1.178 1.179a.833.833 0 0 1-1.178 1.178l-1.179-1.178a.833.833 0 0 1 0-1.179z" fill="currentColor"/>
         </svg>
         Cấu hình chung
       </button>
@@ -72,6 +62,9 @@ const CourseContentSidebar = ({
 
         {isLoadingLessons && <div className="course-program-status">Đang tải...</div>}
         {lessonsError && <div className="course-program-status course-program-status-error">{lessonsError}</div>}
+        {!isLoadingLessons && !lessonsError && lessons.length === 0 && (
+          <div className="course-program-status course-program-empty-hint">Chưa có chương. Bấm nút + phía trên để thêm.</div>
+        )}
         {!isLoadingLessons && !lessonsError && lessons.length > 0 && (
           <>
             <ul className="course-program-list">
@@ -246,14 +239,14 @@ const CourseContentSidebar = ({
       </div>
 
       <button
-        className="course-save-finish-btn"
+        className="course-sidebar-back-btn"
         type="button"
         onClick={onSaveAndFinish}
       >
-        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
-          <path d="M17.5 5.83333L9.16667 14.1667L4.16667 9.16667" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <path d="M12.5 15L7.5 10L12.5 5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
         </svg>
-        Hoàn thành
+        Quay lại
       </button>
     </div>
   );
