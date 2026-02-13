@@ -1,9 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Users, Clock, BookOpen, CheckCircle } from 'lucide-react';
+import { Users, Clock, BookOpen } from 'lucide-react';
 import { getTeacherCourses } from '../../api/teacherApi';
 import { getEnrolledStudentsByCourse } from '../../api/enrollmentApi';
-import { getLearningProcess } from '../../api/learningProcessApi';
 import './TeacherPages.css';
+
+// Thanh tiến trình trên Dashboard dùng để xem tiến trình học sinh (không gọi API learning-process của giáo viên).
+// BE chỉ có API tiến độ theo user hiện tại (học viên). Tỉ lệ hoàn thành hiển thị theo học viên khi BE hỗ trợ API thống kê.
 
 const WEEK_DAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
@@ -12,7 +14,6 @@ function TeacherDashboard() {
   const [loading, setLoading] = useState(true);
   const [hoveredBar, setHoveredBar] = useState(null);
   const [studentsCount, setStudentsCount] = useState(0);
-  const [completionRate, setCompletionRate] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -26,7 +27,6 @@ function TeacherDashboard() {
         const courseIds = list.map((c) => c.courseId).filter(Boolean);
         if (courseIds.length === 0) {
           setStudentsCount(0);
-          setCompletionRate(0);
           return;
         }
 
@@ -41,24 +41,6 @@ function TeacherDashboard() {
             0
           );
           setStudentsCount(total);
-        });
-
-        Promise.all(
-          courseIds.map((id) =>
-            getLearningProcess(id)
-              .then((p) => (p && typeof p.progressPercent === 'number' ? p.progressPercent : 0))
-              .catch(() => 0)
-          )
-        ).then((percents) => {
-          if (cancelled) return;
-          const valid = percents.filter((p) => typeof p === 'number');
-          const avg =
-            valid.length > 0
-              ? Math.round(
-                  valid.reduce((a, b) => a + b, 0) / valid.length
-                )
-              : 0;
-          setCompletionRate(avg);
         });
       })
       .catch(() => {
@@ -133,21 +115,6 @@ function TeacherDashboard() {
             <span className="teacher-dash-card__label">Khóa học active</span>
             <span className="teacher-dash-card__value">
               {loading ? '...' : activeCourses}
-            </span>
-          </div>
-        </div>
-
-        <div className="teacher-dash-card">
-          <div className="teacher-dash-card__icon teacher-dash-card__icon--blue">
-            <CheckCircle size={20} strokeWidth={2} />
-          </div>
-          <div className="teacher-dash-card__body">
-            <span className="teacher-dash-card__label">Tỉ lệ hoàn thành</span>
-            <span className="teacher-dash-card__value">
-              {loading && completionRate === null ? '...' : `${completionRate ?? 0}%`}
-            </span>
-            <span className="teacher-dash-card__trend teacher-dash-card__trend--up">
-              ↑ 2% so với tháng trước
             </span>
           </div>
         </div>

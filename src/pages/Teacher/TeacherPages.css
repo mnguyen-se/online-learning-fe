@@ -1,9 +1,9 @@
-/* Teacher area - theme xanh dương – trắng, LMS */
+/* Teacher area – nền hiện đại, trung tính nhẹ */
 .teacher-area {
   min-height: 100%;
   width: 100%;
   max-width: 100%;
-  background: #F0F7FF;
+  background: #f1f5f9;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
@@ -30,25 +30,25 @@
   margin: 0 0 1.25rem 0;
 }
 
-/* Dashboard – 4 stat cards + bar chart */
+/* Dashboard – dùng nền chung, không phủ thêm */
 .teacher-dashboard-wrap {
-  background: #f8fafc;
+  background: transparent;
 }
 
 .teacher-dash-cards {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
-  gap: 1rem;
-  margin-bottom: 1.25rem;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1.25rem;
+  margin-bottom: 1.5rem;
 }
 
 .teacher-dash-card {
   background: #fff;
   border-radius: 10px;
-  padding: 1.25rem;
+  padding: 1.25rem 1.5rem;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 1rem;
 }
 
@@ -73,6 +73,7 @@
   flex-direction: column;
   gap: 0.25rem;
   min-width: 0;
+  flex: 1;
 }
 
 .teacher-dash-card__label {
@@ -956,7 +957,252 @@
   font-size: 0.9375rem;
 }
 
-/* ========== Teacher My Courses (Card layout) ========== */
+/* ========== Teacher My Courses (Ant Design cards) ========== */
+.teacher-tmc-wrap {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 1rem 1.5rem;
+  background: #fff;
+  min-height: 100%;
+}
+
+.teacher-tmc-header {
+  margin-bottom: 1.5rem;
+}
+
+.teacher-tmc-title {
+  margin: 0 0 0.35rem 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e3a5f;
+}
+
+.teacher-tmc-desc {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: #64748b;
+  line-height: 1.45;
+}
+
+/* ========== Ô tìm kiếm dashboard (Khóa học) – căn giữa, focus rõ, không vỡ layout ========== */
+.teacher-tmc-search-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-bottom: 1.25rem;
+  max-width: 400px;
+  width: 100%;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+.teacher-tmc-search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  color: #94a3b8;
+  pointer-events: none;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.teacher-tmc-search-icon svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.teacher-tmc-search-wrap .ant-input-affix-wrapper {
+  width: 100% !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  padding: 0 10px 0 44px !important;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  font-family: inherit;
+  background: #ffffff !important;
+  color: #111827;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.teacher-tmc-search-input.ant-input {
+  width: 100% !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  padding: 0 40px 0 44px !important;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  font-family: inherit;
+  background: #ffffff !important;
+  color: #111827;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+}
+
+.teacher-tmc-search-wrap .ant-input-affix-wrapper .ant-input {
+  padding: 12px 8px 12px 0 !important;
+  height: auto !important;
+  min-height: 20px !important;
+  border: none !important;
+  background: transparent !important;
+  line-height: 1.5;
+}
+
+.teacher-tmc-search-input.ant-input {
+  padding: 12px 40px 12px 44px !important;
+  height: 44px !important;
+  box-sizing: border-box !important;
+  border: none !important;
+  background: transparent !important;
+  line-height: 1.5;
+}
+
+.teacher-tmc-search-wrap .ant-input-affix-wrapper .ant-input::placeholder,
+.teacher-tmc-search-input.ant-input::placeholder {
+  color: #9ca3af;
+}
+
+.teacher-tmc-search-wrap .ant-input-affix-wrapper:hover,
+.teacher-tmc-search-input.ant-input:hover {
+  border-color: #d1d5db;
+}
+
+.teacher-tmc-search-wrap .ant-input-affix-wrapper:focus-within,
+.teacher-tmc-search-wrap .ant-input-affix-wrapper.ant-input-affix-wrapper-focused,
+.teacher-tmc-search-input.ant-input:focus,
+.teacher-tmc-search-input.ant-input.ant-input-focused {
+  outline: none;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+}
+
+.teacher-tmc-search-wrap .ant-input-suffix {
+  margin-right: 10px;
+}
+
+.teacher-tmc-search-wrap .ant-input-clear-icon {
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.teacher-tmc-search-wrap .ant-input-clear-icon:hover {
+  color: #6b7280;
+}
+
+@media (max-width: 480px) {
+  .teacher-tmc-search-wrap {
+    max-width: 100%;
+  }
+}
+
+.teacher-tmc-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 3rem;
+  color: #64748b;
+}
+
+.teacher-tmc-error-card {
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.teacher-tmc-card-wrap {
+  border-radius: 10px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+}
+
+.teacher-tmc-grid {
+  margin-top: 0.5rem;
+}
+
+.teacher-tmc-card.ant-card {
+  background: #f0f5fa;
+  border: 2px solid #b8d0e8;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+  transition: box-shadow 0.2s, border-color 0.2s, background 0.2s;
+}
+
+.teacher-tmc-card.ant-card:hover {
+  background: #e8f0f7;
+  border-color: #7eb3d8;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.teacher-tmc-card .ant-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.teacher-tmc-card .ant-card-meta-title {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: #1e2d3a;
+  margin-bottom: 0.25rem;
+  line-height: 1.4;
+  letter-spacing: 0.01em;
+}
+
+.teacher-tmc-card .ant-card-meta-description {
+  font-size: 0.875rem;
+  color: #3d4f5c;
+  line-height: 1.6;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.teacher-tmc-card-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  background: #c5dcee;
+  color: #2c5f8d;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.teacher-tmc-card .ant-card-actions > li > span {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.teacher-tmc-card .ant-card-actions .ant-btn-link {
+  color: #2563a8;
+  font-weight: 500;
+}
+
+.teacher-tmc-card .ant-card-actions .ant-btn-link:hover {
+  color: #1d4d82;
+}
+
+/* ========== Teacher My Courses (legacy tmc) ========== */
 .tmc-view {
   width: 100%;
   max-width: 1200px;
@@ -1035,6 +1281,7 @@
   line-height: 1.35;
   display: -webkit-box;
   -webkit-line-clamp: 2;
+  line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -1046,6 +1293,7 @@
   line-height: 1.5;
   display: -webkit-box;
   -webkit-line-clamp: 3;
+  line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
@@ -1125,6 +1373,493 @@
 .tmc-card-btn:hover {
   background: #f8fafc;
   border-color: #cbd5e1;
+}
+
+/* ========== Teacher Course Detail */
+.teacher-cd-wrap {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0.5rem 1rem 5px;
+  background: #fff;
+  min-height: 100%;
+}
+
+.teacher-cd-loading,
+.teacher-cd-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem;
+  padding: 3rem;
+  color: #64748b;
+}
+
+.teacher-cd-error {
+  color: #dc2626;
+}
+
+/* Nút quay lại: icon + chữ trong ô bo góc (trắng, viền nhạt) */
+.teacher-cd-back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  height: 44px;
+  margin-bottom: 0.75rem;
+  padding: 0 1rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background: #fff;
+  color: #334155;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s, color 0.15s;
+}
+
+.teacher-cd-back-btn:hover {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #1e293b;
+}
+
+/* Khối tên + mô tả đầy đủ khóa học (khi vào chi tiết) */
+.teacher-cd-course-info {
+  margin-bottom: 1.5rem;
+  padding-bottom: 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+.teacher-cd-course-info__title {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.375rem;
+  font-weight: 700;
+  color: #1e293b;
+  line-height: 1.35;
+}
+.teacher-cd-course-info__desc {
+  margin: 0;
+  font-size: 0.9375rem;
+  color: #475569;
+  line-height: 1.65;
+  white-space: pre-wrap;
+}
+
+/* Màn hình 2 card: Danh sách học viên | Nội dung khóa học */
+.teacher-cd-cards {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 1.5rem;
+  margin-top: 0.5rem;
+}
+
+.teacher-cd-card {
+  position: relative;
+  padding: 1.5rem;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  border: 1px solid #f1f5f9;
+  overflow: hidden;
+}
+
+.teacher-cd-card__icon-wrap {
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  margin-bottom: 1rem;
+}
+
+.teacher-cd-card__icon-wrap--purple {
+  background: #7c3aed;
+  color: #fff;
+}
+
+.teacher-cd-card__icon-wrap--green {
+  background: #16a34a;
+  color: #fff;
+}
+
+.teacher-cd-card__bg-icon {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  color: #e2e8f0;
+  opacity: 0.7;
+  pointer-events: none;
+}
+
+.teacher-cd-card__bg-icon--green {
+  color: #dcfce7;
+}
+
+.teacher-cd-card__title {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.teacher-cd-card__desc {
+  margin: 0 0 1rem 0;
+  font-size: 0.875rem;
+  line-height: 1.55;
+  color: #64748b;
+}
+
+.teacher-cd-card__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.teacher-cd-card__link--blue {
+  color: #2563eb;
+}
+
+.teacher-cd-card__link--blue:hover {
+  color: #1d4ed8;
+}
+
+.teacher-cd-card__link--green {
+  color: #16a34a;
+}
+
+.teacher-cd-card__link--green:hover {
+  color: #15803d;
+}
+
+@media (max-width: 768px) {
+  .teacher-cd-cards {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Tabs: layout phẳng, không card lồng card */
+.teacher-cd-tabs {
+  background: transparent;
+  overflow: visible;
+}
+
+.teacher-cd-tabs-inner .ant-tabs-nav {
+  margin-bottom: 0;
+  padding: 0 0 0 0;
+  background: transparent;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.teacher-cd-tabs-inner .ant-tabs-content-holder {
+  padding: 1rem 0 0;
+}
+
+.teacher-cd-content-tab {
+  min-height: 400px;
+}
+
+.teacher-cd-students-tab {
+  min-height: 400px;
+}
+
+/* Trang danh sách sinh viên: nền ngoài xanh nhạt, cách mép dưới màn hình 5px */
+.teacher-cd-wrap--students {
+  background: #fff;
+  min-height: 100%;
+  padding: 0.5rem 1rem 5px;
+}
+
+.teacher-cd-wrap--students .teacher-cd-students-tab {
+  background: #fff;
+  border-radius: 12px;
+  padding: 1.25rem 1.5rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
+}
+
+/* Student list table */
+.teacher-course-student-list {
+  margin-top: 0;
+  background: #fff;
+}
+
+.teacher-course-student-list__title {
+  font-size: 1.0625rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 1rem 0;
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.teacher-course-student-list__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-bottom: 0.75rem;
+}
+
+/* ========== Ô tìm kiếm dashboard (Danh sách học viên) – căn giữa, focus rõ, không vỡ layout ========== */
+.teacher-course-student-list__search {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 220px;
+  max-width: 360px;
+  min-height: 44px;
+  box-sizing: border-box;
+}
+
+.teacher-course-student-list__search-icon {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  margin: 0;
+  padding: 0;
+  color: #94a3b8;
+  pointer-events: none;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.teacher-course-student-list__search-icon svg {
+  width: 18px;
+  height: 18px;
+  display: block;
+}
+
+.teacher-course-student-list__search .ant-input-affix-wrapper {
+  width: 100% !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  padding: 0 10px 0 44px !important;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  font-family: inherit;
+  background: #ffffff !important;
+  color: #111827;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
+  display: flex !important;
+  align-items: center !important;
+}
+
+.teacher-course-student-list__search-input.ant-input {
+  width: 100% !important;
+  height: 44px !important;
+  min-height: 44px !important;
+  padding: 0 40px 0 44px !important;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.5;
+  font-family: inherit;
+  background: #ffffff !important;
+  color: #111827;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+}
+
+.teacher-course-student-list__search .ant-input-affix-wrapper .ant-input {
+  padding: 12px 8px 12px 0 !important;
+  height: auto !important;
+  min-height: 20px !important;
+  border: none !important;
+  background: transparent !important;
+  line-height: 1.5;
+}
+
+.teacher-course-student-list__search-input.ant-input {
+  padding: 12px 40px 12px 44px !important;
+  height: 44px !important;
+  box-sizing: border-box !important;
+  border: none !important;
+  background: transparent !important;
+  line-height: 1.5;
+}
+
+.teacher-course-student-list__search .ant-input-affix-wrapper .ant-input::placeholder,
+.teacher-course-student-list__search-input.ant-input::placeholder {
+  color: #9ca3af;
+}
+
+.teacher-course-student-list__search .ant-input-affix-wrapper:hover,
+.teacher-course-student-list__search-input.ant-input:hover {
+  border-color: #d1d5db;
+}
+
+.teacher-course-student-list__search .ant-input-affix-wrapper:focus-within,
+.teacher-course-student-list__search .ant-input-affix-wrapper.ant-input-affix-wrapper-focused,
+.teacher-course-student-list__search-input.ant-input:focus,
+.teacher-course-student-list__search-input.ant-input.ant-input-focused {
+  outline: none;
+  border-color: #3b82f6 !important;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.15) !important;
+}
+
+.teacher-course-student-list__search .ant-input-suffix {
+  margin-right: 10px;
+}
+
+.teacher-course-student-list__search .ant-input-clear-icon {
+  color: #9ca3af;
+  font-size: 12px;
+}
+
+.teacher-course-student-list__search .ant-input-clear-icon:hover {
+  color: #6b7280;
+}
+
+@media (max-width: 480px) {
+  .teacher-course-student-list__search {
+    min-width: 0;
+    max-width: 100%;
+  }
+}
+
+.teacher-course-student-list__total {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: #64748b;
+}
+
+/* Ant Design table – header căn chỉnh */
+.teacher-course-student-list .ant-table-thead > tr > th {
+  background: #f8fafc !important;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  color: #1e293b;
+  padding: 0.875rem 1.25rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.teacher-course-student-list .ant-table-tbody > tr > td {
+  padding: 1rem 1.25rem;
+  font-size: 0.9375rem;
+  vertical-align: middle;
+  color: #334155;
+}
+
+.teacher-course-student-list .ant-table-tbody > tr > td:first-child {
+  padding-left: 1.5rem;
+}
+
+.teacher-course-student-list .ant-table-tbody > tr > td:last-child {
+  padding-right: 1.5rem;
+}
+
+.teacher-course-student-list .ant-table-thead > tr > th:first-child {
+  padding-left: 1.5rem;
+}
+
+.teacher-course-student-list .ant-table-thead > tr > th:last-child {
+  padding-right: 1.5rem;
+}
+
+.teacher-course-student-list .teacher-student-cell-action {
+  display: flex;
+  justify-content: flex-end;
+  padding-right: 0.25rem;
+}
+
+.teacher-course-student-list .ant-table-wrapper {
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid #e2e8f0;
+}
+
+.teacher-course-student-list__footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+.teacher-student-cell-name,
+.teacher-student-cell-email {
+  display: inline-flex;
+  align-items: center;
+}
+
+/* Pill số bài chưa chấm (icon + số + "Bài tập") */
+.teacher-ungraded-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.teacher-ungraded-pill__icon {
+  flex-shrink: 0;
+}
+.teacher-ungraded-pill--active {
+  background: #ffebee;
+  color: #c62828;
+}
+.teacher-ungraded-pill--active .teacher-ungraded-pill__icon {
+  color: #c62828;
+}
+.teacher-ungraded-pill--zero {
+  background: #f1f5f9;
+  color: #94a3b8;
+}
+.teacher-ungraded-pill--zero .teacher-ungraded-pill__icon {
+  color: #94a3b8;
+}
+
+/* Student detail drawer */
+.teacher-drawer-section {
+  margin-bottom: 1.5rem;
+}
+
+.teacher-drawer-section h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+/* Accordion Ant (sidebar) */
+.tcd-accordion-ant .ant-collapse-header {
+  align-items: center;
+}
+
+.tcd-accordion-label {
+  font-weight: 500;
+  color: #334155;
+}
+
+.tcd-accordion-count {
+  font-weight: 400;
+  color: #94a3b8;
+  font-size: 0.875rem;
 }
 
 /* ========== Teacher Course Detail – Trang học video (Xem chi tiết) ========== */
