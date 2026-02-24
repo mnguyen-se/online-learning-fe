@@ -77,6 +77,10 @@ function App() {
       element: <LessonsView />,
     },
     {
+      path: '/course/:courseId/learn/:lessonId',
+      element: <LessonsView />,
+    },
+    {
       path: "/my-courses",
       element: <MyCourses />
     },

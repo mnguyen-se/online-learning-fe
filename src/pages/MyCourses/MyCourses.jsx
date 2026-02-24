@@ -3,7 +3,12 @@ import { useNavigate } from "react-router-dom";
 import Header from "../../components/Header/header";
 import Footer from "../../components/Footer/footer";
 import { getMyCourses } from "../../api/enrollmentApi";
-import { getLearningProcess } from "../../api/learningProcessApi";
+import {
+  enrollLearningProcess,
+  getLearningProcess,
+} from "../../api/learningProcessApi";
+import { getModulesByCourse } from "../../api/module";
+import { getLessonView } from "../../api/lessionApi";
 import "./mycourses.css";
 
 const CACHE_KEY = "myCoursesCache_v1";
@@ -30,6 +35,15 @@ const writeCache = (courses) => {
     );
   } catch {
     // ignore cache write errors
+  }
+};
+
+const clearCache = () => {
+  if (typeof sessionStorage === "undefined") return;
+  try {
+    sessionStorage.removeItem(CACHE_KEY);
+  } catch {
+    // ignore cache remove errors
   }
 };
 
@@ -79,12 +93,89 @@ const getCourseTitle = (course) =>
 const getCourseDescription = (course) =>
   course.courseDescription ?? course.description ?? course.summary ?? "Chưa có mô tả";
 
+const resolveModuleId = (module) =>
+  module?.moduleId ?? module?.id ?? module?._id ?? module?.module_id;
+
+const resolveLessonId = (lesson) =>
+  lesson?.lessonId ?? lesson?.id ?? lesson?._id ?? lesson?.lesson_id;
+
+const resolveLessonModuleId = (lesson) =>
+  lesson?.moduleId ??
+  lesson?.module?.moduleId ??
+  lesson?.sectionId ??
+  lesson?.section?.id;
+
+const idToKey = (value) => String(value ?? "");
+
+const getModuleOrder = (module) =>
+  Number(module?.orderIndex ?? module?.order_index ?? 0);
+
+const getLessonOrder = (lesson) =>
+  Number(lesson?.orderIndex ?? lesson?.order_index ?? 0);
+
+const isPublicLesson = (lesson) =>
+  lesson?.isPublic ?? lesson?.is_public ?? true;
+
+const isEnrollConflict = (error) => {
+  const status = error?.response?.status;
+  const message = (
+    error?.response?.data?.message ||
+    error?.response?.data?.chiTiet ||
+    error?.message ||
+    ""
+  ).toLowerCase();
+  return status === 409 || message.includes("tồn tại") || message.includes("exists");
+};
+
+const getFirstLessonId = (modules, lessons) => {
+  const modulesList = Array.isArray(modules) ? modules : [];
+  const lessonsList = Array.isArray(lessons) ? lessons : [];
+
+  const sortedModules = [...modulesList].sort((a, b) => {
+    const orderDiff = getModuleOrder(a) - getModuleOrder(b);
+    if (orderDiff !== 0) return orderDiff;
+    return String(resolveModuleId(a)).localeCompare(String(resolveModuleId(b)));
+  });
+
+  for (const module of sortedModules) {
+    const moduleId = resolveModuleId(module);
+    if (!moduleId) continue;
+    const moduleLessons = lessonsList
+      .filter(
+        (lesson) =>
+          idToKey(resolveLessonModuleId(lesson)) === idToKey(moduleId) &&
+          isPublicLesson(lesson),
+      )
+      .sort((a, b) => {
+        const orderDiff = getLessonOrder(a) - getLessonOrder(b);
+        if (orderDiff !== 0) return orderDiff;
+        return String(resolveLessonId(a)).localeCompare(
+          String(resolveLessonId(b)),
+        );
+      });
+
+    const firstLessonId = resolveLessonId(moduleLessons[0]);
+    if (firstLessonId) return firstLessonId;
+  }
+
+  const fallbackLessons = lessonsList
+    .filter((lesson) => isPublicLesson(lesson))
+    .sort((a, b) => {
+      const orderDiff = getLessonOrder(a) - getLessonOrder(b);
+      if (orderDiff !== 0) return orderDiff;
+      return String(resolveLessonId(a)).localeCompare(String(resolveLessonId(b)));
+    });
+
+  return resolveLessonId(fallbackLessons[0]) ?? null;
+};
+
 const MyCourses = () => {
   const navigate = useNavigate();
   const [courses, setCourses] = useState([]);
   const [activeTab, setActiveTab] = useState("all"); // all | active | completed
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [startingCourseId, setStartingCourseId] = useState(null);
 
   const formatDateOnly = (value) => {
     if (!value) return "Chưa có";
@@ -134,12 +225,14 @@ const MyCourses = () => {
               }
             }
             const progress = clampProgress(normalizeProgress(process) ?? 0);
-            const status = getStatusFromProgress(progress, Boolean(process));
+            const hasProcess = Boolean(process);
+            const status = getStatusFromProgress(progress, hasProcess);
             return {
               ...course,
               courseId,
               learningProgress: progress,
               learningStatus: status,
+              hasLearningProcess: hasProcess,
             };
           }),
         );
@@ -178,11 +271,73 @@ const MyCourses = () => {
     return courses;
   }, [courses, activeTab]);
 
-  const handleCtaClick = (course, status) => {
-    const action = getActionParam(status);
+  const handleCtaClick = async (course, status) => {
     const courseId = resolveCourseId(course);
+    if (!courseId) {
+      window.alert("Không thể xác định khóa học.");
+      return;
+    }
+
+    if (status === "Chưa học") {
+      setStartingCourseId(courseId);
+      try {
+        if (!course.hasLearningProcess) {
+          try {
+            await enrollLearningProcess(courseId);
+          } catch (err) {
+            if (!isEnrollConflict(err)) {
+              throw err;
+            }
+          }
+        }
+
+        const [modulesRes, lessonViewRes] = await Promise.all([
+          getModulesByCourse(courseId).catch(() => []),
+          getLessonView().catch(() => []),
+        ]);
+        const modules = Array.isArray(modulesRes)
+          ? modulesRes
+          : Array.isArray(modulesRes?.data)
+            ? modulesRes.data
+            : Array.isArray(modulesRes?.data?.data)
+              ? modulesRes.data.data
+              : [];
+        const lessonsRaw = Array.isArray(lessonViewRes)
+          ? lessonViewRes
+          : Array.isArray(lessonViewRes?.data)
+            ? lessonViewRes.data
+            : Array.isArray(lessonViewRes?.data?.data)
+              ? lessonViewRes.data.data
+              : [];
+        const moduleIdSet = new Set(
+          modules
+            .map((module) => idToKey(resolveModuleId(module)))
+            .filter((moduleId) => moduleId !== ""),
+        );
+        const lessons = (Array.isArray(lessonsRaw) ? lessonsRaw : []).filter(
+          (lesson) => moduleIdSet.has(idToKey(resolveLessonModuleId(lesson))),
+        );
+
+        const firstLessonId = getFirstLessonId(modules, lessons);
+        if (!firstLessonId) {
+          window.alert("Khóa học chưa có bài học để bắt đầu.");
+          return;
+        }
+
+        clearCache();
+        navigate(`/course/${courseId}/learn/${firstLessonId}`);
+        return;
+      } catch {
+        window.alert("Không thể khởi tạo tiến trình học tập.");
+      } finally {
+        setStartingCourseId(null);
+      }
+      return;
+    }
+
+    const action = getActionParam(status);
     const params = new URLSearchParams();
-    if (courseId) params.set("courseId", courseId);
+    params.set("courseId", courseId);
     params.set("action", action);
     navigate(`/lessons?${params.toString()}`);
   };
@@ -261,12 +416,14 @@ const MyCourses = () => {
                   : 0;
               const courseTitle = getCourseTitle(course);
               const courseDesc = getCourseDescription(course);
+              const courseId = resolveCourseId(course);
               const courseKey =
                 course.enrollmentId ??
-                course.courseId ??
+                courseId ??
                 course.id ??
                 course.course?.id ??
                 courseTitle;
+              const isStarting = startingCourseId === courseId;
 
               return (
                 <div className="course-card" key={courseKey}>
@@ -297,9 +454,10 @@ const MyCourses = () => {
                     <button
                       className="course-action"
                       type="button"
+                      disabled={isStarting}
                       onClick={() => handleCtaClick(course, status)}
                     >
-                      {getCtaLabel(status)}
+                      {isStarting ? "Đang chuẩn bị..." : getCtaLabel(status)}
                     </button>
                   </div>
                 </div>
