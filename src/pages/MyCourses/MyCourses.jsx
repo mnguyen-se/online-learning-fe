@@ -1,10 +1,86 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Header from "../../components/Header/header";
 import Footer from "../../components/Footer/footer";
 import { getMyCourses } from "../../api/enrollmentApi";
+import { getLearningProcess } from "../../api/learningProcessApi";
 import "./mycourses.css";
 
+const CACHE_KEY = "myCoursesCache_v1";
+
+const readCache = () => {
+  if (typeof sessionStorage === "undefined") return null;
+  try {
+    const raw = sessionStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (!parsed || !Array.isArray(parsed.courses)) return null;
+    return parsed.courses;
+  } catch {
+    return null;
+  }
+};
+
+const writeCache = (courses) => {
+  if (typeof sessionStorage === "undefined") return;
+  try {
+    sessionStorage.setItem(
+      CACHE_KEY,
+      JSON.stringify({ courses, cachedAt: Date.now() }),
+    );
+  } catch {
+    // ignore cache write errors
+  }
+};
+
+const clampProgress = (value) => {
+  if (typeof value !== "number" || Number.isNaN(value)) return 0;
+  return Math.min(100, Math.max(0, Math.round(value)));
+};
+
+const resolveCourseId = (course) =>
+  course.courseId ??
+  course.id ??
+  course.course?.id ??
+  course.course?.courseId ??
+  course.course_id;
+
+const normalizeProgress = (process) => {
+  if (!process) return null;
+  const direct = process.progressPercent ?? process.progress ?? null;
+  if (typeof direct === "number") return direct;
+  if (process.totalTasks && typeof process.completedTasks === "number") {
+    return (process.completedTasks / process.totalTasks) * 100;
+  }
+  return null;
+};
+
+const getStatusFromProgress = (progress, hasProcess) => {
+  if (!hasProcess || progress <= 0) return "Chưa học";
+  if (progress >= 100) return "Hoàn thành";
+  return "Đang học";
+};
+
+const getCtaLabel = (status) => {
+  if (status === "Hoàn thành") return "Xem lại";
+  if (status === "Đang học") return "Tiếp tục học";
+  return "Bắt đầu học";
+};
+
+const getActionParam = (status) => {
+  if (status === "Hoàn thành") return "review";
+  if (status === "Đang học") return "continue";
+  return "start";
+};
+
+const getCourseTitle = (course) =>
+  course.courseTitle ?? course.title ?? course.name ?? course.courseName ?? "Khóa học";
+
+const getCourseDescription = (course) =>
+  course.courseDescription ?? course.description ?? course.summary ?? "Chưa có mô tả";
+
 const MyCourses = () => {
+  const navigate = useNavigate();
   const [courses, setCourses] = useState([]);
   const [activeTab, setActiveTab] = useState("all"); // all | active | completed
   const [loading, setLoading] = useState(true);
@@ -25,12 +101,52 @@ const MyCourses = () => {
 
   useEffect(() => {
     let mounted = true;
+    const cachedCourses = readCache();
+    if (cachedCourses) {
+      setCourses(cachedCourses);
+      setLoading(false);
+      return () => {
+        mounted = false;
+      };
+    }
+
     const fetchData = async () => {
       try {
         setLoading(true);
         setError("");
         const data = await getMyCourses();
-        if (mounted) setCourses(data || []);
+        const list = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.data)
+            ? data.data
+            : Array.isArray(data?.items)
+              ? data.items
+              : [];
+        const coursesWithProgress = await Promise.all(
+          list.map(async (course) => {
+            const courseId = resolveCourseId(course);
+            let process = null;
+            if (courseId) {
+              try {
+                process = await getLearningProcess(courseId);
+              } catch {
+                process = null;
+              }
+            }
+            const progress = clampProgress(normalizeProgress(process) ?? 0);
+            const status = getStatusFromProgress(progress, Boolean(process));
+            return {
+              ...course,
+              courseId,
+              learningProgress: progress,
+              learningStatus: status,
+            };
+          }),
+        );
+        if (mounted) {
+          setCourses(coursesWithProgress);
+          writeCache(coursesWithProgress);
+        }
       } catch {
         if (mounted) setError("Không thể tải danh sách khóa học.");
       } finally {
@@ -46,21 +162,30 @@ const MyCourses = () => {
   const stats = useMemo(() => {
     const all = courses.length;
     const active = courses.filter(
-      (c) => c.enrollmentStatus === "ACTIVE",
+      (c) => c.learningStatus === "Đang học",
     ).length;
     const completed = courses.filter(
-      (c) => c.enrollmentStatus === "COMPLETED",
+      (c) => c.learningStatus === "Hoàn thành",
     ).length;
     return { all, active, completed };
   }, [courses]);
 
   const filteredCourses = useMemo(() => {
     if (activeTab === "active")
-      return courses.filter((c) => c.enrollmentStatus === "ACTIVE");
+      return courses.filter((c) => c.learningStatus === "Đang học");
     if (activeTab === "completed")
-      return courses.filter((c) => c.enrollmentStatus === "COMPLETED");
+      return courses.filter((c) => c.learningStatus === "Hoàn thành");
     return courses;
   }, [courses, activeTab]);
+
+  const handleCtaClick = (course, status) => {
+    const action = getActionParam(status);
+    const courseId = resolveCourseId(course);
+    const params = new URLSearchParams();
+    if (courseId) params.set("courseId", courseId);
+    params.set("action", action);
+    navigate(`/lessons?${params.toString()}`);
+  };
 
   if (loading) {
     return (
@@ -122,43 +247,64 @@ const MyCourses = () => {
           <div className="state-card">
             {activeTab === "completed"
               ? "Bạn chưa hoàn thành khóa học nào"
-              : "Bạn chưa đăng ký khóa học nào."}
+              : activeTab === "active"
+                ? "Bạn chưa có khóa học đang học."
+                : "Bạn chưa đăng ký khóa học nào."}
           </div>
         ) : (
           <div className="course-grid">
-            {filteredCourses.map((course) => (
-              <div className="course-card" key={course.enrollmentId}>
-                <div className="course-body">
-                  <div className="course-progress">
-                    <span>Tiến độ</span>
-                    <span>{course.progress || 0}%</span>
-                  </div>
-                  <div className="progress-bar">
-                    <div
-                      className="progress-fill"
-                      style={{ width: `${course.progress || 0}%` }}
-                    />
-                  </div>
+            {filteredCourses.map((course) => {
+              const status = course.learningStatus || "Chưa học";
+              const progressValue =
+                typeof course.learningProgress === "number"
+                  ? course.learningProgress
+                  : 0;
+              const courseTitle = getCourseTitle(course);
+              const courseDesc = getCourseDescription(course);
+              const courseKey =
+                course.enrollmentId ??
+                course.courseId ??
+                course.id ??
+                course.course?.id ??
+                courseTitle;
 
-                  <div className="course-level">
-                    {course.level || "Bắt đầu học"}
-                  </div>
-                  <h3 className="course-title">{course.courseTitle}</h3>
-                  <p className="course-desc">{course.courseDescription}</p>
+              return (
+                <div className="course-card" key={courseKey}>
+                  <div className="course-body">
+                    <div className="course-progress">
+                      <span>Tiến độ</span>
+                      <span>{progressValue}%</span>
+                    </div>
+                    <div className="progress-bar">
+                      <div
+                        className="progress-fill"
+                        style={{ width: `${progressValue}%` }}
+                      />
+                    </div>
 
-                  <div className="course-meta">
-                    <div>Ngày đăng ký: {formatDateOnly(course.enrolledAt)}</div>
-                    <div>Lần truy cập gần nhất: Chưa có</div>
-                  </div>
+                    <div className="course-level">
+                      {course.level || "Bắt đầu học"}
+                    </div>
+                    <h3 className="course-title">{courseTitle}</h3>
+                    <p className="course-desc">{courseDesc}</p>
 
-                  <button className="course-action">
-                    {course.enrollmentStatus === "COMPLETED"
-                      ? "Xem lại khóa học"
-                      : "Tiếp tục học"}
-                  </button>
+                    <div className="course-meta">
+                      <div>Trạng thái: {status}</div>
+                      <div>Ngày đăng ký: {formatDateOnly(course.enrolledAt)}</div>
+                      <div>Lần truy cập gần nhất: Chưa có</div>
+                    </div>
+
+                    <button
+                      className="course-action"
+                      type="button"
+                      onClick={() => handleCtaClick(course, status)}
+                    >
+                      {getCtaLabel(status)}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </main>
