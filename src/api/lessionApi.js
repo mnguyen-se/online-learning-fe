@@ -27,6 +27,11 @@ export const getLessonView = async () => {
   return response.data;
 };
 
+export const completeLessonById = async (lessonId) => {
+  const response = await apiClient.post(`/lessonsCompletion/${lessonId}/complete`);
+  return response.data;
+};
+
 /**
  * Upload video cho bài học.
  * OpenAPI: POST /lessons/{lessonId}/upload-video.

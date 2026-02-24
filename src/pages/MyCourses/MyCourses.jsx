@@ -81,12 +81,6 @@ const getCtaLabel = (status) => {
   return "Bắt đầu học";
 };
 
-const getActionParam = (status) => {
-  if (status === "Hoàn thành") return "review";
-  if (status === "Đang học") return "continue";
-  return "start";
-};
-
 const getCourseTitle = (course) =>
   course.courseTitle ?? course.title ?? course.name ?? course.courseName ?? "Khóa học";
 
@@ -106,6 +100,13 @@ const resolveLessonModuleId = (lesson) =>
   lesson?.section?.id;
 
 const idToKey = (value) => String(value ?? "");
+
+const normalizeArrayResponse = (response) => {
+  if (Array.isArray(response)) return response;
+  if (Array.isArray(response?.data)) return response.data;
+  if (Array.isArray(response?.data?.data)) return response.data.data;
+  return [];
+};
 
 const getModuleOrder = (module) =>
   Number(module?.orderIndex ?? module?.order_index ?? 0);
@@ -169,6 +170,84 @@ const getFirstLessonId = (modules, lessons) => {
   return resolveLessonId(fallbackLessons[0]) ?? null;
 };
 
+const getCurrentLessonIdFromProcess = (process) =>
+  process?.currentLessonId ??
+  process?.currentLesson?.lessonId ??
+  process?.currentLesson?.id ??
+  process?.lastLessonId ??
+  process?.lastLesson?.lessonId ??
+  process?.lastLesson?.id ??
+  null;
+
+const getCompletedLessonIdSet = (process) => {
+  const list =
+    process?.completedLessonIds ??
+    process?.completedLessons ??
+    process?.lessonCompletedIds ??
+    process?.completedLessonIdList ??
+    [];
+  if (!Array.isArray(list)) return new Set();
+  return new Set(list.map((id) => idToKey(id)).filter((id) => id !== ""));
+};
+
+const getOrderedCourseLessons = (modules, lessons) => {
+  const modulesList = Array.isArray(modules) ? modules : [];
+  const lessonsList = Array.isArray(lessons) ? lessons : [];
+  const sortedModules = [...modulesList].sort((a, b) => {
+    const orderDiff = getModuleOrder(a) - getModuleOrder(b);
+    if (orderDiff !== 0) return orderDiff;
+    return String(resolveModuleId(a)).localeCompare(String(resolveModuleId(b)));
+  });
+  const ordered = [];
+  for (const module of sortedModules) {
+    const moduleId = resolveModuleId(module);
+    if (!moduleId) continue;
+    const moduleLessons = lessonsList
+      .filter(
+        (lesson) =>
+          idToKey(resolveLessonModuleId(lesson)) === idToKey(moduleId) &&
+          isPublicLesson(lesson),
+      )
+      .sort((a, b) => {
+        const orderDiff = getLessonOrder(a) - getLessonOrder(b);
+        if (orderDiff !== 0) return orderDiff;
+        return String(resolveLessonId(a)).localeCompare(
+          String(resolveLessonId(b)),
+        );
+      });
+    ordered.push(...moduleLessons);
+  }
+  return ordered;
+};
+
+const resolveContinueLessonId = (process, modules, lessons) => {
+  const orderedLessons = getOrderedCourseLessons(modules, lessons);
+  if (orderedLessons.length === 0) return null;
+
+  const completedSet = getCompletedLessonIdSet(process);
+  const currentLessonId = getCurrentLessonIdFromProcess(process);
+
+  if (currentLessonId) {
+    const currentKey = idToKey(currentLessonId);
+    const currentIndex = orderedLessons.findIndex(
+      (lesson) => idToKey(resolveLessonId(lesson)) === currentKey,
+    );
+    if (currentIndex >= 0) {
+      if (!completedSet.has(currentKey)) {
+        return resolveLessonId(orderedLessons[currentIndex]);
+      }
+      if (currentIndex + 1 < orderedLessons.length) {
+        return resolveLessonId(orderedLessons[currentIndex + 1]);
+      }
+    }
+  }
+
+  const nextIncomplete = orderedLessons.find(
+    (lesson) => !completedSet.has(idToKey(resolveLessonId(lesson))),
+  );
+  return resolveLessonId(nextIncomplete) ?? null;
+};
+
 const MyCourses = () => {
   const navigate = useNavigate();
   const [courses, setCourses] = useState([]);
@@ -227,12 +306,14 @@ const MyCourses = () => {
             const progress = clampProgress(normalizeProgress(process) ?? 0);
             const hasProcess = Boolean(process);
             const status = getStatusFromProgress(progress, hasProcess);
+            const currentLessonId = getCurrentLessonIdFromProcess(process);
             return {
               ...course,
               courseId,
               learningProgress: progress,
               learningStatus: status,
               hasLearningProcess: hasProcess,
+              currentLessonId,
             };
           }),
         );
@@ -335,11 +416,37 @@ const MyCourses = () => {
       return;
     }
 
-    const action = getActionParam(status);
-    const params = new URLSearchParams();
-    params.set("courseId", courseId);
-    params.set("action", action);
-    navigate(`/lessons?${params.toString()}`);
+    setStartingCourseId(courseId);
+    try {
+      const [processRes, modulesRes, lessonViewRes] = await Promise.all([
+        getLearningProcess(courseId).catch(() => null),
+        getModulesByCourse(courseId).catch(() => []),
+        getLessonView().catch(() => []),
+      ]);
+      const modules = normalizeArrayResponse(modulesRes);
+      const moduleIdSet = new Set(
+        modules
+          .map((module) => idToKey(resolveModuleId(module)))
+          .filter((moduleId) => moduleId !== ""),
+      );
+      const lessons = normalizeArrayResponse(lessonViewRes).filter((lesson) =>
+        moduleIdSet.has(idToKey(resolveLessonModuleId(lesson))),
+      );
+
+      let resolvedLessonId = resolveContinueLessonId(processRes, modules, lessons);
+      if (!resolvedLessonId && status === "Hoàn thành") {
+        resolvedLessonId = getFirstLessonId(modules, lessons);
+      }
+      if (!resolvedLessonId) {
+        window.alert("Bạn đã hoàn thành toàn bộ bài học trong khóa này.");
+        return;
+      }
+      navigate(`/course/${courseId}/learn/${resolvedLessonId}`);
+    } catch {
+      window.alert("Không thể mở bài học đang học dở.");
+    } finally {
+      setStartingCourseId(null);
+    }
   };
 
   if (loading) {
@@ -448,6 +555,9 @@ const MyCourses = () => {
                     <div className="course-meta">
                       <div>Trạng thái: {status}</div>
                       <div>Ngày đăng ký: {formatDateOnly(course.enrolledAt)}</div>
+                      {course.currentLessonId ? (
+                        <div>Bài học gần nhất: #{course.currentLessonId}</div>
+                      ) : null}
                       <div>Lần truy cập gần nhất: Chưa có</div>
                     </div>
 

@@ -15,6 +15,21 @@
   margin-bottom: 2rem;
 }
 
+.back-to-courses-btn {
+  border: none;
+  background: #111827;
+  color: #fff;
+  border-radius: 8px;
+  padding: 10px 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 12px;
+}
+
+.back-to-courses-btn:hover {
+  background: #1f2937;
+}
+
 .lessons-title {
   font-size: 2rem;
   font-weight: 700;
@@ -26,6 +41,23 @@
   font-size: 1rem;
   color: #666;
   margin: 0;
+}
+
+.learning-process-summary {
+  margin-top: 1rem;
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.learning-process-summary span {
+  display: inline-block;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: #f3f4f6;
+  color: #374151;
+  font-size: 0.85rem;
+  font-weight: 600;
 }
 
 .lessons-layout {
@@ -78,6 +110,11 @@
 .lesson-item.active {
   background: #e3f2fd;
   border-color: #2196f3;
+}
+
+.lesson-item.completed {
+  background: #ecfdf5;
+  border-color: #86efac;
 }
 
 .lesson-item-number {
@@ -168,6 +205,45 @@
 
 .lesson-detail-content {
   margin-top: 1.5rem;
+}
+
+.lesson-actions {
+  margin-top: 1rem;
+  display: flex;
+  gap: 10px;
+}
+
+.lesson-complete-btn,
+.lesson-next-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.lesson-complete-btn {
+  background: #16a34a;
+  color: white;
+}
+
+.lesson-complete-btn:hover {
+  background: #15803d;
+}
+
+.lesson-next-btn {
+  background: #2563eb;
+  color: white;
+}
+
+.lesson-next-btn:hover {
+  background: #1d4ed8;
+}
+
+.lesson-complete-btn:disabled,
+.lesson-next-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .lesson-content-video {
