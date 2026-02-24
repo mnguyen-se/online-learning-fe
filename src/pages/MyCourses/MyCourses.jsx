@@ -4,9 +4,6 @@ import Footer from "../../components/Footer/footer";
 import { getMyCourses } from "../../api/enrollmentApi";
 import "./mycourses.css";
 
-const fallbackThumbnail =
-  "https://images.unsplash.com/photo-1524995997946-a1c2e315a42f?auto=format&fit=crop&w=1200&q=80";
-
 const MyCourses = () => {
   const [courses, setCourses] = useState([]);
   const [activeTab, setActiveTab] = useState("all"); // all | active | completed
@@ -131,20 +128,6 @@ const MyCourses = () => {
           <div className="course-grid">
             {filteredCourses.map((course) => (
               <div className="course-card" key={course.enrollmentId}>
-                <div className="course-image">
-                  <img
-                    src={course.thumbnailUrl || fallbackThumbnail}
-                    alt={course.courseTitle}
-                  />
-                  <span
-                    className={`course-badge ${course.enrollmentStatus === "COMPLETED" ? "completed" : "active"}`}
-                  >
-                    {course.enrollmentStatus === "COMPLETED"
-                      ? "Completed"
-                      : "Active"}
-                  </span>
-                </div>
-
                 <div className="course-body">
                   <div className="course-progress">
                     <span>Tiến độ</span>
