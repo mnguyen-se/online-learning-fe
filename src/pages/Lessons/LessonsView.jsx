@@ -1,11 +1,26 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Header from '../../components/Header/header';
 import { getLearningProcess } from '../../api/learningProcessApi';
 import { getModulesByCourse } from '../../api/module';
+import {
+  getCachedCourseDetail,
+  getCachedCourseStructure,
+  getCachedLearningProcess,
+  getCachedLessonView,
+  invalidateCachedMyCourses,
+  invalidateCachedLearningProcess,
+  setCachedCourseStructure,
+  setCachedLearningProcess,
+  setCachedLessonView,
+} from '../../api/learningCache';
+import { runWithRetry } from '../../api/requestRetry';
 import { completeLessonById, getLessonView } from '../../api/lessionApi';
 import './LessonsView.css';
+
+const LessonVideoContent = lazy(() => import('./LessonVideoContent'));
+const LessonQuizContent = lazy(() => import('./LessonQuizContent'));
 
 const idToKey = (value) => String(value ?? '');
 
@@ -132,6 +147,56 @@ const clampPercent = (value) => {
   return Math.min(100, Math.max(0, Math.round(value)));
 };
 
+const getLessonViewWithCache = async () => {
+  const cached = getCachedLessonView();
+  if (Array.isArray(cached) && cached.length > 0) return cached;
+  const response = await runWithRetry(() => getLessonView(), {
+    retries: 1,
+    baseDelayMs: 500,
+  });
+  const lessons = normalizeArrayResponse(response);
+  setCachedLessonView(lessons);
+  return lessons;
+};
+
+const getCourseStructureWithCache = async (courseId) => {
+  const cached = getCachedCourseStructure(courseId);
+  if (cached?.modules && cached?.lessons) return cached;
+
+  const [modulesRes, allLessons] = await Promise.all([
+    runWithRetry(() => getModulesByCourse(courseId), {
+      retries: 1,
+      baseDelayMs: 500,
+    }).catch(() => []),
+    getLessonViewWithCache().catch(() => []),
+  ]);
+  const modules = normalizeArrayResponse(modulesRes);
+  const orderedLessons = getOrderedLessonsByCourse(modules, allLessons);
+  const structure = { modules, lessons: orderedLessons };
+  setCachedCourseStructure(courseId, structure);
+  return structure;
+};
+
+const getLearningProcessWithCache = async (courseId, options = {}) => {
+  const { force = false } = options;
+  if (!force) {
+    const cached = getCachedLearningProcess(courseId);
+    if (cached) return cached;
+  }
+  try {
+    const process = await runWithRetry(() => getLearningProcess(courseId), {
+      retries: 1,
+      baseDelayMs: 500,
+    });
+    if (process && typeof process === 'object') {
+      setCachedLearningProcess(courseId, process);
+    }
+    return process ?? getCachedLearningProcess(courseId) ?? null;
+  } catch {
+    return getCachedLearningProcess(courseId) ?? null;
+  }
+};
+
 function LessonsView() {
   const navigate = useNavigate();
   const { courseId, lessonId } = useParams();
@@ -142,6 +207,7 @@ function LessonsView() {
   const [error, setError] = useState('');
   const [selectedLesson, setSelectedLesson] = useState(null);
   const [learningProcess, setLearningProcess] = useState(null);
+  const [courseDetail, setCourseDetail] = useState(null);
   const [isCompleting, setIsCompleting] = useState(false);
 
   const selectedLessonKey = idToKey(resolveLessonId(selectedLesson));
@@ -153,20 +219,42 @@ function LessonsView() {
     if (!selectedLesson) return false;
     return completedLessonSet.has(idToKey(resolveLessonId(selectedLesson)));
   }, [completedLessonSet, selectedLesson]);
-  const progressPercent = useMemo(() => {
-    if (!learningProcess) return 0;
-    if (typeof learningProcess.progressPercent === 'number') {
-      return clampPercent(learningProcess.progressPercent);
+  const progressSnapshot = useMemo(() => {
+    const totalFromProcess = Number(learningProcess?.totalTasks ?? lessons.length ?? 0);
+    const safeTotal =
+      Number.isFinite(totalFromProcess) && totalFromProcess > 0
+        ? Math.floor(totalFromProcess)
+        : lessons.length;
+    const completedFromProcess = Number(
+      learningProcess?.completedTasks ?? learningProcess?.completedCount ?? 0,
+    );
+    let safeCompleted =
+      completedLessonSet.size > 0
+        ? completedLessonSet.size
+        : Number.isFinite(completedFromProcess)
+          ? Math.max(0, Math.floor(completedFromProcess))
+          : 0;
+    if (safeTotal > 0) {
+      safeCompleted = Math.min(safeCompleted, safeTotal);
     }
-    if (
-      typeof learningProcess.completedTasks === 'number' &&
-      typeof learningProcess.totalTasks === 'number' &&
-      learningProcess.totalTasks > 0
-    ) {
-      return clampPercent((learningProcess.completedTasks / learningProcess.totalTasks) * 100);
-    }
-    return 0;
-  }, [learningProcess]);
+    const safePercent =
+      safeTotal > 0
+        ? clampPercent((safeCompleted / safeTotal) * 100)
+        : clampPercent(learningProcess?.progressPercent ?? 0);
+
+    const rawPercent = clampPercent(learningProcess?.progressPercent ?? safePercent);
+    const rebuilt =
+      safeTotal > 0 &&
+      (rawPercent !== safePercent ||
+        (Number.isFinite(completedFromProcess) && Math.floor(completedFromProcess) !== safeCompleted));
+
+    return {
+      total: safeTotal,
+      completed: safeCompleted,
+      percent: safePercent,
+      rebuilt,
+    };
+  }, [completedLessonSet, learningProcess, lessons.length]);
 
   const nextLesson = useMemo(() => {
     if (!selectedLesson) return null;
@@ -184,17 +272,14 @@ function LessonsView() {
       setError('');
 
       if (isCourseLearningMode) {
-        const [modulesRes, lessonViewRes, processRes] = await Promise.all([
-          getModulesByCourse(courseId).catch(() => []),
-          getLessonView().catch(() => []),
-          getLearningProcess(courseId).catch(() => null),
+        const [structure, process] = await Promise.all([
+          getCourseStructureWithCache(courseId),
+          getLearningProcessWithCache(courseId),
         ]);
-        const modules = normalizeArrayResponse(modulesRes);
-        const allLessons = normalizeArrayResponse(lessonViewRes);
-        const orderedLessons = getOrderedLessonsByCourse(modules, allLessons);
-        const process = processRes && typeof processRes === 'object' ? processRes : null;
+        const orderedLessons = Array.isArray(structure?.lessons) ? structure.lessons : [];
         setLearningProcess(process);
         setLessons(orderedLessons);
+        setCourseDetail(getCachedCourseDetail(courseId));
 
         const routeLesson = orderedLessons.find(
           (lesson) => idToKey(resolveLessonId(lesson)) === idToKey(lessonId),
@@ -216,11 +301,11 @@ function LessonsView() {
         return;
       }
 
-      const response = await getLessonView();
-      const lessonsData = normalizeArrayResponse(response).sort(
+      const lessonsData = [...(await getLessonViewWithCache())].sort(
         (a, b) => getLessonOrder(a) - getLessonOrder(b),
       );
       setLessons(lessonsData);
+      setCourseDetail(null);
 
       const routeLesson = lessonsData.find(
         (lesson) => idToKey(resolveLessonId(lesson)) === idToKey(lessonId),
@@ -279,9 +364,14 @@ function LessonsView() {
     }
     try {
       setIsCompleting(true);
-      await completeLessonById(selectedId);
+      await runWithRetry(() => completeLessonById(selectedId), {
+        retries: 1,
+        baseDelayMs: 500,
+      });
+      invalidateCachedMyCourses();
       toast.success('Đã đánh dấu hoàn thành bài học.');
-      const latestProcess = await getLearningProcess(courseId).catch(() => null);
+      invalidateCachedLearningProcess(courseId);
+      const latestProcess = await getLearningProcessWithCache(courseId, { force: true });
       if (latestProcess) {
         setLearningProcess(latestProcess);
       }
@@ -305,34 +395,10 @@ function LessonsView() {
     const quizSource = lesson.contentUrl || lesson.textContent || lesson.videoUrl || '';
 
     if (lessonType === 'VIDEO') {
-      let embedUrl = videoSource;
-      if (videoSource.includes('youtube.com/watch') || videoSource.includes('youtu.be/')) {
-        const videoId = videoSource.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/)?.[1];
-        if (videoId) {
-          embedUrl = `https://www.youtube.com/embed/${videoId}`;
-        }
-      } else if (videoSource.includes('youtube.com/embed')) {
-        embedUrl = videoSource;
-      }
-
       return (
-        <div className="lesson-content-video">
-          {embedUrl ? (
-            <iframe
-              width="100%"
-              height="500"
-              src={embedUrl}
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-              title={lesson.title}
-            />
-          ) : (
-            <div className="lesson-content-placeholder">
-              <p>Chưa có video được cung cấp</p>
-            </div>
-          )}
-        </div>
+        <Suspense fallback={<div className="lesson-content-skeleton" />}>
+          <LessonVideoContent title={lesson.title} videoSource={videoSource} />
+        </Suspense>
       );
     }
 
@@ -353,39 +419,9 @@ function LessonsView() {
     if (lessonType === 'QUIZ') {
       const quizQuestions = parseQuizContent(quizSource);
       return (
-        <div className="lesson-content-quiz">
-          <h3 className="quiz-title">Câu hỏi trắc nghiệm</h3>
-          {quizQuestions.length > 0 ? (
-            <div className="quiz-questions">
-              {quizQuestions.map((question, index) => (
-                <div key={question.id || index} className="quiz-question-item">
-                  <div className="quiz-question-number">Câu {index + 1}</div>
-                  <div className="quiz-question-text">{question.question || 'Chưa có câu hỏi'}</div>
-                  <div className="quiz-answers">
-                    {question.answers && Array.isArray(question.answers) ? (
-                      question.answers.map((answer, answerIndex) => (
-                        <div
-                          key={answerIndex}
-                          className={`quiz-answer ${question.correctIndex === answerIndex ? 'correct' : ''}`}
-                        >
-                          <span className="quiz-answer-label">{String.fromCharCode(65 + answerIndex)}.</span>
-                          <span className="quiz-answer-text">{answer || 'Chưa có đáp án'}</span>
-                          {question.correctIndex === answerIndex && (
-                            <span className="quiz-answer-badge">Đáp án đúng</span>
-                          )}
-                        </div>
-                      ))
-                    ) : (
-                      <p>Chưa có đáp án</p>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p className="lesson-content-placeholder">Chưa có câu hỏi trắc nghiệm</p>
-          )}
-        </div>
+        <Suspense fallback={<div className="lesson-content-skeleton" />}>
+          <LessonQuizContent quizQuestions={quizQuestions} />
+        </Suspense>
       );
     }
 
@@ -401,8 +437,23 @@ function LessonsView() {
       <div className="lessons-page">
         <Header />
         <div className="lessons-view-container">
-          <div className="lessons-loading">
-            <p>Đang tải danh sách bài học...</p>
+          <div className="lessons-header">
+            <div className="loading-skeleton skeleton-title" />
+            <div className="loading-skeleton skeleton-subtitle" />
+          </div>
+          <div className="lessons-layout">
+            <div className="lessons-sidebar">
+              <div className="loading-skeleton skeleton-sidebar-title" />
+              <div className="loading-skeleton skeleton-lesson-row" />
+              <div className="loading-skeleton skeleton-lesson-row" />
+              <div className="loading-skeleton skeleton-lesson-row" />
+              <div className="loading-skeleton skeleton-lesson-row" />
+            </div>
+            <div className="lessons-main">
+              <div className="loading-skeleton skeleton-main-title" />
+              <div className="loading-skeleton skeleton-main-meta" />
+              <div className="loading-skeleton skeleton-main-content" />
+            </div>
           </div>
         </div>
       </div>
@@ -440,21 +491,23 @@ function LessonsView() {
             </button>
           ) : null}
           <h1 className="lessons-title">
-            {isCourseLearningMode ? 'Học khóa học' : 'Danh sách Bài học'}
+            {isCourseLearningMode
+              ? courseDetail?.title || 'Học khóa học'
+              : 'Danh sách Bài học'}
           </h1>
           <p className="lessons-subtitle">
             {isCourseLearningMode
-              ? 'Tiếp tục từ vị trí đang học của bạn'
+              ? courseDetail?.description || 'Tiếp tục từ vị trí đang học của bạn'
               : 'Xem và học các bài học đã được công bố'}
           </p>
           {isCourseLearningMode ? (
             <div className="learning-process-summary">
-              <span>Tiến độ: {progressPercent}%</span>
+              <span>Tiến độ: {progressSnapshot.percent}%</span>
               <span>
-                {learningProcess?.completedTasks ?? 0}/{learningProcess?.totalTasks ?? lessons.length} bài
-                học
+                {progressSnapshot.completed}/{progressSnapshot.total} bài học
               </span>
               <span>Trạng thái: {learningProcess?.status || 'IN_PROGRESS'}</span>
+              {progressSnapshot.rebuilt ? <span>Tiến độ đã được hiệu chỉnh</span> : null}
             </div>
           ) : null}
         </div>

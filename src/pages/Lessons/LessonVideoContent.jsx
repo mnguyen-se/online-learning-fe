@@ -1,0 +1,36 @@
+import React from 'react';
+
+const toEmbedVideoUrl = (videoSource) => {
+  if (!videoSource) return '';
+  if (videoSource.includes('youtube.com/watch') || videoSource.includes('youtu.be/')) {
+    const videoId = videoSource.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/)?.[1];
+    if (videoId) return `https://www.youtube.com/embed/${videoId}`;
+  }
+  return videoSource;
+};
+
+function LessonVideoContent({ title, videoSource }) {
+  const embedUrl = toEmbedVideoUrl(videoSource);
+  return (
+    <div className="lesson-content-video">
+      {embedUrl ? (
+        <iframe
+          width="100%"
+          height="500"
+          src={embedUrl}
+          frameBorder="0"
+          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+          allowFullScreen
+          loading="lazy"
+          title={title}
+        />
+      ) : (
+        <div className="lesson-content-placeholder">
+          <p>Chưa có video được cung cấp</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default LessonVideoContent;

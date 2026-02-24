@@ -7,44 +7,30 @@ import {
   enrollLearningProcess,
   getLearningProcess,
 } from "../../api/learningProcessApi";
+import {
+  getCachedCourseDetail,
+  getCachedCourseStructure,
+  getCachedLearningProcess,
+  getCachedLessonView,
+  getCachedMyCourses,
+  invalidateCachedLearningProcess,
+  setCachedCourseDetail,
+  setCachedCourseStructure,
+  setCachedLearningProcess,
+  setCachedLessonView,
+  setCachedMyCourses,
+} from "../../api/learningCache";
+import { runWithRetry } from "../../api/requestRetry";
 import { getModulesByCourse } from "../../api/module";
 import { getLessonView } from "../../api/lessionApi";
 import "./mycourses.css";
 
-const CACHE_KEY = "myCoursesCache_v1";
-
 const readCache = () => {
-  if (typeof sessionStorage === "undefined") return null;
-  try {
-    const raw = sessionStorage.getItem(CACHE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed || !Array.isArray(parsed.courses)) return null;
-    return parsed.courses;
-  } catch {
-    return null;
-  }
+  return getCachedMyCourses();
 };
 
 const writeCache = (courses) => {
-  if (typeof sessionStorage === "undefined") return;
-  try {
-    sessionStorage.setItem(
-      CACHE_KEY,
-      JSON.stringify({ courses, cachedAt: Date.now() }),
-    );
-  } catch {
-    // ignore cache write errors
-  }
-};
-
-const clearCache = () => {
-  if (typeof sessionStorage === "undefined") return;
-  try {
-    sessionStorage.removeItem(CACHE_KEY);
-  } catch {
-    // ignore cache remove errors
-  }
+  setCachedMyCourses(courses);
 };
 
 const clampProgress = (value) => {
@@ -248,6 +234,61 @@ const resolveContinueLessonId = (process, modules, lessons) => {
   return resolveLessonId(nextIncomplete) ?? null;
 };
 
+const fetchLearningProcessWithCache = async (courseId, options = {}) => {
+  const { force = false } = options;
+  if (!force) {
+    const cached = getCachedLearningProcess(courseId);
+    if (cached) return cached;
+  }
+  try {
+    const process = await runWithRetry(() => getLearningProcess(courseId), {
+      retries: 1,
+      baseDelayMs: 500,
+    });
+    if (process && typeof process === "object") {
+      setCachedLearningProcess(courseId, process);
+    }
+    return process ?? null;
+  } catch {
+    return null;
+  }
+};
+
+const fetchCourseStructureWithCache = async (courseId) => {
+  const cachedStructure = getCachedCourseStructure(courseId);
+  if (cachedStructure?.modules && cachedStructure?.lessons) {
+    return cachedStructure;
+  }
+
+  const modulesRes = await runWithRetry(() => getModulesByCourse(courseId), {
+    retries: 1,
+    baseDelayMs: 500,
+  }).catch(() => []);
+  const modules = normalizeArrayResponse(modulesRes);
+
+  let lessonView = getCachedLessonView();
+  if (!Array.isArray(lessonView) || lessonView.length === 0) {
+    const lessonViewRes = await runWithRetry(() => getLessonView(), {
+      retries: 1,
+      baseDelayMs: 500,
+    }).catch(() => []);
+    lessonView = normalizeArrayResponse(lessonViewRes);
+    setCachedLessonView(lessonView);
+  }
+
+  const moduleIdSet = new Set(
+    modules
+      .map((module) => idToKey(resolveModuleId(module)))
+      .filter((moduleId) => moduleId !== ""),
+  );
+  const lessons = (Array.isArray(lessonView) ? lessonView : []).filter((lesson) =>
+    moduleIdSet.has(idToKey(resolveLessonModuleId(lesson))),
+  );
+  const structure = { modules, lessons };
+  setCachedCourseStructure(courseId, structure);
+  return structure;
+};
+
 const MyCourses = () => {
   const navigate = useNavigate();
   const [courses, setCourses] = useState([]);
@@ -255,6 +296,7 @@ const MyCourses = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [startingCourseId, setStartingCourseId] = useState(null);
+  const [reloadTick, setReloadTick] = useState(0);
 
   const formatDateOnly = (value) => {
     if (!value) return "Chưa có";
@@ -284,7 +326,10 @@ const MyCourses = () => {
       try {
         setLoading(true);
         setError("");
-        const data = await getMyCourses();
+        const data = await runWithRetry(() => getMyCourses(), {
+          retries: 1,
+          baseDelayMs: 600,
+        });
         const list = Array.isArray(data)
           ? data
           : Array.isArray(data?.data)
@@ -295,18 +340,34 @@ const MyCourses = () => {
         const coursesWithProgress = await Promise.all(
           list.map(async (course) => {
             const courseId = resolveCourseId(course);
-            let process = null;
-            if (courseId) {
-              try {
-                process = await getLearningProcess(courseId);
-              } catch {
-                process = null;
-              }
+            let process = getCachedLearningProcess(courseId);
+            if (!process && courseId) {
+              process = await fetchLearningProcessWithCache(courseId);
             }
             const progress = clampProgress(normalizeProgress(process) ?? 0);
             const hasProcess = Boolean(process);
             const status = getStatusFromProgress(progress, hasProcess);
             const currentLessonId = getCurrentLessonIdFromProcess(process);
+            let hasLessons = true;
+            if (courseId) {
+              const totalTasks = Number(process?.totalTasks ?? NaN);
+              if (Number.isFinite(totalTasks)) {
+                hasLessons = totalTasks > 0;
+              } else {
+                const structure = await fetchCourseStructureWithCache(courseId);
+                hasLessons = Array.isArray(structure?.lessons) && structure.lessons.length > 0;
+              }
+            }
+            if (courseId) {
+              const cachedDetail = getCachedCourseDetail(courseId) ?? {};
+              setCachedCourseDetail(courseId, {
+                ...cachedDetail,
+                courseId,
+                title: getCourseTitle(course),
+                description: getCourseDescription(course),
+                level: course.level ?? cachedDetail.level ?? "",
+              });
+            }
             return {
               ...course,
               courseId,
@@ -314,6 +375,7 @@ const MyCourses = () => {
               learningStatus: status,
               hasLearningProcess: hasProcess,
               currentLessonId,
+              hasLessons,
             };
           }),
         );
@@ -331,7 +393,7 @@ const MyCourses = () => {
     return () => {
       mounted = false;
     };
-  }, []);
+  }, [reloadTick]);
 
   const stats = useMemo(() => {
     const all = courses.length;
@@ -358,6 +420,10 @@ const MyCourses = () => {
       window.alert("Không thể xác định khóa học.");
       return;
     }
+    if (course.hasLessons === false) {
+      window.alert("Khóa học này chưa có bài học.");
+      return;
+    }
 
     if (status === "Chưa học") {
       setStartingCourseId(courseId);
@@ -365,6 +431,7 @@ const MyCourses = () => {
         if (!course.hasLearningProcess) {
           try {
             await enrollLearningProcess(courseId);
+            invalidateCachedLearningProcess(courseId);
           } catch (err) {
             if (!isEnrollConflict(err)) {
               throw err;
@@ -372,32 +439,7 @@ const MyCourses = () => {
           }
         }
 
-        const [modulesRes, lessonViewRes] = await Promise.all([
-          getModulesByCourse(courseId).catch(() => []),
-          getLessonView().catch(() => []),
-        ]);
-        const modules = Array.isArray(modulesRes)
-          ? modulesRes
-          : Array.isArray(modulesRes?.data)
-            ? modulesRes.data
-            : Array.isArray(modulesRes?.data?.data)
-              ? modulesRes.data.data
-              : [];
-        const lessonsRaw = Array.isArray(lessonViewRes)
-          ? lessonViewRes
-          : Array.isArray(lessonViewRes?.data)
-            ? lessonViewRes.data
-            : Array.isArray(lessonViewRes?.data?.data)
-              ? lessonViewRes.data.data
-              : [];
-        const moduleIdSet = new Set(
-          modules
-            .map((module) => idToKey(resolveModuleId(module)))
-            .filter((moduleId) => moduleId !== ""),
-        );
-        const lessons = (Array.isArray(lessonsRaw) ? lessonsRaw : []).filter(
-          (lesson) => moduleIdSet.has(idToKey(resolveLessonModuleId(lesson))),
-        );
+        const { modules, lessons } = await fetchCourseStructureWithCache(courseId);
 
         const firstLessonId = getFirstLessonId(modules, lessons);
         if (!firstLessonId) {
@@ -405,7 +447,6 @@ const MyCourses = () => {
           return;
         }
 
-        clearCache();
         navigate(`/course/${courseId}/learn/${firstLessonId}`);
         return;
       } catch {
@@ -418,20 +459,11 @@ const MyCourses = () => {
 
     setStartingCourseId(courseId);
     try {
-      const [processRes, modulesRes, lessonViewRes] = await Promise.all([
-        getLearningProcess(courseId).catch(() => null),
-        getModulesByCourse(courseId).catch(() => []),
-        getLessonView().catch(() => []),
+      const [processRes, structure] = await Promise.all([
+        fetchLearningProcessWithCache(courseId),
+        fetchCourseStructureWithCache(courseId),
       ]);
-      const modules = normalizeArrayResponse(modulesRes);
-      const moduleIdSet = new Set(
-        modules
-          .map((module) => idToKey(resolveModuleId(module)))
-          .filter((moduleId) => moduleId !== ""),
-      );
-      const lessons = normalizeArrayResponse(lessonViewRes).filter((lesson) =>
-        moduleIdSet.has(idToKey(resolveLessonModuleId(lesson))),
-      );
+      const { modules, lessons } = structure;
 
       let resolvedLessonId = resolveContinueLessonId(processRes, modules, lessons);
       if (!resolvedLessonId && status === "Hoàn thành") {
@@ -466,7 +498,16 @@ const MyCourses = () => {
       <div className="my-courses-page">
         <Header />
         <main className="my-courses-main">
-          <div className="state-card state-error">{error}</div>
+          <div className="state-card state-error">
+            <p>{error}</p>
+            <button
+              type="button"
+              className="course-action"
+              onClick={() => setReloadTick((value) => value + 1)}
+            >
+              Thử lại
+            </button>
+          </div>
         </main>
         <Footer />
       </div>
@@ -531,6 +572,8 @@ const MyCourses = () => {
                 course.course?.id ??
                 courseTitle;
               const isStarting = startingCourseId === courseId;
+              const isNoLessonCourse = course.hasLessons === false;
+              const ctaDisabled = isStarting || isNoLessonCourse;
 
               return (
                 <div className="course-card" key={courseKey}>
@@ -558,16 +601,23 @@ const MyCourses = () => {
                       {course.currentLessonId ? (
                         <div>Bài học gần nhất: #{course.currentLessonId}</div>
                       ) : null}
+                      {isNoLessonCourse ? (
+                        <div>Khóa học này hiện chưa có bài học.</div>
+                      ) : null}
                       <div>Lần truy cập gần nhất: Chưa có</div>
                     </div>
 
                     <button
                       className="course-action"
                       type="button"
-                      disabled={isStarting}
+                      disabled={ctaDisabled}
                       onClick={() => handleCtaClick(course, status)}
                     >
-                      {isStarting ? "Đang chuẩn bị..." : getCtaLabel(status)}
+                      {isNoLessonCourse
+                        ? "Chưa có bài học"
+                        : isStarting
+                          ? "Đang chuẩn bị..."
+                          : getCtaLabel(status)}
                     </button>
                   </div>
                 </div>

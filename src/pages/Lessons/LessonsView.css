@@ -117,6 +117,10 @@
   border-color: #86efac;
 }
 
+.lesson-item.completed.active {
+  border-color: #22c55e;
+}
+
 .lesson-item-number {
   display: flex;
   align-items: center;
@@ -361,6 +365,14 @@
   border-radius: 8px;
 }
 
+.lesson-content-skeleton {
+  height: 320px;
+  border-radius: 12px;
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 37%, #f3f4f6 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+
 .lesson-placeholder {
   display: flex;
   flex-direction: column;
@@ -423,6 +435,60 @@
   padding: 2rem;
   text-align: center;
   color: #999;
+}
+
+.loading-skeleton {
+  border-radius: 10px;
+  background: linear-gradient(90deg, #f3f4f6 25%, #e5e7eb 37%, #f3f4f6 63%);
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+
+.skeleton-title {
+  height: 40px;
+  width: 260px;
+  margin-bottom: 10px;
+}
+
+.skeleton-subtitle {
+  height: 20px;
+  width: 380px;
+}
+
+.skeleton-sidebar-title {
+  height: 28px;
+  width: 140px;
+  margin-bottom: 16px;
+}
+
+.skeleton-lesson-row {
+  height: 68px;
+  margin-bottom: 10px;
+}
+
+.skeleton-main-title {
+  height: 34px;
+  width: 320px;
+  margin-bottom: 16px;
+}
+
+.skeleton-main-meta {
+  height: 22px;
+  width: 260px;
+  margin-bottom: 24px;
+}
+
+.skeleton-main-content {
+  height: 280px;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: 0 0;
+  }
 }
 
 @media (max-width: 1024px) {
