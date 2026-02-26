@@ -89,6 +89,22 @@ function CourseManagement() {
     return typeof candidate === 'boolean' ? candidate : true;
   };
 
+  const PUBLIC_REQUIRES_TEACHER_MESSAGE = 'Vui lòng gán giáo viên cho khóa học trước khi chuyển sang trạng thái công khai.';
+
+  const getCourseTeacherId = (course) =>
+    course?.teacherId ??
+    course?.teacher_id ??
+    course?.teacher?.id ??
+    course?.teacher?.userId ??
+    null;
+
+  const hasAssignedTeacher = (course) => {
+    const teacherId = getCourseTeacherId(course);
+    if (teacherId == null) return false;
+    if (typeof teacherId === 'string') return teacherId.trim() !== '';
+    return true;
+  };
+
   const resolveCourseActiveState = (course) => {
     const courseId = getCourseId(course);
     if (courseId && typeof courseActiveStates[courseId] === 'boolean') {
@@ -159,12 +175,43 @@ function CourseManagement() {
     setViewMode('list');
   };
 
+  const handleCreatePublicChange = (nextIsPublic) => {
+    if (!nextIsPublic) {
+      setCourseIsPublic(false);
+      return;
+    }
+
+    const hasTeacher = typeof courseTeacherId === 'string' ? courseTeacherId.trim() !== '' : !!courseTeacherId;
+    if (!hasTeacher) {
+      setCourseError(PUBLIC_REQUIRES_TEACHER_MESSAGE);
+      toast.warning(PUBLIC_REQUIRES_TEACHER_MESSAGE);
+      return;
+    }
+
+    setCourseError('');
+    setCourseIsPublic(true);
+  };
+
+  const handleCreateTeacherChange = (teacherId) => {
+    setCourseTeacherId(teacherId);
+    if (teacherId && String(teacherId).trim() !== '') {
+      setCourseError('');
+    }
+  };
+
   const handleCreateCourse = async () => {
     const trimmedTitle = courseTitle.trim();
     const trimmedDescription = courseDescription.trim();
 
     if (!trimmedTitle || !trimmedDescription) {
       setCourseError('Vui lòng nhập tên khóa học và mô tả.');
+      return;
+    }
+
+    const hasTeacher = typeof courseTeacherId === 'string' ? courseTeacherId.trim() !== '' : !!courseTeacherId;
+    if (courseIsPublic && !hasTeacher) {
+      setCourseError(PUBLIC_REQUIRES_TEACHER_MESSAGE);
+      toast.warning(PUBLIC_REQUIRES_TEACHER_MESSAGE);
       return;
     }
 
@@ -1403,6 +1450,14 @@ function CourseManagement() {
       return;
     }
     const teacherId = payload?.teacherId ?? null;
+    const teacherForPublicCheck = payload?.teacherId ?? getCourseTeacherId(selectedCourse);
+    if (
+      (payload?.isPublic ?? true)
+      && (teacherForPublicCheck == null || (typeof teacherForPublicCheck === 'string' && teacherForPublicCheck.trim() === ''))
+    ) {
+      toast.warning(PUBLIC_REQUIRES_TEACHER_MESSAGE);
+      return;
+    }
     const updatePayload = {
       title: trimmedTitle,
       description: (payload?.description ?? '').trim(),
@@ -1468,6 +1523,10 @@ function CourseManagement() {
     const nextFromEvent =
       typeof event?.target?.checked === 'boolean' ? event.target.checked : null;
     const newActiveState = nextFromEvent !== null ? nextFromEvent : !currentState;
+    if (newActiveState && !hasAssignedTeacher(course)) {
+      toast.warning(PUBLIC_REQUIRES_TEACHER_MESSAGE);
+      return;
+    }
     setCourseActiveStates((prev) => ({ ...prev, [courseId]: newActiveState }));
     setCourses((prev) =>
       prev.map((item) =>
@@ -1837,8 +1896,8 @@ function CourseManagement() {
                 isSavingCourse={isSavingCourse}
                 onTitleChange={setCourseTitle}
                 onDescriptionChange={setCourseDescription}
-                onPublicChange={setCourseIsPublic}
-                onTeacherChange={setCourseTeacherId}
+                onPublicChange={handleCreatePublicChange}
+                onTeacherChange={handleCreateTeacherChange}
                 onCancel={handleCancelCreateCourse}
                 onContinue={handleCreateCourse}
               />
