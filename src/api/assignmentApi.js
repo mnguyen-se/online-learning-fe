@@ -29,3 +29,9 @@ export const uploadAssignmentQuestions = async (assignmentId, file) => {
   );
   return response.data;
 };
+
+/** GET /assignments/{assignmentId}/writing-submissions – Danh sách bài nộp writing (TEACHER/COURSE_MANAGER/ADMIN) */
+export const getWritingSubmissions = async (assignmentId) => {
+  const response = await apiClient.get(`/assignments/${assignmentId}/writing-submissions`);
+  return response.data;
+};

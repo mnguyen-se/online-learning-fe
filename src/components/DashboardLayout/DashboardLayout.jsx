@@ -49,11 +49,13 @@ function DashboardLayout({
   showTopbar: _showTopbar = true,
   managerSidebarTab,
   onManagerSidebarTabChange,
+  layoutVariant = 'default', // 'teacher' = cùng thiết kế sidebar/header như trang Teacher
 }) {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
   const { role } = useAuth();
+  const isTeacherStyle = layoutVariant === 'teacher';
 
   const handleLogout = () => {
     dispatch(logout());
@@ -88,7 +90,7 @@ function DashboardLayout({
   };
 
   return (
-    <div className="shared-dashboard-layout">
+    <div className={`shared-dashboard-layout${isTeacherStyle ? ' shared-dashboard-layout--teacher' : ''}`}>
       <Header headerTitle={headerTitle} />
 
       <div className="shared-dashboard-body">

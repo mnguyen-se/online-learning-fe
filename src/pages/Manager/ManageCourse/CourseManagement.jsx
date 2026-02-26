@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
-import { createCourse, getCourses, updateCourse } from '../../../api/coursesApi';
+import { createCourse, getCourses, getTeachers, updateCourse } from '../../../api/coursesApi';
 import { getEnrolledStudentsByCourse } from '../../../api/enrollmentApi';
 import { createLesson, updateLesson, getLessons, deleteLesson, uploadLessonVideo } from '../../../api/lessionApi';
 import {
@@ -28,12 +28,14 @@ function CourseManagement() {
   const [courseTitle, setCourseTitle] = useState('');
   const [courseDescription, setCourseDescription] = useState('');
   const [courseIsPublic, setCourseIsPublic] = useState(false);
+  const [courseTeacherId, setCourseTeacherId] = useState('');
   const [courseError, setCourseError] = useState('');
   const [courseSuccess, setCourseSuccess] = useState('');
   const [isSavingCourse, setIsSavingCourse] = useState(false);
   const [editCourseModal, setEditCourseModal] = useState({ isOpen: false, course: null });
   const [editCourseForm, setEditCourseForm] = useState({ title: '', description: '' });
   const [isUpdatingCourse, setIsUpdatingCourse] = useState(false);
+  const [isSavingGeneralConfig, setIsSavingGeneralConfig] = useState(false);
   const [courseStats, setCourseStats] = useState({});
   const [courseActiveStates, setCourseActiveStates] = useState({});
   const [lessonError, setLessonError] = useState('');
@@ -57,6 +59,7 @@ function CourseManagement() {
   const [deleteConfirmModal, setDeleteConfirmModal] = useState({ isOpen: false, chapterId: null });
   const [deleteLessonModal, setDeleteLessonModal] = useState({ isOpen: false, lessonId: null });
   const [isReloadingLessons, setIsReloadingLessons] = useState(false);
+  const [teachers, setTeachers] = useState([]);
 
   // Utility functions
   const getCourseId = (course) =>
@@ -133,6 +136,7 @@ function CourseManagement() {
     setCourseTitle('');
     setCourseDescription('');
     setCourseIsPublic(false);
+    setCourseTeacherId('');
     setCourseError('');
     setCourseSuccess('');
   };
@@ -173,6 +177,10 @@ function CourseManagement() {
         title: trimmedTitle,
         description: trimmedDescription,
       };
+      if (courseTeacherId && courseTeacherId.trim()) {
+        const tid = Number(courseTeacherId);
+        if (!Number.isNaN(tid)) payload.teacherId = tid;
+      }
 
       const createdCourse = await createCourse(payload);
       const createdCourseId = getCourseId(createdCourse) ?? createdCourse?.id ?? null;
@@ -1304,6 +1312,28 @@ function CourseManagement() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  useEffect(() => {
+    if (viewMode === 'content' && selectedCourse) {
+      getTeachers()
+        .then((data) => {
+          const list = Array.isArray(data) ? data : data?.data ?? [];
+          setTeachers(list);
+        })
+        .catch(() => setTeachers([]));
+    }
+  }, [viewMode, selectedCourse]);
+
+  useEffect(() => {
+    if (viewMode === 'create') {
+      getTeachers()
+        .then((data) => {
+          const list = Array.isArray(data) ? data : data?.data ?? [];
+          setTeachers(list);
+        })
+        .catch(() => setTeachers([]));
+    }
+  }, [viewMode]);
+
 
   const openEditCourseModal = (course) => {
     const courseId = getCourseId(course) ?? course?.id ?? null;
@@ -1347,6 +1377,69 @@ function CourseManagement() {
       toast.error(msg);
     } finally {
       setIsUpdatingCourse(false);
+    }
+  };
+
+  /** Bấm "Lưu thay đổi" trong Cấu hình khóa học → gọi PUT /api/v1/courses/:id */
+  const handleSaveGeneralConfig = async (payload) => {
+    const courseId = getCourseId(selectedCourse);
+    if (!courseId) {
+      toast.error('Không tìm thấy mã khóa học.');
+      return;
+    }
+    const trimmedTitle = (payload?.title ?? '').trim();
+    if (!trimmedTitle) {
+      toast.error('Vui lòng nhập tên khóa học hiển thị.');
+      return;
+    }
+    const teacherId = payload?.teacherId ?? null;
+    const updatePayload = {
+      title: trimmedTitle,
+      description: (payload?.description ?? '').trim(),
+      isPublic: payload?.isPublic ?? true,
+      is_public: payload?.isPublic ?? true,
+    };
+    if (teacherId != null) updatePayload.teacherId = teacherId;
+
+    try {
+      setIsSavingGeneralConfig(true);
+      await updateCourse(courseId, updatePayload);
+      setCourseActiveStates((prev) => ({ ...prev, [courseId]: payload?.isPublic ?? true }));
+      setCourses((prev) =>
+        prev.map((item) =>
+          getCourseId(item) === courseId
+            ? {
+                ...item,
+                title: trimmedTitle,
+                description: (payload?.description ?? '').trim(),
+                isPublic: payload?.isPublic ?? true,
+                is_public: payload?.isPublic ?? true,
+                teacherId: teacherId ?? item.teacherId,
+                teacher_id: teacherId ?? item.teacher_id,
+              }
+            : item
+        )
+      );
+      setSelectedCourse((prev) =>
+        prev && getCourseId(prev) === courseId
+          ? {
+              ...prev,
+              title: trimmedTitle,
+              description: (payload?.description ?? '').trim(),
+              isPublic: payload?.isPublic ?? true,
+              is_public: payload?.isPublic ?? true,
+              teacherId: teacherId ?? prev.teacherId,
+              teacher_id: teacherId ?? prev.teacher_id,
+            }
+          : prev
+      );
+      await loadCourses();
+      toast.success('Đã lưu thay đổi cấu hình khóa học.');
+    } catch (e) {
+      const msg = e?.response?.data?.message || e?.message || 'Lưu cấu hình thất bại. Vui lòng thử lại.';
+      toast.error(msg);
+    } finally {
+      setIsSavingGeneralConfig(false);
     }
   };
 
@@ -1543,12 +1636,14 @@ function CourseManagement() {
 
   return (
     <DashboardLayout
+      layoutVariant="teacher"
       pageTitle="Quản lý khóa học"
       pageSubtitle="Hệ thống quản lý Module & Lesson tập trung"
       showSidebar={true}
       managerSidebarTab={activeNavTab}
       onManagerSidebarTabChange={setActiveNavTab}
     >
+      <div className="teacher-area">
       <section className="manager-dashboard-content">
         {activeNavTab === 'dashboard' && (
           <div className="manager-overview">
@@ -1698,7 +1793,10 @@ function CourseManagement() {
                   setActiveNavTab('management');
                 }}
                 getCourseId={getCourseId}
-                formatCourseId={formatCourseId}
+                getCourseIsActive={getCourseIsActive}
+                onSaveGeneralConfig={handleSaveGeneralConfig}
+                isSavingGeneralConfig={isSavingGeneralConfig}
+                teachers={teachers}
               />
             </div>
           ) : viewMode === 'create' ? (
@@ -1722,12 +1820,15 @@ function CourseManagement() {
                 courseTitle={courseTitle}
                 courseDescription={courseDescription}
                 courseIsPublic={courseIsPublic}
+                courseTeacherId={courseTeacherId}
+                teachers={teachers}
                 courseError={courseError}
                 courseSuccess={courseSuccess}
                 isSavingCourse={isSavingCourse}
                 onTitleChange={setCourseTitle}
                 onDescriptionChange={setCourseDescription}
                 onPublicChange={setCourseIsPublic}
+                onTeacherChange={setCourseTeacherId}
                 onCancel={handleCancelCreateCourse}
                 onContinue={handleCreateCourse}
               />
@@ -1771,7 +1872,7 @@ function CourseManagement() {
                 <div className="course-management-sections">
                   <div className="course-section">
                     <div className="course-section-header">
-                      <h3>Đang mở</h3>
+                      <h3>Công khai</h3>
                       <span className="course-section-count">{managementActiveCourses.length} khóa học</span>
                     </div>
                     <div className="course-section-grid">
@@ -1966,6 +2067,7 @@ function CourseManagement() {
           </div>
         </div>
       )}
+      </div>
     </DashboardLayout>
   );
 }

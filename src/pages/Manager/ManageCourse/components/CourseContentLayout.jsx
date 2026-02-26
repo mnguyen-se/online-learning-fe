@@ -45,7 +45,10 @@ const CourseContentLayout = ({
   testError,
   onSaveAndFinish,
   getCourseId,
-  formatCourseId,
+  getCourseIsActive,
+  onSaveGeneralConfig,
+  isSavingGeneralConfig = false,
+  teachers = [],
   isReloadingLessons = false,
   isEditingLesson = false,
   isLoadingTests = false,
@@ -83,7 +86,6 @@ const CourseContentLayout = ({
         onDeleteLesson={onDeleteLesson}
         onSaveAndFinish={onSaveAndFinish}
         getCourseId={getCourseId}
-        formatCourseId={formatCourseId}
         isLoadingLessons={isLoadingLessons}
         lessonsError={lessonsError}
         isLoadingTests={isLoadingTests}
@@ -98,8 +100,11 @@ const CourseContentLayout = ({
       <div className="course-content-main">
         {contentTab === 'general' ? (
           <CourseGeneralConfig
-            courseCoverImageUrl={courseCoverImageUrl}
-            onCoverImageUrlChange={onCoverImageUrlChange}
+            selectedCourse={selectedCourse}
+            onSaveGeneralConfig={onSaveGeneralConfig}
+            isSaving={isSavingGeneralConfig}
+            teachers={teachers}
+            getCourseIsActive={getCourseIsActive}
           />
         ) : contentTab === 'lesson' ? (
           <LessonDetails

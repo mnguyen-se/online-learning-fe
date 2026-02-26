@@ -4,12 +4,15 @@ const CourseInitForm = ({
   courseTitle,
   courseDescription,
   courseIsPublic,
+  courseTeacherId,
+  teachers = [],
   courseError,
   courseSuccess,
   isSavingCourse,
   onTitleChange,
   onDescriptionChange,
   onPublicChange,
+  onTeacherChange,
   onCancel,
   onContinue,
 }) => {
@@ -34,6 +37,22 @@ const CourseInitForm = ({
           value={courseTitle}
           onChange={(e) => onTitleChange(e.target.value)}
         />
+
+        <label className="course-label">GÁN GIÁO VIÊN PHỤ TRÁCH</label>
+        <div className="course-init-teacher-wrap">
+          <select
+            className="course-init-teacher-select"
+            value={courseTeacherId ?? ''}
+            onChange={(e) => onTeacherChange?.(e.target.value)}
+          >
+            <option value="">Chọn giáo viên (tùy chọn)</option>
+            {teachers.map((t) => (
+              <option key={t.id ?? t.userId} value={String(t.id ?? t.userId ?? '')}>
+                {t.name ?? t.username ?? `Giáo viên ${t.id ?? t.userId ?? ''}`}
+              </option>
+            ))}
+          </select>
+        </div>
 
         <label className="course-label">MÔ TẢ</label>
         <textarea

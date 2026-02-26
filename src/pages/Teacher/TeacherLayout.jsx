@@ -4,7 +4,7 @@ import DashboardLayout from '../../components/DashboardLayout';
 
 function TeacherLayout() {
   return (
-    <DashboardLayout>
+    <DashboardLayout layoutVariant="teacher">
       <div className="teacher-area">
         <Outlet />
       </div>

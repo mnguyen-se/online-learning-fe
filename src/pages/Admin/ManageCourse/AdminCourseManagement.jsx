@@ -204,48 +204,64 @@ function AdminCourseManagement() {
                 const courseId = getCourseId(course);
                 const stats = courseStats[courseId] || { modules: 0, lessons: 0 };
                 const isActive = resolveCourseActiveState(course);
+                const chaptersCount = Number(stats.modules) || 0;
+                const lessonsCount = Number(stats.lessons) || 0;
                 return (
                   <article
-                    className="manager-card"
+                    className="manager-course-card"
                     key={courseId || course.title || index}
                   >
-                    <div className="manager-card-image">
-                      <span className="manager-card-badge">ĐÃ DUYỆT</span>
+                    <h3 className="manager-course-card__title">{course.title}</h3>
+                    <div className="manager-course-card__meta">
+                      <div className="manager-course-card__meta-row">
+                        <span className="manager-course-card__meta-icon">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                            <path d="M8 7h8" />
+                            <path d="M8 11h6" />
+                          </svg>
+                        </span>
+                        <span>{chaptersCount} CHƯƠNG</span>
+                      </div>
+                      <div className="manager-course-card__meta-row">
+                        <span className="manager-course-card__meta-icon">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" />
+                            <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" />
+                          </svg>
+                        </span>
+                        <span>{lessonsCount} BÀI HỌC</span>
+                      </div>
+                      <div className="manager-course-card__meta-row">
+                        <span className="manager-course-card__meta-icon">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M9 11l3 3L22 4" />
+                            <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
+                          </svg>
+                        </span>
+                        <span>0 BÀI KIỂM TRA</span>
+                      </div>
                     </div>
-                    <div className="manager-card-body">
-                      <h3 className="manager-card-title">{course.title}</h3>
-                      <div className="manager-card-meta">
-                        <span className="manager-card-meta-item">
-                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M2 3C2 2.44772 2.44772 2 3 2H5C5.55228 2 6 2.44772 6 3V5C6 5.55228 5.55228 6 5 6H3C2.44772 6 2 5.55228 2 5V3Z" stroke="currentColor" strokeWidth="1.5"/>
-                            <path d="M10 3C10 2.44772 10.4477 2 11 2H13C13.5523 2 14 2.44772 14 3V5C14 5.55228 13.5523 6 13 6H11C10.4477 6 10 5.55228 10 5V3Z" stroke="currentColor" strokeWidth="1.5"/>
-                            <path d="M2 11C2 10.4477 2.44772 10 3 10H5C5.55228 10 6 10.4477 6 11V13C6 13.5523 5.55228 14 5 14H3C2.44772 14 2 13.5523 2 13V11Z" stroke="currentColor" strokeWidth="1.5"/>
-                            <path d="M10 11C10 10.4477 10.4477 10 11 10H13C13.5523 10 14 10.4477 14 11V13C14 13.5523 13.5523 14 13 14H11C10.4477 14 10 13.5523 10 13V11Z" stroke="currentColor" strokeWidth="1.5"/>
-                          </svg>
-                          {stats.modules} Chương học
-                        </span>
-                        <span className="manager-card-meta-item">
-                          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <circle cx="8" cy="8" r="7" stroke="currentColor" strokeWidth="1.5"/>
-                            <path d="M6 5L11 8L6 11V5Z" fill="currentColor"/>
-                          </svg>
-                          {stats.lessons} Bài học
-                        </span>
-                      </div>
-                      <div className="manager-card-footer">
-                        <div className="manager-card-status">
-                          <span className="manager-card-status-text">
-                            {isActive ? 'Công khai' : 'Riêng tư'}
-                          </span>
-                        </div>
-                        <button
-                          className="manager-card-edit"
-                          type="button"
-                          onClick={() => openAssignModal(course)}
-                        >
-                          Gán học viên
-                        </button>
-                      </div>
+                    <div className="manager-course-card__footer">
+                      <span className="manager-card-status-text">
+                        {isActive ? 'Công khai' : 'Riêng tư'}
+                      </span>
+                      <button
+                        type="button"
+                        className="manager-card-edit"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openAssignModal(course);
+                        }}
+                      >
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                          <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+                          <circle cx="9" cy="7" r="4" />
+                          <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+                        </svg>
+                        Gán học viên
+                      </button>
                     </div>
                   </article>
                 );

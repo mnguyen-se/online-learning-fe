@@ -9,7 +9,6 @@ import "./header.css";
 const Header = ({ headerTitle = '' }) => {
   const { username, role, isLoggedIn, isStaff, getDashboardPath } = useAuth();
   const [showDropdown, setShowDropdown] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const dropdownRef = useRef(null);
   const navigate = useNavigate();
   const dispatch = useDispatch();
@@ -39,14 +38,6 @@ const Header = ({ headerTitle = '' }) => {
     navigate(path === "/login" ? "/" : path);
   };
 
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
-    const q = searchQuery?.trim();
-    if (q) {
-      navigate(`/?search=${encodeURIComponent(q)}`);
-    }
-  };
-
   const displayName = username || "bạn";
   const isStudent = role === "STUDENT";
 
@@ -64,25 +55,6 @@ const Header = ({ headerTitle = '' }) => {
           {headerTitle && (
             <h1 className="header-page-title">{headerTitle}</h1>
           )}
-        </div>
-
-        <div className="header-search-section">
-          <form className="search-bar" onSubmit={handleSearchSubmit} role="search">
-            <span className="search-icon" aria-hidden="true">
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2" fill="none" />
-                <path d="M21 21l-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              </svg>
-            </span>
-            <input
-              type="search"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Tìm kiếm khóa học, học viên..."
-              aria-label="Tìm kiếm khóa học, học viên"
-              autoComplete="off"
-            />
-          </form>
         </div>
 
         <div className="header-actions">
