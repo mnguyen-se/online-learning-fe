@@ -3439,6 +3439,11 @@
   resize: vertical;
 }
 
+.course-edit-modal-select {
+  cursor: pointer;
+  appearance: auto;
+}
+
 .course-edit-modal-note {
   margin: 0;
   font-size: 12px;

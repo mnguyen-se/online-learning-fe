@@ -33,7 +33,7 @@ function CourseManagement() {
   const [courseSuccess, setCourseSuccess] = useState('');
   const [isSavingCourse, setIsSavingCourse] = useState(false);
   const [editCourseModal, setEditCourseModal] = useState({ isOpen: false, course: null });
-  const [editCourseForm, setEditCourseForm] = useState({ title: '', description: '' });
+  const [editCourseForm, setEditCourseForm] = useState({ title: '', description: '', teacherId: '' });
   const [isUpdatingCourse, setIsUpdatingCourse] = useState(false);
   const [isSavingGeneralConfig, setIsSavingGeneralConfig] = useState(false);
   const [courseStats, setCourseStats] = useState({});
@@ -1309,6 +1309,12 @@ function CourseManagement() {
 
   useEffect(() => {
     loadCourses();
+    getTeachers()
+      .then((data) => {
+        const list = Array.isArray(data) ? data : data?.data ?? [];
+        setTeachers(list);
+      })
+      .catch(() => setTeachers([]));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -1337,9 +1343,11 @@ function CourseManagement() {
 
   const openEditCourseModal = (course) => {
     const courseId = getCourseId(course) ?? course?.id ?? null;
+    const tid = course?.teacherId ?? course?.teacher_id ?? '';
     setEditCourseForm({
       title: course?.title ?? '',
       description: course?.description ?? '',
+      teacherId: tid ? String(tid) : '',
     });
     setEditCourseModal({ isOpen: true, course: { ...course, id: courseId } });
   };
@@ -1363,11 +1371,13 @@ function CourseManagement() {
       return;
     }
 
+    const teacherId = editCourseForm.teacherId ? Number(editCourseForm.teacherId) : null;
     try {
       setIsUpdatingCourse(true);
       await updateCourse(courseId, {
         title: trimmedTitle,
         description: trimmedDescription,
+        teacherId,
       });
       toast.success('Đã cập nhật thông tin khóa học.');
       await loadCourses();
@@ -2035,6 +2045,19 @@ function CourseManagement() {
                 value={editCourseForm.title}
                 onChange={(event) => setEditCourseForm((prev) => ({ ...prev, title: event.target.value }))}
               />
+              <label className="course-edit-modal-label">Giáo viên phụ trách</label>
+              <select
+                className="course-edit-modal-input course-edit-modal-select"
+                value={editCourseForm.teacherId}
+                onChange={(e) => setEditCourseForm((prev) => ({ ...prev, teacherId: e.target.value }))}
+              >
+                <option value="">Chọn giáo viên (tùy chọn)</option>
+                {teachers.map((t) => (
+                  <option key={t.id ?? t.userId} value={String(t.id ?? t.userId ?? '')}>
+                    {t.name ?? t.username ?? `Giáo viên ${t.id ?? t.userId ?? ''}`}
+                  </option>
+                ))}
+              </select>
               <label className="course-edit-modal-label">Mô tả tổng quan</label>
               <textarea
                 className="course-edit-modal-textarea"

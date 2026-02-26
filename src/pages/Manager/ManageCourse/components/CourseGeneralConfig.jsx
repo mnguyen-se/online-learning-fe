@@ -101,8 +101,8 @@ const CourseGeneralConfig = ({
             >
               <option value="">Chọn giáo viên</option>
               {teachers.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.name ?? t.username ?? `Giáo viên ${t.id}`}
+                <option key={t.id ?? t.userId} value={String(t.id ?? t.userId ?? '')}>
+                  {t.name ?? t.username ?? `Giáo viên ${t.id ?? t.userId ?? ''}`}
                 </option>
               ))}
             </select>
