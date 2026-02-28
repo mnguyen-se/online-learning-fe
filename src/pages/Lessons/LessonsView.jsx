@@ -743,10 +743,10 @@ function LessonsView() {
                             {isHintLoading
                               ? "AI đang tạo gợi ý..."
                               : selectedLessonHintError
-                              ? "Thử lại AI Hint"
+                              ? "Thử lại AI Hints"
                               : selectedLessonHint
-                              ? "Tạo lại AI Hint"
-                              : "Lấy AI Hint"}
+                              ? "Tạo lại AI Hints"
+                              : "AI Hints"}
                           </button>
                           <button
                             className="lesson-quiz-practice-btn"
@@ -756,7 +756,7 @@ function LessonsView() {
                           >
                             {quizLoading
                               ? "Đang tải Quiz..."
-                              : "Làm Quiz Practice"}
+                              : "AI Quiz Practice"}
                           </button>
                         </>
                       ) : null}
@@ -768,7 +768,7 @@ function LessonsView() {
                   {canUseAiHint ? (
                     <div className="lesson-ai-hint-panel">
                       <h3 className="lesson-ai-hint-title">
-                        AI Hint cho bài học
+                        AI Hints cho bài học
                       </h3>
                       {isHintLoading ? (
                         <p className="lesson-ai-hint-loading">
@@ -789,8 +789,8 @@ function LessonsView() {
                       !selectedLessonHint &&
                       !selectedLessonHintError ? (
                         <p className="lesson-ai-hint-placeholder">
-                          Nhấn "Lấy AI Hint" để nhận gợi ý giải thích bài học
-                          bằng tiếng Việt.
+                          Nhấn "AI Hints" để nhận gợi ý giải thích bài học bằng
+                          tiếng Việt.
                         </p>
                       ) : null}
                     </div>
