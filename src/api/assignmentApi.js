@@ -5,8 +5,8 @@ export const getAssignmentsByCourse = async (courseId) => {
   return response.data;
 };
 
-export const createAssignment = async (courseId, payload) => {
-  const response = await apiClient.post(`/assignments/courses/${courseId}/assignments`, payload);
+export const createAssignment = async (payload) => {
+  const response = await apiClient.post('/assignments/courses/assignments', payload);
   return response.data;
 };
 

@@ -120,6 +120,13 @@ function CourseManagement() {
     assignment?.assignment_id ??
     null;
 
+  const normalizeAssignmentType = (value) => {
+    const raw = (value ?? '').toString().trim().toUpperCase();
+    if (raw === 'QUIZ') return 'QUIZ';
+    if (raw === 'WRITING' || raw === 'ASSIGNMENT') return 'WRITING';
+    return 'WRITING';
+  };
+
   const mapCorrectIndexToLetter = (index) => {
     const letters = ['A', 'B', 'C', 'D'];
     return letters[index] ?? 'A';
@@ -1163,7 +1170,7 @@ function CourseManagement() {
           description: assignment?.description ?? '',
           orderIndex: assignment?.orderIndex ?? index + 1,
           isNew: false,
-          testType: assignment?.testType,
+          testType: normalizeAssignmentType(assignment?.assignmentType ?? assignment?.testType),
           questions: assignment?.questions,
         };
       });
@@ -1249,7 +1256,7 @@ function CourseManagement() {
       } else {
         setTests((prev) => prev.map((t) => (
           t.id === testId
-            ? { ...t, questions: [], testType: 'ASSIGNMENT' }
+            ? { ...t, questions: [], testType: normalizeAssignmentType(t.testType) }
             : t
         )));
       }
@@ -1290,6 +1297,11 @@ function CourseManagement() {
       setIsSavingTest(true);
       setTestError('');
 
+      const numericCourseId = Number(courseId);
+      if (Number.isNaN(numericCourseId)) {
+        throw new Error('Mã khóa học không hợp lệ.');
+      }
+
       const validOrderIndexes = tests
         .filter((t) => !t.isNew)
         .map((t) => Number(t.orderIndex ?? 0))
@@ -1299,16 +1311,21 @@ function CourseManagement() {
         : 1;
 
       const assignmentPayload = {
+        courseId: numericCourseId,
         title: testData.title.trim(),
         description: testData.description?.trim() || null,
-        orderIndex: nextOrderIndex,
+        assignmentType: normalizeAssignmentType(testData.testType),
       };
 
-      const createdAssignment = await createAssignment(courseId, assignmentPayload);
+      const createdAssignment = await createAssignment(assignmentPayload);
       const assignmentId = getAssignmentId(createdAssignment);
       if (!assignmentId) {
         throw new Error('Không thể lấy mã bài kiểm tra sau khi tạo.');
       }
+
+      const resolvedTestType = normalizeAssignmentType(
+        createdAssignment?.assignmentType ?? assignmentPayload.assignmentType
+      );
 
       let updatedTest = {
         ...createdAssignment,
@@ -1316,12 +1333,13 @@ function CourseManagement() {
         title: createdAssignment?.title ?? assignmentPayload.title,
         description: createdAssignment?.description ?? assignmentPayload.description,
         orderIndex: createdAssignment?.orderIndex ?? nextOrderIndex,
-        testType: testData.testType ?? 'ASSIGNMENT',
+        assignmentType: resolvedTestType,
+        testType: resolvedTestType,
         isNew: false,
         questions: [],
       };
 
-      if (testData.testType === 'QUIZ') {
+      if (resolvedTestType === 'QUIZ') {
         const questions = Array.isArray(testData.quizQuestions) ? testData.quizQuestions : [];
         if (questions.length < 25) {
           throw new Error('Cần tối thiểu 25 câu hỏi để tạo bài trắc nghiệm.');

@@ -116,7 +116,7 @@ const CourseTestDetails = ({
     return {
       title: selectedTest?.title ?? '',
       description: selectedTest?.description ?? '',
-      testType: selectedTest?.testType ?? (hasQuestions ? 'QUIZ' : 'ASSIGNMENT'),
+      testType: selectedTest?.testType ?? (hasQuestions ? 'QUIZ' : 'WRITING'),
       quizQuestions: hasQuestions ? selectedTest.questions : [createEmptyQuestion()],
     };
   }, [selectedTest]);
@@ -233,7 +233,7 @@ const CourseTestDetails = ({
         <div className="lesson-details-view">
           <div className="lesson-details-header">
             <div className="lesson-details-type-badge">
-              {selectedTest.testType === 'QUIZ' ? 'Trắc nghiệm' : 'Bài tập'}
+              {selectedTest.testType === 'QUIZ' ? 'Trắc nghiệm' : 'Tự luận'}
             </div>
           </div>
 
@@ -301,7 +301,7 @@ const CourseTestDetails = ({
             disabled={isLoading}
           >
             <option value="QUIZ">Trắc nghiệm</option>
-            <option value="ASSIGNMENT">Bài tập</option>
+            <option value="WRITING">Tự luận</option>
           </select>
         </div>
 
