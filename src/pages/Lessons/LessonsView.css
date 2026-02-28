@@ -218,7 +218,8 @@
 }
 
 .lesson-complete-btn,
-.lesson-next-btn {
+.lesson-next-btn,
+.lesson-hint-btn {
   border: none;
   border-radius: 8px;
   padding: 10px 14px;
@@ -244,10 +245,59 @@
   background: #1d4ed8;
 }
 
+.lesson-hint-btn {
+  background: #7c3aed;
+  color: white;
+}
+
+.lesson-hint-btn:hover {
+  background: #6d28d9;
+}
+
 .lesson-complete-btn:disabled,
-.lesson-next-btn:disabled {
+.lesson-next-btn:disabled,
+.lesson-hint-btn:disabled {
   opacity: 0.6;
   cursor: not-allowed;
+}
+
+.lesson-ai-hint-panel {
+  margin-top: 1.25rem;
+  padding: 1rem 1.25rem;
+  border-radius: 10px;
+  border: 1px solid #ddd6fe;
+  background: #f5f3ff;
+}
+
+.lesson-ai-hint-title {
+  margin: 0 0 0.75rem 0;
+  font-size: 1.1rem;
+  color: #4c1d95;
+}
+
+.lesson-ai-hint-loading,
+.lesson-ai-hint-placeholder,
+.lesson-ai-hint-error {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.lesson-ai-hint-loading {
+  color: #5b21b6;
+}
+
+.lesson-ai-hint-placeholder {
+  color: #6b7280;
+}
+
+.lesson-ai-hint-error {
+  color: #dc2626;
+}
+
+.lesson-ai-hint-content {
+  color: #1f2937;
+  line-height: 1.7;
+  white-space: pre-wrap;
 }
 
 .lesson-content-video {
