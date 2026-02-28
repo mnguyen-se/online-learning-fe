@@ -43,6 +43,14 @@ export const getAiLessonHint = async (lessonId) => {
   return response.data;
 };
 
+/** GET /ai/lessons/{lessonId}/quiz - AI tạo quiz practice (trả về HTML) */
+export const getAiLessonQuiz = async (lessonId) => {
+  const response = await apiClient.get(`/ai/lessons/${lessonId}/quiz`, {
+    responseType: "text",
+  });
+  return response.data;
+};
+
 /**
  * Upload video cho bài học.
  * OpenAPI: POST /lessons/{lessonId}/upload-video.
