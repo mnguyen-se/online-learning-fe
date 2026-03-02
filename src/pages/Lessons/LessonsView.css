@@ -332,6 +332,17 @@
   transition: all 0.2s;
 }
 
+.quiz-answer-option {
+  width: 100%;
+  text-align: left;
+  cursor: pointer;
+}
+
+.quiz-answer-option.selected {
+  border-color: #2563eb;
+  background: #dbeafe;
+}
+
 .quiz-answer.correct {
   background: #e8f5e9;
   border-color: #4caf50;
@@ -354,6 +365,67 @@
   color: white;
   border-radius: 4px;
   font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.assignment-submit-row {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.assignment-submit-btn {
+  border: none;
+  border-radius: 8px;
+  background: #2563eb;
+  color: white;
+  padding: 10px 16px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.assignment-submit-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.assignment-state-box {
+  padding: 1rem;
+  border-radius: 8px;
+  background: #fef2f2;
+  color: #b91c1c;
+}
+
+.assignment-question-type {
+  margin-bottom: 8px;
+  color: #475569;
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.assignment-question-hint {
+  margin: 0 0 0.75rem 0;
+  color: #475569;
+  font-size: 0.875rem;
+}
+
+.assignment-writing-input {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  padding: 10px;
+  resize: vertical;
+  font-size: 0.95rem;
+}
+
+.assignment-status-badge {
+  margin-bottom: 1rem;
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #dcfce7;
+  color: #166534;
+  font-size: 0.8rem;
   font-weight: 600;
 }
 

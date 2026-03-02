@@ -3,6 +3,13 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Header from '../../components/Header/header';
 import { getLearningProcess } from '../../api/learningProcessApi';
+import {
+  getAssignmentQuestions,
+  getAssignmentsByCourse,
+  getMyAssignments,
+  submitQuizAssignment,
+  submitWritingAssignment,
+} from '../../api/assignmentApi';
 import { getModulesByCourse } from '../../api/module';
 import {
   getCachedCourseDetail,
@@ -34,6 +41,13 @@ const normalizeArrayResponse = (response) => {
 const resolveLessonId = (lesson) =>
   lesson?.lessonId ?? lesson?.id ?? lesson?._id ?? lesson?.lesson_id;
 
+const resolveAssignmentId = (assignment) =>
+  assignment?.assignmentId ??
+  assignment?.id ??
+  assignment?.assignmentID ??
+  assignment?.assignment_id ??
+  null;
+
 const resolveModuleId = (module) =>
   module?.moduleId ?? module?.id ?? module?._id ?? module?.module_id;
 
@@ -46,6 +60,23 @@ const resolveLessonModuleId = (lesson) =>
 const getLessonOrder = (lesson) => Number(lesson?.orderIndex ?? lesson?.order_index ?? 0);
 
 const getModuleOrder = (module) => Number(module?.orderIndex ?? module?.order_index ?? 0);
+
+const normalizeAssignmentType = (value) => {
+  const raw = (value ?? '').toString().trim().toUpperCase();
+  if (raw === 'QUIZ') return 'QUIZ';
+  return 'WRITING';
+};
+
+const normalizeQuestionType = (value) => {
+  const raw = (value ?? '').toString().trim().toUpperCase();
+  if (raw === 'REORDER') return 'REORDER';
+  if (raw === 'MATCHING') return 'MATCHING';
+  if (raw === 'ESSAY_WRITING') return 'ESSAY_WRITING';
+  return 'FILL_BLANK';
+};
+
+const isAssignmentItem = (item) => item?.isAssignmentItem === true;
+const toQuestionKey = (questionId) => String(questionId ?? '');
 
 const getCurrentLessonIdFromProcess = (process) =>
   process?.currentLessonId ??
@@ -71,7 +102,9 @@ const getCompletedLessonSetWithFallback = (process, orderedLessons) => {
   const explicitSet = getCompletedLessonIdSet(process);
   if (explicitSet.size > 0) return explicitSet;
 
-  const lessons = Array.isArray(orderedLessons) ? orderedLessons : [];
+  const lessons = Array.isArray(orderedLessons)
+    ? orderedLessons.filter((lesson) => !isAssignmentItem(lesson))
+    : [];
   if (lessons.length === 0) return explicitSet;
 
   const isFullyCompleted =
@@ -117,26 +150,29 @@ const getOrderedLessonsByCourse = (modules, allLessons) => {
 };
 
 const resolveResumeLessonId = (orderedLessons, process) => {
-  if (!orderedLessons.length) return null;
+  const lessonItems = Array.isArray(orderedLessons)
+    ? orderedLessons.filter((lesson) => !isAssignmentItem(lesson))
+    : [];
+  if (!lessonItems.length) return null;
   const completedSet = getCompletedLessonIdSet(process);
   const currentLessonId = getCurrentLessonIdFromProcess(process);
 
   if (currentLessonId) {
     const currentKey = idToKey(currentLessonId);
-    const currentIndex = orderedLessons.findIndex(
+    const currentIndex = lessonItems.findIndex(
       (lesson) => idToKey(resolveLessonId(lesson)) === currentKey,
     );
     if (currentIndex >= 0) {
       if (!completedSet.has(currentKey)) {
-        return resolveLessonId(orderedLessons[currentIndex]);
+        return resolveLessonId(lessonItems[currentIndex]);
       }
-      if (currentIndex + 1 < orderedLessons.length) {
-        return resolveLessonId(orderedLessons[currentIndex + 1]);
+      if (currentIndex + 1 < lessonItems.length) {
+        return resolveLessonId(lessonItems[currentIndex + 1]);
       }
     }
   }
 
-  const nextIncomplete = orderedLessons.find(
+  const nextIncomplete = lessonItems.find(
     (lesson) => !completedSet.has(idToKey(resolveLessonId(lesson))),
   );
   return resolveLessonId(nextIncomplete) ?? null;
@@ -177,6 +213,72 @@ const getCourseStructureWithCache = async (courseId) => {
   return structure;
 };
 
+const mapAssignmentQuestion = (question, index, assignmentId) => {
+  const questionId = question?.questionId ?? question?.id ?? null;
+  return {
+    id: questionId ?? `${assignmentId ?? 'assignment'}-question-${index}`,
+    questionId,
+    question: question?.questionText ?? question?.question ?? '',
+    answers: [
+      question?.optionA ?? '',
+      question?.optionB ?? '',
+      question?.optionC ?? '',
+      question?.optionD ?? '',
+    ],
+    questionType: normalizeQuestionType(question?.questionType),
+    items: Array.isArray(question?.items) ? question.items : [],
+    columnA: Array.isArray(question?.columnA) ? question.columnA : [],
+    columnB: Array.isArray(question?.columnB) ? question.columnB : [],
+  };
+};
+
+const getAssignmentItemsByCourse = async (courseId) => {
+  let assignments = [];
+  try {
+    const myAssignmentsRes = await runWithRetry(() => getMyAssignments(), {
+      retries: 1,
+      baseDelayMs: 500,
+    });
+    const myAssignments = normalizeArrayResponse(myAssignmentsRes);
+    assignments = myAssignments.filter(
+      (assignment) => idToKey(assignment?.courseId) === idToKey(courseId),
+    );
+  } catch {
+    const courseAssignmentsRes = await runWithRetry(() => getAssignmentsByCourse(courseId), {
+      retries: 1,
+      baseDelayMs: 500,
+    }).catch(() => []);
+    assignments = normalizeArrayResponse(courseAssignmentsRes);
+  }
+
+  return assignments
+    .map((assignment, index) => {
+      const assignmentId = resolveAssignmentId(assignment);
+      const assignmentType = normalizeAssignmentType(
+        assignment?.assignmentType ?? assignment?.testType,
+      );
+      const assignmentKey = assignmentId ?? `idx-${index + 1}`;
+      const rawOrderIndex = Number(assignment?.orderIndex ?? assignment?.order_index ?? index + 1);
+      return {
+        id: `assignment-${assignmentKey}`,
+        lessonId: `assignment-${assignmentKey}`,
+        assignmentId,
+        isAssignmentItem: true,
+        assignmentType,
+        lessonType: assignmentType === 'QUIZ' ? 'QUIZ' : 'TEXT',
+        title: assignment?.title ?? `Bài tập ${index + 1}`,
+        textContent: assignment?.description ?? '',
+        contentUrl: '',
+        orderIndex: Number.isFinite(rawOrderIndex) ? rawOrderIndex : index + 1,
+        questions: [],
+        questionsLoaded: false,
+        questionsLoading: false,
+        questionsError: '',
+      };
+    })
+    .sort((a, b) => getLessonOrder(a) - getLessonOrder(b));
+};
+
 const getLearningProcessWithCache = async (courseId, options = {}) => {
   const { force = false } = options;
   if (!force) {
@@ -209,6 +311,9 @@ function LessonsView() {
   const [learningProcess, setLearningProcess] = useState(null);
   const [courseDetail, setCourseDetail] = useState(null);
   const [isCompleting, setIsCompleting] = useState(false);
+  const [isSubmittingAssignment, setIsSubmittingAssignment] = useState(false);
+  const [assignmentDrafts, setAssignmentDrafts] = useState({});
+  const [assignmentStatuses, setAssignmentStatuses] = useState({});
 
   const selectedLessonKey = idToKey(resolveLessonId(selectedLesson));
   const completedLessonSet = useMemo(
@@ -228,12 +333,10 @@ function LessonsView() {
     const completedFromProcess = Number(
       learningProcess?.completedTasks ?? learningProcess?.completedCount ?? 0,
     );
-    let safeCompleted =
-      completedLessonSet.size > 0
-        ? completedLessonSet.size
-        : Number.isFinite(completedFromProcess)
-          ? Math.max(0, Math.floor(completedFromProcess))
-          : 0;
+    const completedFromProgress = Number.isFinite(completedFromProcess)
+      ? Math.max(0, Math.floor(completedFromProcess))
+      : 0;
+    let safeCompleted = Math.max(completedLessonSet.size, completedFromProgress);
     if (safeTotal > 0) {
       safeCompleted = Math.min(safeCompleted, safeTotal);
     }
@@ -266,22 +369,122 @@ function LessonsView() {
     return lessons[currentIndex + 1];
   }, [lessons, selectedLesson]);
 
+  const patchAssignmentItem = (assignmentId, updater) => {
+    if (!assignmentId) return;
+    setLessons((prev) =>
+      prev.map((item) => {
+        if (!isAssignmentItem(item) || idToKey(item.assignmentId) !== idToKey(assignmentId)) {
+          return item;
+        }
+        return updater(item);
+      }),
+    );
+    setSelectedLesson((prev) => {
+      if (!isAssignmentItem(prev) || idToKey(prev.assignmentId) !== idToKey(assignmentId)) {
+        return prev;
+      }
+      return updater(prev);
+    });
+  };
+
+  const ensureAssignmentQuestionsLoaded = async (assignmentItem) => {
+    if (!assignmentItem || !isAssignmentItem(assignmentItem) || !assignmentItem.assignmentId) {
+      return;
+    }
+    if (assignmentItem.questionsLoaded || assignmentItem.questionsLoading) return;
+
+    patchAssignmentItem(assignmentItem.assignmentId, (current) => ({
+      ...current,
+      questionsLoading: true,
+      questionsError: '',
+    }));
+
+    try {
+      const questionsRes = await runWithRetry(
+        () => getAssignmentQuestions(assignmentItem.assignmentId),
+        {
+          retries: 1,
+          baseDelayMs: 500,
+        },
+      );
+      const rawQuestions = normalizeArrayResponse(questionsRes);
+      const mappedQuestions = rawQuestions.map((question, index) =>
+        mapAssignmentQuestion(question, index, assignmentItem.assignmentId),
+      );
+      patchAssignmentItem(assignmentItem.assignmentId, (current) => ({
+        ...current,
+        questions: mappedQuestions,
+        questionsLoaded: true,
+        questionsLoading: false,
+        questionsError: '',
+      }));
+    } catch (err) {
+      const message =
+        err?.response?.data?.message || err?.message || 'Không thể tải câu hỏi bài tập.';
+      patchAssignmentItem(assignmentItem.assignmentId, (current) => ({
+        ...current,
+        questionsLoading: false,
+        questionsError: message,
+      }));
+    }
+  };
+
+  const getAssignmentStatus = (assignmentId) => assignmentStatuses[idToKey(assignmentId)] ?? null;
+
+  const getQuizAnswerValue = (assignmentId, questionId) =>
+    assignmentDrafts[idToKey(assignmentId)]?.quiz?.[toQuestionKey(questionId)] ?? '';
+
+  const getWritingAnswerValue = (assignmentId, questionId) =>
+    assignmentDrafts[idToKey(assignmentId)]?.writing?.[toQuestionKey(questionId)] ?? '';
+
+  const handleQuizAnswerChange = (assignmentId, questionId, answer) => {
+    const assignmentKey = idToKey(assignmentId);
+    const questionKey = toQuestionKey(questionId);
+    setAssignmentDrafts((prev) => ({
+      ...prev,
+      [assignmentKey]: {
+        ...prev[assignmentKey],
+        quiz: {
+          ...(prev[assignmentKey]?.quiz ?? {}),
+          [questionKey]: answer,
+        },
+      },
+    }));
+  };
+
+  const handleWritingAnswerChange = (assignmentId, questionId, value) => {
+    const assignmentKey = idToKey(assignmentId);
+    const questionKey = toQuestionKey(questionId);
+    setAssignmentDrafts((prev) => ({
+      ...prev,
+      [assignmentKey]: {
+        ...prev[assignmentKey],
+        writing: {
+          ...(prev[assignmentKey]?.writing ?? {}),
+          [questionKey]: value,
+        },
+      },
+    }));
+  };
+
   const loadLessons = async () => {
     try {
       setIsLoading(true);
       setError('');
 
       if (isCourseLearningMode) {
-        const [structure, process] = await Promise.all([
+        const [structure, process, assignmentItems] = await Promise.all([
           getCourseStructureWithCache(courseId),
           getLearningProcessWithCache(courseId),
+          getAssignmentItemsByCourse(courseId),
         ]);
         const orderedLessons = Array.isArray(structure?.lessons) ? structure.lessons : [];
+        const learningItems = [...orderedLessons, ...assignmentItems];
         setLearningProcess(process);
-        setLessons(orderedLessons);
+        setLessons(learningItems);
         setCourseDetail(getCachedCourseDetail(courseId));
 
-        const routeLesson = orderedLessons.find(
+        const routeLesson = learningItems.find(
           (lesson) => idToKey(resolveLessonId(lesson)) === idToKey(lessonId),
         );
         if (routeLesson) {
@@ -289,9 +492,9 @@ function LessonsView() {
           return;
         }
 
-        const resumeLessonId = resolveResumeLessonId(orderedLessons, process);
-        const fallbackLessonId = resumeLessonId ?? resolveLessonId(orderedLessons[0]) ?? null;
-        const fallbackLesson = orderedLessons.find(
+        const resumeLessonId = resolveResumeLessonId(learningItems, process);
+        const fallbackLessonId = resumeLessonId ?? resolveLessonId(learningItems[0]) ?? null;
+        const fallbackLesson = learningItems.find(
           (lesson) => idToKey(resolveLessonId(lesson)) === idToKey(fallbackLessonId),
         );
         setSelectedLesson(fallbackLesson ?? null);
@@ -347,6 +550,9 @@ function LessonsView() {
 
   const handleSelectLesson = (lesson) => {
     setSelectedLesson(lesson);
+    if (isAssignmentItem(lesson)) {
+      ensureAssignmentQuestionsLoaded(lesson);
+    }
     if (!isCourseLearningMode || !courseId) return;
     const selectedId = resolveLessonId(lesson);
     if (selectedId) {
@@ -354,8 +560,17 @@ function LessonsView() {
     }
   };
 
+  useEffect(() => {
+    if (!isAssignmentItem(selectedLesson)) return;
+    ensureAssignmentQuestionsLoaded(selectedLesson);
+  }, [selectedLesson]);
+
   const handleCompleteLesson = async () => {
     if (!isCourseLearningMode || !selectedLesson || !courseId) return;
+    if (isAssignmentItem(selectedLesson)) {
+      toast.info('Bài tập này không dùng chức năng đánh dấu hoàn thành bài học.');
+      return;
+    }
     const selectedId = resolveLessonId(selectedLesson);
     if (!selectedId) return;
     if (selectedLessonCompleted) {
@@ -388,7 +603,321 @@ function LessonsView() {
     }
   };
 
+  const handleSubmitQuizAssignment = async (assignmentItem) => {
+    if (!assignmentItem?.assignmentId) return;
+    const questions = Array.isArray(assignmentItem.questions) ? assignmentItem.questions : [];
+    if (questions.length === 0) {
+      toast.info('Bài tập này chưa có câu hỏi.');
+      return;
+    }
+
+    const answers = [];
+    for (const question of questions) {
+      const selectedAnswer = getQuizAnswerValue(assignmentItem.assignmentId, question.questionId);
+      if (!selectedAnswer) {
+        toast.error('Vui lòng chọn đáp án cho tất cả câu hỏi trước khi nộp.');
+        return;
+      }
+      const questionId = Number(question.questionId);
+      if (!Number.isFinite(questionId)) {
+        toast.error('Không xác định được mã câu hỏi để nộp bài.');
+        return;
+      }
+      answers.push({
+        questionId,
+        answer: selectedAnswer,
+      });
+    }
+
+    try {
+      setIsSubmittingAssignment(true);
+      await runWithRetry(
+        () =>
+          submitQuizAssignment(assignmentItem.assignmentId, {
+            answers,
+          }),
+        {
+          retries: 1,
+          baseDelayMs: 500,
+        },
+      );
+      setAssignmentStatuses((prev) => ({
+        ...prev,
+        [idToKey(assignmentItem.assignmentId)]: 'SUBMITTED',
+      }));
+      toast.success('Đã nộp bài trắc nghiệm. Bài làm ở trạng thái SUBMITTED.');
+    } catch (err) {
+      const message = err?.response?.data?.message || 'Không thể nộp bài trắc nghiệm.';
+      toast.error(message);
+    } finally {
+      setIsSubmittingAssignment(false);
+    }
+  };
+
+  const handleSubmitWritingAssignment = async (assignmentItem) => {
+    if (!assignmentItem?.assignmentId) return;
+    const questions = Array.isArray(assignmentItem.questions) ? assignmentItem.questions : [];
+    if (questions.length === 0) {
+      toast.info('Bài tập này chưa có câu hỏi.');
+      return;
+    }
+
+    const answers = [];
+    for (const question of questions) {
+      const questionId = Number(question.questionId);
+      if (!Number.isFinite(questionId)) {
+        toast.error('Không xác định được mã câu hỏi để nộp bài.');
+        return;
+      }
+      const rawValue = getWritingAnswerValue(assignmentItem.assignmentId, question.questionId);
+      const questionType = normalizeQuestionType(question.questionType);
+
+      if (questionType === 'REORDER') {
+        const orderedItems = rawValue
+          .split(',')
+          .map((item) => item.trim())
+          .filter((item) => item !== '');
+        if (orderedItems.length === 0) {
+          toast.error('Vui lòng nhập thứ tự sắp xếp cho tất cả câu REORDER.');
+          return;
+        }
+        answers.push({ questionId, orderedItems });
+        continue;
+      }
+
+      if (questionType === 'MATCHING') {
+        const pairs = rawValue
+          .split('\n')
+          .map((line) => line.trim())
+          .filter((line) => line !== '')
+          .map((line) => {
+            const [aId, bId] = line.split(':').map((value) => value?.trim() ?? '');
+            return { aId, bId };
+          });
+        const hasInvalidPair = pairs.some((pair) => !pair.aId || !pair.bId);
+        if (pairs.length === 0 || hasInvalidPair) {
+          toast.error('Câu MATCHING cần nhập mỗi dòng theo định dạng aId:bId.');
+          return;
+        }
+        answers.push({ questionId, matchingPairs: pairs });
+        continue;
+      }
+
+      if (!rawValue || rawValue.trim() === '') {
+        toast.error('Vui lòng nhập đáp án cho tất cả câu hỏi tự luận.');
+        return;
+      }
+      answers.push({ questionId, answer: rawValue.trim() });
+    }
+
+    try {
+      setIsSubmittingAssignment(true);
+      await runWithRetry(
+        () =>
+          submitWritingAssignment(assignmentItem.assignmentId, {
+            answers,
+          }),
+        {
+          retries: 1,
+          baseDelayMs: 500,
+        },
+      );
+      setAssignmentStatuses((prev) => ({
+        ...prev,
+        [idToKey(assignmentItem.assignmentId)]: 'SUBMITTED',
+      }));
+      toast.success('Đã nộp bài writing. Bài làm ở trạng thái SUBMITTED.');
+    } catch (err) {
+      const message = err?.response?.data?.message || 'Không thể nộp bài writing.';
+      toast.error(message);
+    } finally {
+      setIsSubmittingAssignment(false);
+    }
+  };
+
+  const renderAssignmentQuizContent = (assignmentItem) => {
+    if (assignmentItem.questionsLoading) {
+      return <div className="lesson-content-skeleton" />;
+    }
+    if (assignmentItem.questionsError) {
+      return (
+        <div className="assignment-state-box">
+          <p>{assignmentItem.questionsError}</p>
+          <button
+            type="button"
+            className="retry-button"
+            onClick={() => ensureAssignmentQuestionsLoaded(assignmentItem)}
+          >
+            Tải lại câu hỏi
+          </button>
+        </div>
+      );
+    }
+
+    const questions = Array.isArray(assignmentItem.questions) ? assignmentItem.questions : [];
+    if (questions.length === 0) {
+      return <p className="lesson-content-placeholder">Bài tập này chưa có câu hỏi.</p>;
+    }
+
+    const submissionStatus = getAssignmentStatus(assignmentItem.assignmentId);
+
+    return (
+      <div className="lesson-content-quiz">
+        <h3 className="quiz-title">Câu hỏi trắc nghiệm</h3>
+        {assignmentItem.textContent ? (
+          <p className="assignment-question-hint">{assignmentItem.textContent}</p>
+        ) : null}
+        {submissionStatus === 'SUBMITTED' ? (
+          <div className="assignment-status-badge">Trạng thái: SUBMITTED</div>
+        ) : null}
+        <div className="quiz-questions">
+          {questions.map((question, index) => (
+            <div key={question.id || index} className="quiz-question-item">
+              <div className="quiz-question-number">Câu {index + 1}</div>
+              <div className="quiz-question-text">{question.question || 'Chưa có câu hỏi'}</div>
+              <div className="quiz-answers">
+                {(question.answers || []).map((answer, answerIndex) => {
+                  const answerLetter = String.fromCharCode(65 + answerIndex);
+                  const selectedValue = getQuizAnswerValue(
+                    assignmentItem.assignmentId,
+                    question.questionId,
+                  );
+                  const isSelected = selectedValue === answerLetter;
+                  return (
+                    <button
+                      type="button"
+                      key={answerLetter}
+                      className={`quiz-answer quiz-answer-option ${isSelected ? 'selected' : ''}`}
+                      onClick={() =>
+                        handleQuizAnswerChange(
+                          assignmentItem.assignmentId,
+                          question.questionId,
+                          answerLetter,
+                        )}
+                    >
+                      <span className="quiz-answer-label">{answerLetter}.</span>
+                      <span className="quiz-answer-text">{answer || 'Chưa có đáp án'}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
+        <div className="assignment-submit-row">
+          <button
+            type="button"
+            className="assignment-submit-btn"
+            disabled={isSubmittingAssignment}
+            onClick={() => handleSubmitQuizAssignment(assignmentItem)}
+          >
+            {isSubmittingAssignment ? 'Đang nộp...' : 'Nộp bài trắc nghiệm'}
+          </button>
+        </div>
+      </div>
+    );
+  };
+
+  const renderAssignmentWritingContent = (assignmentItem) => {
+    if (assignmentItem.questionsLoading) {
+      return <div className="lesson-content-skeleton" />;
+    }
+    if (assignmentItem.questionsError) {
+      return (
+        <div className="assignment-state-box">
+          <p>{assignmentItem.questionsError}</p>
+          <button
+            type="button"
+            className="retry-button"
+            onClick={() => ensureAssignmentQuestionsLoaded(assignmentItem)}
+          >
+            Tải lại câu hỏi
+          </button>
+        </div>
+      );
+    }
+
+    const questions = Array.isArray(assignmentItem.questions) ? assignmentItem.questions : [];
+    if (questions.length === 0) {
+      return <p className="lesson-content-placeholder">Bài tập này chưa có câu hỏi.</p>;
+    }
+
+    const submissionStatus = getAssignmentStatus(assignmentItem.assignmentId);
+
+    return (
+      <div className="lesson-content-text">
+        <h3 className="quiz-title">Bài tập tự luận</h3>
+        {assignmentItem.textContent ? (
+          <p className="assignment-question-hint">{assignmentItem.textContent}</p>
+        ) : null}
+        {submissionStatus === 'SUBMITTED' ? (
+          <div className="assignment-status-badge">Trạng thái: SUBMITTED</div>
+        ) : null}
+        <div className="quiz-questions">
+          {questions.map((question, index) => {
+            const questionType = normalizeQuestionType(question.questionType);
+            const answerValue = getWritingAnswerValue(assignmentItem.assignmentId, question.questionId);
+            return (
+              <div key={question.id || index} className="quiz-question-item">
+                <div className="quiz-question-number">Câu {index + 1}</div>
+                <div className="quiz-question-text">{question.question || 'Chưa có câu hỏi'}</div>
+                <div className="assignment-question-type">{questionType}</div>
+                {questionType === 'REORDER' && question.items.length > 0 ? (
+                  <p className="assignment-question-hint">
+                    Items: {question.items.join(', ')}
+                  </p>
+                ) : null}
+                {questionType === 'MATCHING' ? (
+                  <div className="assignment-question-hint">
+                    <p>Cột A: {(question.columnA || []).map((item) => `${item.id}-${item.text}`).join(' | ')}</p>
+                    <p>Cột B: {(question.columnB || []).map((item) => `${item.id}-${item.text}`).join(' | ')}</p>
+                    <p>Nhập mỗi dòng theo định dạng aId:bId</p>
+                  </div>
+                ) : null}
+                <textarea
+                  className="assignment-writing-input"
+                  value={answerValue}
+                  placeholder={
+                    questionType === 'REORDER'
+                      ? 'Nhập thứ tự sau khi sắp xếp, cách nhau bởi dấu phẩy. Ví dụ: item1,item2,item3'
+                      : questionType === 'MATCHING'
+                        ? 'Mỗi dòng một cặp nối. Ví dụ:\na1:b2\na2:b1'
+                        : 'Nhập câu trả lời của bạn'
+                  }
+                  rows={questionType === 'MATCHING' ? 4 : 3}
+                  onChange={(event) =>
+                    handleWritingAnswerChange(
+                      assignmentItem.assignmentId,
+                      question.questionId,
+                      event.target.value,
+                    )}
+                />
+              </div>
+            );
+          })}
+        </div>
+        <div className="assignment-submit-row">
+          <button
+            type="button"
+            className="assignment-submit-btn"
+            disabled={isSubmittingAssignment}
+            onClick={() => handleSubmitWritingAssignment(assignmentItem)}
+          >
+            {isSubmittingAssignment ? 'Đang nộp...' : 'Nộp bài tự luận'}
+          </button>
+        </div>
+      </div>
+    );
+  };
+
   const renderLessonContent = (lesson) => {
+    if (isAssignmentItem(lesson)) {
+      if (lesson.assignmentType === 'QUIZ') {
+        return renderAssignmentQuizContent(lesson);
+      }
+      return renderAssignmentWritingContent(lesson);
+    }
+
     const lessonType = lesson.lessonType || 'VIDEO';
     const videoSource = lesson.videoUrl || lesson.contentUrl || '';
     const textSource = lesson.textContent || lesson.contentUrl || '';
@@ -524,6 +1053,9 @@ function LessonsView() {
                 {lessons.map((lesson, index) => {
                   const lessonKey = idToKey(resolveLessonId(lesson)) || String(index);
                   const isCompleted = completedLessonSet.has(lessonKey);
+                  const assignmentStatus = isAssignmentItem(lesson)
+                    ? getAssignmentStatus(lesson.assignmentId)
+                    : null;
                   return (
                     <div
                       key={lessonKey}
@@ -534,9 +1066,15 @@ function LessonsView() {
                       <div className="lesson-item-content">
                         <div className="lesson-item-title">{lesson.title || 'Chưa có tiêu đề'}</div>
                         <div className="lesson-item-type">
-                          {lesson.lessonType === 'VIDEO' && '📹 Video'}
-                          {lesson.lessonType === 'TEXT' && '📄 Văn bản'}
-                          {lesson.lessonType === 'QUIZ' && '❓ Trắc nghiệm'}
+                          {isAssignmentItem(lesson)
+                            ? lesson.assignmentType === 'QUIZ'
+                              ? '❓ Trắc nghiệm'
+                              : '📝 Tự luận'
+                            : null}
+                          {!isAssignmentItem(lesson) && lesson.lessonType === 'VIDEO' && '📹 Video'}
+                          {!isAssignmentItem(lesson) && lesson.lessonType === 'TEXT' && '📄 Văn bản'}
+                          {!isAssignmentItem(lesson) && lesson.lessonType === 'QUIZ' && '❓ Trắc nghiệm'}
+                          {assignmentStatus === 'SUBMITTED' ? ' • ✅ Đã nộp' : ''}
                           {isCompleted ? ' • ✅ Đã hoàn thành' : ''}
                         </div>
                       </div>
@@ -554,9 +1092,20 @@ function LessonsView() {
                   <h2 className="lesson-detail-title">{selectedLesson.title || 'Chưa có tiêu đề'}</h2>
                   <div className="lesson-detail-meta">
                     <span className="lesson-type-badge">
-                      {selectedLesson.lessonType === 'VIDEO' && 'Video Bài giảng'}
-                      {selectedLesson.lessonType === 'TEXT' && 'Tài liệu đọc'}
-                      {selectedLesson.lessonType === 'QUIZ' && 'Trắc nghiệm'}
+                      {isAssignmentItem(selectedLesson)
+                        ? selectedLesson.assignmentType === 'QUIZ'
+                          ? 'Bài tập trắc nghiệm'
+                          : 'Bài tập tự luận'
+                        : null}
+                      {!isAssignmentItem(selectedLesson) &&
+                        selectedLesson.lessonType === 'VIDEO' &&
+                        'Video Bài giảng'}
+                      {!isAssignmentItem(selectedLesson) &&
+                        selectedLesson.lessonType === 'TEXT' &&
+                        'Tài liệu đọc'}
+                      {!isAssignmentItem(selectedLesson) &&
+                        selectedLesson.lessonType === 'QUIZ' &&
+                        'Trắc nghiệm'}
                     </span>
                     {selectedLesson.sectionTitle ? (
                       <span className="lesson-section-badge">{selectedLesson.sectionTitle}</span>
@@ -564,18 +1113,20 @@ function LessonsView() {
                   </div>
                   {isCourseLearningMode ? (
                     <div className="lesson-actions">
-                      <button
-                        className="lesson-complete-btn"
-                        type="button"
-                        disabled={isCompleting || selectedLessonCompleted}
-                        onClick={handleCompleteLesson}
-                      >
-                        {selectedLessonCompleted
-                          ? 'Đã hoàn thành'
-                          : isCompleting
-                            ? 'Đang cập nhật...'
-                            : 'Đánh dấu hoàn thành'}
-                      </button>
+                      {!isAssignmentItem(selectedLesson) ? (
+                        <button
+                          className="lesson-complete-btn"
+                          type="button"
+                          disabled={isCompleting || selectedLessonCompleted}
+                          onClick={handleCompleteLesson}
+                        >
+                          {selectedLessonCompleted
+                            ? 'Đã hoàn thành'
+                            : isCompleting
+                              ? 'Đang cập nhật...'
+                              : 'Đánh dấu hoàn thành'}
+                        </button>
+                      ) : null}
                       <button
                         className="lesson-next-btn"
                         type="button"
