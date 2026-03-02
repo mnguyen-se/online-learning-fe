@@ -706,3 +706,67 @@
   transform: translateY(-1px);
   box-shadow: 0 6px 16px rgba(212, 137, 72, 0.3);
 }
+
+/* ===== Ant Design Form – form đăng ký (không label, hover/focus cam giống login) ===== */
+.auth-form-antd.ant-form {
+  text-align: left;
+}
+
+.auth-form-antd .ant-form-item {
+  margin-bottom: 1rem;
+}
+
+.auth-form-antd .ant-form-item-label {
+  display: none;
+}
+
+.auth-form-antd .ant-form-item-explain-error {
+  font-size: 12px;
+  line-height: 1.4;
+  margin-top: 4px;
+}
+
+.auth-form-antd .ant-input-affix-wrapper,
+.auth-form-antd .ant-input {
+  border-radius: 14px;
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.auth-form-antd .ant-input:hover,
+.auth-form-antd .ant-input-affix-wrapper:hover {
+  border-color: #e0dad2;
+  background: #faf7f3;
+}
+
+.auth-form-antd .ant-input:focus,
+.auth-form-antd .ant-input-affix-wrapper:focus-within,
+.auth-form-antd .ant-input-affix-wrapper-focused {
+  border-color: #c97d4a;
+  box-shadow: 0 0 0 3px rgba(201, 125, 74, 0.12);
+}
+
+.auth-form-antd .ant-input-affix-wrapper:focus-within .ant-input-prefix,
+.auth-form-antd .ant-input-affix-wrapper-focused .ant-input-prefix {
+  color: #c97d4a;
+}
+
+.auth-form-antd .ant-form-item:last-of-type {
+  margin-bottom: 0;
+}
+
+.auth-form-antd .auth-btn.ant-btn {
+  margin-top: 0.75rem;
+  min-height: 3.25rem;
+  border-radius: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(180deg, #e8a055 0%, #d48948 100%) !important;
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(212, 137, 72, 0.25);
+}
+
+.auth-form-antd .auth-btn.ant-btn:hover:not(:disabled) {
+  background: linear-gradient(180deg, #e09850 0%, #c97d42 100%) !important;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px rgba(212, 137, 72, 0.3);
+}

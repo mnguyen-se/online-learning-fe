@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Home } from 'lucide-react';
 import { LoginForm } from '../Authenform/LoginForm';
 import { RegisterForm } from '../Authenform/RegisterForm';
@@ -9,6 +9,7 @@ import { Overlay } from './Overlay';
 export const AuthContainer = ({ initialSignUp = false }) => {
   const [isSignUp, setIsSignUp] = useState(initialSignUp);
   const videoRef = useRef(null);
+  const navigate = useNavigate();
 
   const toggleAuth = () => {
     setIsSignUp((prev) => !prev);
@@ -16,6 +17,11 @@ export const AuthContainer = ({ initialSignUp = false }) => {
       videoRef.current.currentTime = 0;
       videoRef.current.play();
     }
+  };
+
+  const handleRegisterSuccess = () => {
+    setIsSignUp(false);
+    navigate('/login', { replace: true });
   };
 
   return (
@@ -45,7 +51,7 @@ export const AuthContainer = ({ initialSignUp = false }) => {
       </div>
       {/* Container form đăng ký */}
       <div className="auth-form-wrapper auth-form-wrapper--register">
-        <RegisterForm isActive={isSignUp} />
+        <RegisterForm isActive={isSignUp} onRegisterSuccess={handleRegisterSuccess} />
       </div>
 
       {/* Overlay Layer - trượt qua lại phủ lên form, che 50% video */}

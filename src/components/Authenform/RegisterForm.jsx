@@ -1,55 +1,41 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import { User, Mail, Lock, BookOpen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { Input } from './Input';
+import { Form, Input, Button } from 'antd';
 import { register as registerApi } from '../../api/userApi';
 
-// RegisterForm – chỉ cần Tên, Email, Mật khẩu, Xác nhận mật khẩu, gọi API register
-export const RegisterForm = ({ isActive }) => {
-  const navigate = useNavigate();
+const REQUIRED_MSG = 'Không được để trống';
 
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, _setShowPassword] = useState(false);
-  const [showConfirmPassword, _setShowConfirmPassword] = useState(false);
+// Họ và tên: chỉ chữ cái và dấu cách (có dấu tiếng Việt)
+const FULLNAME_REGEX = /^[a-zA-ZÀ-ỹĂ-ơƯ-ư\s]+$/;
+// Username: chữ, số, gạch dưới, từ 6 ký tự
+const USERNAME_REGEX = /^[a-zA-Z0-9_]{6,}$/;
+
+export const RegisterForm = ({ isActive, onRegisterSuccess }) => {
+  const navigate = useNavigate();
+  const [form] = Form.useForm();
   const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
-    if (!name.trim() || !email.trim() || !password.trim() || !confirmPassword.trim()) {
-      toast.error('Vui lòng nhập đầy đủ thông tin.');
-      return;
-    }
-
-    if (password.length < 6) {
-      toast.error('Mật khẩu phải có ít nhất 6 ký tự.');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      toast.error('Mật khẩu xác nhận không khớp.');
-      return;
-    }
-
+  const handleSubmit = async (values) => {
     setIsLoading(true);
 
     try {
-      // Backend cần username, nên dùng email làm username
       const payload = {
-        username: email,
-        password,
-        email,
-        name,
+        username: values.username.trim(),
+        password: values.password,
+        email: values.email.trim(),
+        name: values.fullName.trim(),
       };
 
       await registerApi(payload);
       toast.success('Đăng ký thành công! Vui lòng đăng nhập.');
-      navigate('/login');
+      if (typeof onRegisterSuccess === 'function') {
+        onRegisterSuccess();
+      } else {
+        navigate('/login', { replace: true });
+      }
     } catch (error) {
       console.error('Register error:', error);
       let errorMessage = 'Đăng ký thất bại. Vui lòng thử lại.';
@@ -64,9 +50,9 @@ export const RegisterForm = ({ isActive }) => {
           errorMessage =
             error.response.data?.message ||
             error.response.data?.error ||
-            'Dữ liệu không hợp lệ. Kiểm tra lại thông tin (email có thể đã được sử dụng).';
+            'Dữ liệu không hợp lệ. Kiểm tra lại thông tin (email hoặc tên đăng nhập có thể đã được sử dụng).';
         } else if (status === 409 || dataError.includes('exist') || dataError.includes('already') || dataError.includes('duplicate')) {
-          errorMessage = 'Email hoặc tên đăng nhập đã tồn tại. Vui lòng dùng email khác.';
+          errorMessage = 'Email hoặc tên đăng nhập đã tồn tại. Vui lòng dùng thông tin khác.';
         } else if (status >= 500) {
           errorMessage = 'Lỗi hệ thống. Vui lòng thử lại sau.';
         } else {
@@ -88,7 +74,7 @@ export const RegisterForm = ({ isActive }) => {
   };
 
   return (
-    <motion.div
+    <Motion.div
       className="auth-form-container auth-form-container--register"
       initial={false}
       animate={{
@@ -102,60 +88,133 @@ export const RegisterForm = ({ isActive }) => {
         <div className="auth-header-icon" aria-hidden>
           <BookOpen size={32} strokeWidth={1.5} />
         </div>
-        <motion.h2
+        <Motion.h2
           className="auth-title"
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: isActive ? 0 : 20, opacity: isActive ? 1 : 0 }}
           transition={{ delay: 0.1, duration: 0.5 }}
         >
           Tạo tài khoản
-        </motion.h2>
-        <p className="auth-subtitle" style={{ margin: '5px 0 10px 0'}}>
+        </Motion.h2>
+        <p className="auth-subtitle" style={{ margin: '5px 0 10px 0' }}>
           Hãy đăng ký để đến với website học tiếng Nhật
         </p>
 
-        <form onSubmit={handleSubmit}>
-          {/* Nhóm ô input, khoảng cách vừa phải để dễ nhìn */}
-          <div className="flex flex-col gap-2">
+        <Form
+          form={form}
+          layout="vertical"
+          requiredMark={false}
+          onFinish={handleSubmit}
+          className="auth-form-antd"
+          size="large"
+        >
+          <Form.Item
+            name="fullName"
+            label={null}
+            rules={[
+              { required: true, message: REQUIRED_MSG },
+              {
+                pattern: FULLNAME_REGEX,
+                message: 'Họ và tên không được chứa ký tự đặc biệt hoặc số.',
+              },
+            ]}
+          >
             <Input
-              type="text"
-              placeholder="Tên của bạn"
-              icon={User}
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              placeholder="Họ và tên"
+              prefix={<User size={18} style={{ color: 'rgba(0,0,0,0.25)' }} />}
+              allowClear
             />
+          </Form.Item>
+
+          <Form.Item
+            name="username"
+            label={null}
+            rules={[
+              { required: true, message: REQUIRED_MSG },
+              {
+                min: 6,
+                message: 'Tên đăng nhập phải từ 6 ký tự trở lên.',
+              },
+              {
+                pattern: USERNAME_REGEX,
+                message: 'Tên đăng nhập chỉ được dùng chữ cái, số và dấu gạch dưới, tối thiểu 6 ký tự.',
+              },
+            ]}
+          >
+            <Input
+              placeholder="Tên đăng nhập"
+              prefix={<User size={18} style={{ color: 'rgba(0,0,0,0.25)' }} />}
+              allowClear
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="email"
+            label={null}
+            rules={[
+              { required: true, message: REQUIRED_MSG },
+              { type: 'email', message: 'Email không hợp lệ.' },
+            ]}
+          >
             <Input
               type="email"
               placeholder="you@gmail.com"
-              icon={Mail}
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              prefix={<Mail size={18} style={{ color: 'rgba(0,0,0,0.25)' }} />}
+              allowClear
             />
-            <Input
-              type={showPassword ? 'text' : 'password'}
-              placeholder="Mật khẩu"
-              icon={Lock}
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-            <Input
-              type={showConfirmPassword ? 'text' : 'password'}
-              placeholder="Xác nhận mật khẩu"
-              icon={Lock}
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-            />
-          </div>
+          </Form.Item>
 
-          <button
-            type="submit"
-            className="auth-btn auth-btn--register"
-            disabled={isLoading}
+          <Form.Item
+            name="password"
+            label={null}
+            rules={[
+              { required: true, message: REQUIRED_MSG },
+              { min: 6, message: 'Mật khẩu phải có ít nhất 6 ký tự.' },
+            ]}
           >
-            {isLoading ? 'Đang đăng ký...' : 'Đăng Ký'}
-          </button>
-        </form>
+            <Input.Password
+              placeholder="Mật khẩu"
+              prefix={<Lock size={18} style={{ color: 'rgba(0,0,0,0.25)' }} />}
+            />
+          </Form.Item>
+
+          <Form.Item
+            name="confirmPassword"
+            label={null}
+            dependencies={['password']}
+            rules={[
+              { required: true, message: REQUIRED_MSG },
+              ({ getFieldValue }) => ({
+                validator(_, value) {
+                  if (!value || getFieldValue('password') === value) {
+                    return Promise.resolve();
+                  }
+                  return Promise.reject(new Error('Mật khẩu xác nhận không khớp.'));
+                },
+              }),
+            ]}
+          >
+            <Input.Password
+              placeholder="Xác nhận mật khẩu"
+              prefix={<Lock size={18} style={{ color: 'rgba(0,0,0,0.25)' }} />}
+            />
+          </Form.Item>
+
+          <Form.Item noStyle shouldUpdate>
+            {() => (
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={isLoading}
+                className="auth-btn auth-btn--register"
+                block
+              >
+                {isLoading ? 'Đang đăng ký...' : 'Đăng Ký'}
+              </Button>
+            )}
+          </Form.Item>
+        </Form>
       </div>
-    </motion.div>
+    </Motion.div>
   );
 };
