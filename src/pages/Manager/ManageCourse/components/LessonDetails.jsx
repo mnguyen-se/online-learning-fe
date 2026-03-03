@@ -1,8 +1,10 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { uploadVideoToCloudinary }
+  from "../../../../api/cloudinaryApi";
 
 function getInitialFromLesson(lesson) {
   if (!lesson) {
-    return { title: '', lessonType: 'VIDEO', contentUrl: '', textContent: '', quizQuestions: [] };
+    return { title: '', lessonType: 'VIDEO', videoUrl: '', contentUrl: '', textContent: '', quizQuestions: [] };
   }
   const lt = lesson.lessonType || 'VIDEO';
   let contentUrl = '';
@@ -38,15 +40,16 @@ function getInitialFromLesson(lesson) {
     title: lesson.title || '',
     lessonType: lt,
     contentUrl,
+    videoUrl: lesson.videoUrl || '',
     textContent,
     quizQuestions,
   };
 }
 
-const LessonDetails = ({ 
-  selectedLesson, 
+const LessonDetails = ({
+  selectedLesson,
   selectedChapterId,
-  onSave, 
+  onSave,
   onCancel,
   onEdit,
   onCancelEdit,
@@ -69,11 +72,13 @@ const LessonDetails = ({
     : availableLessonTypes[0];
   const [title, setTitle] = useState(() => initialLesson.title);
   const [lessonType, setLessonType] = useState(() => normalizedLessonType);
-  const [contentUrl] = useState(() => initialLesson.contentUrl); //tui xoá setContentUrl khỏi initialLesson vì nó ko cần thiết lắm
-  const [textContent, setTextContent] = useState(() => initialLesson.textContent);
+  const [contentUrl, setContentUrl] = useState(() => initialLesson.contentUrl); const [textContent, setTextContent] = useState(() => initialLesson.textContent);
   const [quizQuestions, setQuizQuestions] = useState(() => initialLesson.quizQuestions);
   const [contentFile, setContentFile] = useState(null);
-
+  const [videoUrl, setVideoUrl] = useState(() => initialLesson.videoUrl); // Chỉ dùng cho VIDEO, để preview khi đổi file mới nhưng chưa save
+  useEffect(() => {
+    setVideoUrl(initialLesson.videoUrl || '');
+  }, [initialLesson.videoUrl]);
   const generateQuestionId = () => `${Date.now()}-${Math.random()}`;
 
   const handleLessonTypeChange = (e) => {
@@ -89,10 +94,17 @@ const LessonDetails = ({
     }
   };
 
+
+  console.log("selectedLesson:", selectedLesson);
+  console.log("selectedLesson.videoUrl:", selectedLesson?.videoUrl);
+  console.log("videoUrl state:", videoUrl);
+
   const previewUrl = useMemo(() => {
-    if (!contentFile) return contentUrl || '';
+    if (contentFile) {
       return URL.createObjectURL(contentFile);
-  }, [contentFile, contentUrl]);
+    }
+    return videoUrl || '';
+  }, [contentFile, videoUrl]);
 
   useEffect(() => {
     return () => {
@@ -118,7 +130,7 @@ const LessonDetails = ({
   };
 
   const handleUpdateQuestion = (questionId, field, value) => {
-    setQuizQuestions(quizQuestions.map(q => 
+    setQuizQuestions(quizQuestions.map(q =>
       q.id === questionId ? { ...q, [field]: value } : q
     ));
   };
@@ -135,33 +147,54 @@ const LessonDetails = ({
   };
 
   const handleSetCorrectAnswer = (questionId, answerIndex) => {
-    setQuizQuestions(quizQuestions.map(q => 
+    setQuizQuestions(quizQuestions.map(q =>
       q.id === questionId ? { ...q, correctIndex: answerIndex } : q
     ));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (!selectedChapterId) {
-      alert('Vui lòng chọn chương trước khi thêm bài học.');
+      alert("Vui lòng chọn chương trước khi thêm bài học.");
       return;
     }
-    
-    const saveData = {
-      title,
-      lessonType,
-      contentUrl,
-      textContent,
-      contentFile,
-      moduleId: selectedChapterId,
-    };
 
-    // Nếu là QUIZ, lưu questions vào textContent dưới dạng JSON
-    if (lessonType === 'QUIZ') {
-      saveData.textContent = JSON.stringify(quizQuestions);
+    try {
+      let finalVideoUrl = "";
+      let finalContentUrl = "";
+
+      // ✅ Upload nếu là VIDEO
+      if (lessonType === "VIDEO" && contentFile) {
+        finalVideoUrl = await uploadVideoToCloudinary(contentFile);
+        console.log("Video URL sau upload:", finalVideoUrl);
+      }
+
+      // ✅ TEXT thì dùng contentUrl
+      if (lessonType === "TEXT") {
+        finalContentUrl = contentUrl;
+      }
+
+      const saveData = {
+        title,
+        lessonType,
+        moduleId: selectedChapterId,
+        videoUrl: finalVideoUrl,      // 👈 THÊM DÒNG NÀY
+        contentUrl: finalContentUrl,
+        textContent:
+          lessonType === "QUIZ"
+            ? JSON.stringify(quizQuestions)
+            : textContent || "",
+      };
+
+      console.log("Payload gửi BE:", saveData);
+
+      await onSave(saveData);
+
+    } catch (err) {
+      console.error(err);
+      alert("Upload thất bại");
     }
-
-    onSave(saveData);
   };
 
   // Xác định có đang ở edit mode không
@@ -174,7 +207,7 @@ const LessonDetails = ({
     }
     try {
       const contentToParse = selectedLesson.textContent || selectedLesson.contentUrl || '';
-      const questions = contentToParse 
+      const questions = contentToParse
         ? JSON.parse(contentToParse || '[]')
         : [];
       if (Array.isArray(questions) && questions.length > 0) {
@@ -217,11 +250,19 @@ const LessonDetails = ({
           {lessonType === 'VIDEO' && (
             <div className="lesson-details-field">
               <label className="lesson-details-label">VIDEO BÀI GIẢNG</label>
-              {contentUrl ? (
-                <video className="lesson-details-video" controls src={contentUrl} />
+
+              {videoUrl ? (
+                <video
+                  className="lesson-details-video"
+                  controls
+                  src={videoUrl}
+                />
               ) : (
-                <div className="lesson-details-view-value">Chưa có video.</div>
+                <div className="lesson-details-view-value">
+                  Chưa có video.
+                </div>
               )}
+
             </div>
           )}
 
@@ -280,7 +321,7 @@ const LessonDetails = ({
               onClick={onEdit}
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M11.3333 2.00001C11.5084 1.82489 11.7163 1.68601 11.9444 1.59123C12.1726 1.49645 12.4164 1.44763 12.6625 1.44763C12.9086 1.44763 13.1524 1.49645 13.3806 1.59123C13.6087 1.68601 13.8166 1.82489 13.9917 2.00001C14.1668 2.17513 14.3057 2.38303 14.4005 2.61115C14.4952 2.83927 14.5441 3.08308 14.5441 3.32918C14.5441 3.57528 14.4952 3.81909 14.4005 4.04721C14.3057 4.27533 14.1668 4.48323 13.9917 4.65835L5.32498 13.325L1.33331 14.6667L2.67498 10.675L11.3333 2.00001Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M11.3333 2.00001C11.5084 1.82489 11.7163 1.68601 11.9444 1.59123C12.1726 1.49645 12.4164 1.44763 12.6625 1.44763C12.9086 1.44763 13.1524 1.49645 13.3806 1.59123C13.6087 1.68601 13.8166 1.82489 13.9917 2.00001C14.1668 2.17513 14.3057 2.38303 14.4005 2.61115C14.4952 2.83927 14.5441 3.08308 14.5441 3.32918C14.5441 3.57528 14.4952 3.81909 14.4005 4.04721C14.3057 4.27533 14.1668 4.48323 13.9917 4.65835L5.32498 13.325L1.33331 14.6667L2.67498 10.675L11.3333 2.00001Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
               Chỉnh sửa
             </button>
@@ -414,7 +455,7 @@ const LessonDetails = ({
                     aria-label="Xóa câu hỏi"
                   >
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </button>
                 </div>
@@ -446,7 +487,7 @@ const LessonDetails = ({
                         >
                           {isCorrect && (
                             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M13 4L6 11L3 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                              <path d="M13 4L6 11L3 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                             </svg>
                           )}
                         </button>
@@ -475,7 +516,7 @@ const LessonDetails = ({
               disabled={isLoading}
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
               </svg>
               <span>THÊM CÂU HỎI MỚI (QUIZLET STYLE)</span>
             </button>
