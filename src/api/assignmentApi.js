@@ -20,6 +20,11 @@ export const getAssignmentQuestions = async (assignmentId) => {
   return response.data;
 };
 
+export const getWritingQuestions = async (assignmentId) => {
+  const response = await apiClient.get(`/assignments/${assignmentId}/writing-questions`);
+  return response.data;
+};
+
 export const uploadAssignmentQuestions = async (assignmentId, file) => {
   const formData = new FormData();
   formData.append('file', file);
@@ -32,6 +37,11 @@ export const uploadAssignmentQuestions = async (assignmentId, file) => {
       },
     }
   );
+  return response.data;
+};
+
+export const createWritingQuestion = async (assignmentId, payload) => {
+  const response = await apiClient.post(`/assignments/${assignmentId}/writing-questions`, payload);
   return response.data;
 };
 

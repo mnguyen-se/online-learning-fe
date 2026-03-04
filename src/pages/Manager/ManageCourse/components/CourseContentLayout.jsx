@@ -8,7 +8,7 @@ import CourseTestDetails from './CourseTestDetails';
 const CourseContentLayout = ({
   selectedCourse,
   contentTab,
-  courseCoverImageUrl,
+  courseCoverImageUrl: _courseCoverImageUrl,
   lessons,
   tests = [],
   isLoadingLessons,
@@ -21,7 +21,7 @@ const CourseContentLayout = ({
   isCreatingLesson,
   moduleLessons = [],
   onTabChange,
-  onCoverImageUrlChange,
+  onCoverImageUrlChange: _onCoverImageUrlChange,
   onAddChapter,
   onAddLessonItem,
   onAddTest,
@@ -126,6 +126,7 @@ const CourseContentLayout = ({
           <CourseTestDetails
             key={selectedTestId ?? 'new-test'}
             selectedTest={selectedTest}
+            courseId={getCourseId?.(selectedCourse) ?? selectedCourse?.id ?? ''}
             onSave={onSaveTest}
             onCancel={onCancelTest}
             onUpdateTest={onUpdateTest}

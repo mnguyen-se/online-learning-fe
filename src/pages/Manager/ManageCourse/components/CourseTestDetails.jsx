@@ -1,109 +1,87 @@
 import React, { useMemo, useState } from 'react';
-import * as XLSX from 'xlsx';
 
-const createEmptyQuestion = () => ({
-  id: `${Date.now()}-${Math.random()}`,
-  question: '',
-  answers: ['', '', '', ''],
-  correctIndex: 0,
+const QUESTION_TYPES = [
+  { value: 'FILL_BLANK', label: 'FILL_BLANK' },
+  { value: 'REORDER', label: 'REORDER' },
+  { value: 'MATCHING', label: 'MATCHING' },
+  { value: 'ESSAY_WRITING', label: 'ESSAY_WRITING' },
+];
+
+const toDateTimeLocalValue = (value) => {
+  if (!value) return '';
+  const raw = String(value);
+  return raw.length >= 16 ? raw.slice(0, 16) : raw;
+};
+
+const toReadableDate = (value) => {
+  if (!value) return 'Chưa đặt hạn nộp';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString('vi-VN');
+};
+
+const normalizeQuestionType = (value) => {
+  const raw = (value ?? '').toString().trim().toUpperCase();
+  if (raw === 'REORDER') return 'REORDER';
+  if (raw === 'MATCHING') return 'MATCHING';
+  if (raw === 'ESSAY_WRITING') return 'ESSAY_WRITING';
+  return 'FILL_BLANK';
+};
+
+const createMatchingItem = (prefix, index) => ({
+  id: `${prefix}${index}`,
+  text: '',
 });
 
-const normalizeHeader = (value) => (value || '').toString().trim().toLowerCase();
+const createEmptyWritingQuestion = () => ({
+  id: `${Date.now()}-${Math.random()}`,
+  questionType: 'FILL_BLANK',
+  questionText: '',
+  sampleAnswer: '',
+  points: 1,
+  items: ['', ''],
+  columnA: [createMatchingItem('A', 1)],
+  columnB: [createMatchingItem('B', 1)],
+  topic: '',
+  instructions: '',
+  minWords: '',
+  maxWords: '',
+});
 
-const resolveCorrectIndex = (value) => {
-  const raw = (value ?? '').toString().trim().toUpperCase();
-  if (['A', 'B', 'C', 'D'].includes(raw)) {
-    return ['A', 'B', 'C', 'D'].indexOf(raw);
-  }
-  const numeric = Number(raw);
-  if (Number.isFinite(numeric) && numeric >= 1 && numeric <= 4) {
-    return numeric - 1;
-  }
-  return 0;
-};
-
-const detectHeaderRow = (row) => {
-  const normalized = row.map(normalizeHeader);
-  const expected = ['question', 'cauhoi', 'cau hoi', 'answer1', 'option a', 'a', 'correct', 'correctindex', 'dap an'];
-  return normalized.some((cell) => expected.some((key) => cell.includes(key)));
-};
-
-const buildHeaderMap = (headerRow) => {
-  const map = {};
-  headerRow.forEach((cell, index) => {
-    const value = normalizeHeader(cell);
-    if (value.includes('question') || value.includes('cau')) {
-      map.question = index;
-    }
-    if (value.includes('option a') || value === 'a' || value.includes('answer1') || value.includes('dapana')) {
-      map.optionA = index;
-    }
-    if (value.includes('option b') || value === 'b' || value.includes('answer2') || value.includes('dapanb')) {
-      map.optionB = index;
-    }
-    if (value.includes('option c') || value === 'c' || value.includes('answer3') || value.includes('dapanc')) {
-      map.optionC = index;
-    }
-    if (value.includes('option d') || value === 'd' || value.includes('answer4') || value.includes('dapand')) {
-      map.optionD = index;
-    }
-    if (value.includes('correct') || value.includes('dap an')) {
-      map.correct = index;
-    }
-  });
-  return map;
-};
-
-const mapRowToQuestion = (row, headerMap) => {
-  const getValue = (key, fallbackIndex) => {
-    const idx = typeof headerMap[key] === 'number' ? headerMap[key] : fallbackIndex;
-    return (row[idx] ?? '').toString().trim();
-  };
-
-  const questionText = getValue('question', 0);
-  const answers = [
-    getValue('optionA', 1),
-    getValue('optionB', 2),
-    getValue('optionC', 3),
-    getValue('optionD', 4),
-  ];
-  const correctRaw = getValue('correct', 5);
-  const correctIndex = resolveCorrectIndex(correctRaw);
+const mapQuestionForBuilder = (question) => {
+  const questionType = normalizeQuestionType(question?.questionType);
+  const columnA = Array.isArray(question?.columnA) && question.columnA.length > 0
+    ? question.columnA.map((item, index) => ({
+      id: item?.id ?? `A${index + 1}`,
+      text: item?.text ?? '',
+    }))
+    : [createMatchingItem('A', 1)];
+  const columnB = Array.isArray(question?.columnB) && question.columnB.length > 0
+    ? question.columnB.map((item, index) => ({
+      id: item?.id ?? `B${index + 1}`,
+      text: item?.text ?? '',
+    }))
+    : [createMatchingItem('B', 1)];
 
   return {
-    id: `${Date.now()}-${Math.random()}`,
-    question: questionText,
-    answers,
-    correctIndex,
+    id: question?.id ?? question?.questionId ?? `${Date.now()}-${Math.random()}`,
+    questionType,
+    questionText: question?.questionText ?? question?.question ?? '',
+    sampleAnswer: question?.sampleAnswer ?? question?.correctAnswer ?? '',
+    points: Number(question?.points ?? 1),
+    items: Array.isArray(question?.items) && question.items.length > 0 ? question.items : ['', ''],
+    columnA,
+    columnB,
+    topic: question?.topic ?? '',
+    instructions: question?.instructions ?? '',
+    minWords: question?.minWords ?? '',
+    maxWords: question?.maxWords ?? '',
   };
-};
-
-const parseExcelQuestions = async (file) => {
-  const data = await file.arrayBuffer();
-  const workbook = XLSX.read(data, { type: 'array' });
-  const sheet = workbook.Sheets[workbook.SheetNames[0]];
-  if (!sheet) {
-    return [];
-  }
-  const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
-  if (!rows.length) {
-    return [];
-  }
-
-  const [firstRow, ...restRows] = rows;
-  const hasHeader = detectHeaderRow(firstRow);
-  const headerRow = hasHeader ? firstRow : null;
-  const dataRows = hasHeader ? restRows : rows;
-  const headerMap = headerRow ? buildHeaderMap(headerRow) : {};
-
-  return dataRows
-    .filter((row) => row.some((cell) => `${cell}`.trim() !== ''))
-    .map((row) => mapRowToQuestion(row, headerMap))
-    .filter((q) => q.question.trim());
 };
 
 const CourseTestDetails = ({
   selectedTest,
+  courseId,
   onSave,
   onCancel,
   onUpdateTest,
@@ -112,23 +90,30 @@ const CourseTestDetails = ({
   testError,
 }) => {
   const initialTest = useMemo(() => {
+    const currentType = (selectedTest?.testType ?? selectedTest?.assignmentType ?? 'QUIZ').toString().toUpperCase();
+    const normalizedType = currentType === 'WRITING' ? 'WRITING' : 'QUIZ';
     const hasQuestions = Array.isArray(selectedTest?.questions) && selectedTest.questions.length > 0;
+    const writingQuestions = normalizedType === 'WRITING' && hasQuestions
+      ? selectedTest.questions.map(mapQuestionForBuilder)
+      : [createEmptyWritingQuestion()];
     return {
       title: selectedTest?.title ?? '',
       description: selectedTest?.description ?? '',
-      testType: selectedTest?.testType ?? (hasQuestions ? 'QUIZ' : 'WRITING'),
-      quizQuestions: hasQuestions ? selectedTest.questions : [createEmptyQuestion()],
+      maxScore: selectedTest?.maxScore ?? 100,
+      dueDate: toDateTimeLocalValue(selectedTest?.dueDate),
+      testType: normalizedType,
+      writingQuestions,
     };
   }, [selectedTest]);
 
   const [title, setTitle] = useState(() => initialTest.title);
   const [description, setDescription] = useState(() => initialTest.description);
+  const [maxScore, setMaxScore] = useState(() => initialTest.maxScore);
+  const [dueDate, setDueDate] = useState(() => initialTest.dueDate);
   const [testType, setTestType] = useState(() => initialTest.testType);
-  const [quizQuestions, setQuizQuestions] = useState(() => initialTest.quizQuestions);
-  const [importMethod, setImportMethod] = useState('manual');
-  const [importFile, setImportFile] = useState(null);
-  const [importError, setImportError] = useState('');
-  const [importInfo, setImportInfo] = useState('');
+  const [quizFile, setQuizFile] = useState(null);
+  const [writingQuestions, setWritingQuestions] = useState(() => initialTest.writingQuestions);
+  const [formError, setFormError] = useState('');
 
   const handleTitleChange = (value) => {
     setTitle(value);
@@ -137,81 +122,206 @@ const CourseTestDetails = ({
     }
   };
 
-  const handleAddQuestion = () => {
-    setQuizQuestions((prev) => [...prev, createEmptyQuestion()]);
+  const handleUpdateWritingQuestion = (questionId, updates) => {
+    setWritingQuestions((prev) => prev.map((item) => (
+      item.id === questionId ? { ...item, ...updates } : item
+    )));
   };
 
-  const handleRemoveQuestion = (questionId) => {
-    setQuizQuestions((prev) => prev.filter((q) => q.id !== questionId));
-  };
-
-  const handleUpdateQuestion = (questionId, field, value) => {
-    setQuizQuestions((prev) => prev.map((q) => (q.id === questionId ? { ...q, [field]: value } : q)));
-  };
-
-  const handleUpdateAnswer = (questionId, index, value) => {
-    setQuizQuestions((prev) => prev.map((q) => {
-      if (q.id !== questionId) return q;
-      const nextAnswers = [...q.answers];
-      nextAnswers[index] = value;
-      return { ...q, answers: nextAnswers };
+  const handleUpdateReorderItem = (questionId, itemIndex, value) => {
+    setWritingQuestions((prev) => prev.map((question) => {
+      if (question.id !== questionId) return question;
+      const nextItems = [...question.items];
+      nextItems[itemIndex] = value;
+      return { ...question, items: nextItems };
     }));
   };
 
-  const handleSetCorrectAnswer = (questionId, index) => {
-    setQuizQuestions((prev) => prev.map((q) => (q.id === questionId ? { ...q, correctIndex: index } : q)));
+  const handleAddReorderItem = (questionId) => {
+    setWritingQuestions((prev) => prev.map((question) => (
+      question.id === questionId
+        ? { ...question, items: [...question.items, ''] }
+        : question
+    )));
   };
 
-  const handleImportExcel = async (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const handleRemoveReorderItem = (questionId, itemIndex) => {
+    setWritingQuestions((prev) => prev.map((question) => {
+      if (question.id !== questionId) return question;
+      const nextItems = question.items.filter((_, idx) => idx !== itemIndex);
+      return { ...question, items: nextItems.length > 0 ? nextItems : [''] };
+    }));
+  };
 
-    setImportError('');
-    setImportInfo('');
-    setImportFile(file);
+  const handleUpdateMatchingItem = (questionId, columnKey, itemIndex, value) => {
+    setWritingQuestions((prev) => prev.map((question) => {
+      if (question.id !== questionId) return question;
+      const nextColumn = [...question[columnKey]];
+      nextColumn[itemIndex] = { ...nextColumn[itemIndex], text: value };
+      return { ...question, [columnKey]: nextColumn };
+    }));
+  };
 
-    try {
-      const questions = await parseExcelQuestions(file);
-      if (!questions.length) {
-        setImportError('File Excel không có câu hỏi hợp lệ.');
-        return;
+  const handleAddMatchingItem = (questionId, columnKey) => {
+    setWritingQuestions((prev) => prev.map((question) => {
+      if (question.id !== questionId) return question;
+      const nextIndex = question[columnKey].length + 1;
+      const prefix = columnKey === 'columnA' ? 'A' : 'B';
+      return {
+        ...question,
+        [columnKey]: [...question[columnKey], createMatchingItem(prefix, nextIndex)],
+      };
+    }));
+  };
+
+  const handleRemoveMatchingItem = (questionId, columnKey, itemIndex) => {
+    setWritingQuestions((prev) => prev.map((question) => {
+      if (question.id !== questionId) return question;
+      const nextColumn = question[columnKey].filter((_, idx) => idx !== itemIndex);
+      if (nextColumn.length === 0) {
+        const prefix = columnKey === 'columnA' ? 'A' : 'B';
+        return { ...question, [columnKey]: [createMatchingItem(prefix, 1)] };
       }
-      if (questions.length > 100) {
-        setImportError('Tối đa 100 câu hỏi trong một bài kiểm tra.');
-        return;
+      return { ...question, [columnKey]: nextColumn };
+    }));
+  };
+
+  const handleAddWritingQuestion = () => {
+    setWritingQuestions((prev) => [...prev, createEmptyWritingQuestion()]);
+  };
+
+  const handleRemoveWritingQuestion = (questionId) => {
+    setWritingQuestions((prev) => {
+      const next = prev.filter((question) => question.id !== questionId);
+      return next.length > 0 ? next : [createEmptyWritingQuestion()];
+    });
+  };
+
+  const buildWritingPayload = () => {
+    const payload = [];
+    for (let index = 0; index < writingQuestions.length; index += 1) {
+      const question = writingQuestions[index];
+      const questionType = normalizeQuestionType(question.questionType);
+      const points = Number(question.points ?? 1);
+      if (!Number.isFinite(points) || points <= 0) {
+        return { ok: false, message: `Câu WRITING ${index + 1}: points phải lớn hơn 0.` };
       }
-      setQuizQuestions(questions);
-      setImportInfo(`Đã nhận ${questions.length} câu hỏi từ file.`);
-      setImportMethod('import');
-    } catch (error) {
-      console.error('Import excel error:', error);
-      setImportError('Không thể đọc file Excel. Vui lòng kiểm tra định dạng.');
-    } finally {
-      event.target.value = '';
+
+      if (questionType === 'FILL_BLANK') {
+        if (!question.questionText.trim() || !question.sampleAnswer.trim()) {
+          return { ok: false, message: `Câu FILL_BLANK ${index + 1}: cần nhập câu hỏi và sampleAnswer.` };
+        }
+        payload.push({
+          questionType,
+          questionText: question.questionText.trim(),
+          sampleAnswer: question.sampleAnswer.trim(),
+          points,
+        });
+        continue;
+      }
+
+      if (questionType === 'REORDER') {
+        const items = question.items.map((item) => item.trim()).filter((item) => item !== '');
+        if (!question.questionText.trim() || items.length < 2) {
+          return { ok: false, message: `Câu REORDER ${index + 1}: cần câu hỏi và ít nhất 2 items.` };
+        }
+        payload.push({
+          questionType,
+          questionText: question.questionText.trim(),
+          items,
+          points,
+        });
+        continue;
+      }
+
+      if (questionType === 'MATCHING') {
+        const columnA = question.columnA
+          .map((item, idx) => ({ id: item.id || `A${idx + 1}`, text: (item.text ?? '').trim() }))
+          .filter((item) => item.text !== '');
+        const columnB = question.columnB
+          .map((item, idx) => ({ id: item.id || `B${idx + 1}`, text: (item.text ?? '').trim() }))
+          .filter((item) => item.text !== '');
+        if (!question.questionText.trim() || columnA.length === 0 || columnB.length === 0) {
+          return { ok: false, message: `Câu MATCHING ${index + 1}: cần nhập câu hỏi và dữ liệu cho cả 2 cột.` };
+        }
+        payload.push({
+          questionType,
+          questionText: question.questionText.trim(),
+          columnA,
+          columnB,
+          points,
+        });
+        continue;
+      }
+
+      const topic = question.topic.trim();
+      const instructions = question.instructions.trim();
+      const minWords = Number(question.minWords);
+      const maxWords = Number(question.maxWords);
+      if (!topic || !instructions) {
+        return { ok: false, message: `Câu ESSAY_WRITING ${index + 1}: cần topic và instructions.` };
+      }
+      if (!Number.isFinite(minWords) || !Number.isFinite(maxWords) || minWords <= 0 || maxWords <= 0) {
+        return { ok: false, message: `Câu ESSAY_WRITING ${index + 1}: minWords/maxWords phải là số > 0.` };
+      }
+      if (minWords > maxWords) {
+        return { ok: false, message: `Câu ESSAY_WRITING ${index + 1}: minWords không được lớn hơn maxWords.` };
+      }
+      payload.push({
+        questionType: 'ESSAY_WRITING',
+        questionText: question.questionText.trim() || `Essay về chủ đề: ${topic}`,
+        topic,
+        instructions,
+        minWords: Math.round(minWords),
+        maxWords: Math.round(maxWords),
+        points,
+      });
     }
+
+    return { ok: true, payload };
   };
 
   const handleSubmit = (event) => {
     event.preventDefault();
-    setImportError('');
+    setFormError('');
+
     if (!title.trim()) {
-      setImportError('Vui lòng nhập tiêu đề bài kiểm tra.');
+      setFormError('Vui lòng nhập tiêu đề bài kiểm tra.');
       return;
     }
-    if (testType === 'QUIZ') {
-      if (quizQuestions.length < 25) {
-        setImportError('Cần tối thiểu 25 câu hỏi để tạo bài trắc nghiệm.');
+    const score = Number(maxScore);
+    if (!Number.isFinite(score) || score <= 0) {
+      setFormError('Điểm tối đa phải lớn hơn 0.');
+      return;
+    }
+    if (!dueDate) {
+      setFormError('Vui lòng chọn hạn nộp.');
+      return;
+    }
+
+    if (testType === 'QUIZ' && !(quizFile instanceof File)) {
+      setFormError('Vui lòng chọn file Excel để upload cho bài QUIZ.');
+      return;
+    }
+
+    let writingPayload = [];
+    if (testType === 'WRITING') {
+      const result = buildWritingPayload();
+      if (!result.ok) {
+        setFormError(result.message);
         return;
       }
+      writingPayload = result.payload;
     }
 
     onSave({
       title: title.trim(),
       description: description.trim(),
       testType,
-      quizQuestions,
-      importFile,
-      importMethod,
+      maxScore: score,
+      dueDate,
+      quizFile,
+      writingQuestions: writingPayload,
     });
   };
 
@@ -238,6 +348,11 @@ const CourseTestDetails = ({
           </div>
 
           <div className="lesson-details-field">
+            <label className="lesson-details-label">COURSE ID</label>
+            <div className="lesson-details-view-value">{selectedTest.courseId ?? courseId ?? 'N/A'}</div>
+          </div>
+
+          <div className="lesson-details-field">
             <label className="lesson-details-label">TIÊU ĐỀ</label>
             <div className="lesson-details-view-value">{selectedTest.title || 'Chưa có tiêu đề'}</div>
           </div>
@@ -249,10 +364,20 @@ const CourseTestDetails = ({
             </div>
           </div>
 
+          <div className="lesson-details-field">
+            <label className="lesson-details-label">ĐIỂM TỐI ĐA</label>
+            <div className="lesson-details-view-value">{selectedTest.maxScore ?? 0}</div>
+          </div>
+
+          <div className="lesson-details-field">
+            <label className="lesson-details-label">HẠN NỘP</label>
+            <div className="lesson-details-view-value">{toReadableDate(selectedTest.dueDate)}</div>
+          </div>
+
           {selectedTest.testType === 'QUIZ' && (
             <div className="lesson-quiz-section">
               <div className="lesson-quiz-header">
-                <h3 className="lesson-quiz-title">Danh sách câu hỏi</h3>
+                <h3 className="lesson-quiz-title">Danh sách câu hỏi (từ file Excel)</h3>
                 <span className="lesson-quiz-badge">{selectedTest.questions?.length ?? 0} CÂU HỎI</span>
               </div>
 
@@ -282,6 +407,28 @@ const CourseTestDetails = ({
               ))}
             </div>
           )}
+
+          {selectedTest.testType === 'WRITING' && Array.isArray(selectedTest.questions) && selectedTest.questions.length > 0 && (
+            <div className="lesson-quiz-section">
+              <div className="lesson-quiz-header">
+                <h3 className="lesson-quiz-title">Câu hỏi WRITING</h3>
+                <span className="lesson-quiz-badge">{selectedTest.questions.length} CÂU HỎI</span>
+              </div>
+              {selectedTest.questions.map((question, qIndex) => (
+                <div key={question.id || qIndex} className="lesson-quiz-question lesson-quiz-question-view">
+                  <div className="lesson-quiz-question-number">
+                    <span>{qIndex + 1}</span>
+                  </div>
+                  <div className="lesson-quiz-question-content">
+                    <label className="lesson-details-label">LOẠI CÂU HỎI</label>
+                    <div className="lesson-details-view-value">{question.questionType}</div>
+                    <label className="lesson-details-label">NỘI DUNG</label>
+                    <div className="lesson-details-view-value">{question.questionText || 'Chưa có nội dung'}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     );
@@ -303,6 +450,17 @@ const CourseTestDetails = ({
             <option value="QUIZ">Trắc nghiệm</option>
             <option value="WRITING">Tự luận</option>
           </select>
+        </div>
+
+        <div className="lesson-details-field">
+          <label className="lesson-details-label">COURSE ID</label>
+          <input
+            className="lesson-details-input"
+            type="text"
+            value={courseId ?? ''}
+            disabled
+            readOnly
+          />
         </div>
 
         <div className="lesson-details-field">
@@ -330,142 +488,283 @@ const CourseTestDetails = ({
           />
         </div>
 
+        <div className="lesson-details-field">
+          <label className="lesson-details-label">ĐIỂM TỐI ĐA</label>
+          <input
+            className="lesson-details-input"
+            type="number"
+            min={1}
+            value={maxScore}
+            onChange={(event) => setMaxScore(event.target.value)}
+            disabled={isLoading}
+            required
+          />
+        </div>
+
+        <div className="lesson-details-field">
+          <label className="lesson-details-label">HẠN NỘP</label>
+          <input
+            className="lesson-details-input"
+            type="datetime-local"
+            value={dueDate}
+            onChange={(event) => setDueDate(event.target.value)}
+            disabled={isLoading}
+            required
+          />
+        </div>
+
         {testType === 'QUIZ' && (
-          <>
-            <div className="lesson-details-field">
-              <label className="lesson-details-label">HÌNH THỨC NHẬP CÂU HỎI</label>
-              <div className="course-wizard-type-toggle">
-                <button
-                  type="button"
-                  className={`course-wizard-pill ${importMethod === 'manual' ? 'is-active' : ''}`}
-                  onClick={() => setImportMethod('manual')}
-                  disabled={isLoading}
-                >
-                  Nhập thủ công
-                </button>
-                <button
-                  type="button"
-                  className={`course-wizard-pill ${importMethod === 'import' ? 'is-active' : ''}`}
-                  onClick={() => setImportMethod('import')}
-                  disabled={isLoading}
-                >
-                  Import Excel
-                </button>
-              </div>
+          <div className="course-wizard-import">
+            <div>
+              <p className="course-wizard-import-title">Upload file Excel cho QUIZ</p>
+              <p className="course-wizard-import-subtitle">
+                Hệ thống sẽ tự random 20 câu, mặc định 5 điểm/câu.
+              </p>
+            </div>
+            <label className="course-wizard-import-btn">
+              <input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={(event) => setQuizFile(event.target.files?.[0] ?? null)}
+                disabled={isLoading}
+              />
+              Chọn file Excel
+            </label>
+          </div>
+        )}
+
+        {testType === 'WRITING' && (
+          <div className="lesson-quiz-section">
+            <div className="lesson-quiz-header">
+              <h3 className="lesson-quiz-title">Builder câu hỏi WRITING</h3>
+              <span className="lesson-quiz-badge">{writingQuestions.length} CÂU HỎI</span>
             </div>
 
-            {importMethod === 'import' && (
-              <div className="course-wizard-import">
-                <div>
-                  <p className="course-wizard-import-title">Chọn file Excel (.xlsx, .xls)</p>
-                  <p className="course-wizard-import-subtitle">
-                    File gồm 6 cột: Câu hỏi, Đáp án A-D, Đáp án đúng (A/B/C/D hoặc 1-4).
-                  </p>
-                </div>
-                <label className="course-wizard-import-btn">
-                  <input type="file" accept=".xlsx,.xls" onChange={handleImportExcel} />
-                  Chọn file Excel
-                </label>
-              </div>
-            )}
-
-            {importInfo && <p className="course-success">{importInfo}</p>}
-            {importError && <p className="course-error">{importError}</p>}
-
-            <div className="lesson-quiz-section">
-              <div className="lesson-quiz-header">
-                <h3 className="lesson-quiz-title">Danh sách câu hỏi</h3>
-                <span className="lesson-quiz-badge">{quizQuestions.length} CÂU HỎI</span>
-              </div>
-
-              {quizQuestions.map((question, qIndex) => (
-                <div key={question.id} className="lesson-quiz-question">
-                  <div className="lesson-quiz-question-header">
-                    <div className="lesson-quiz-question-number">
-                      <span className="lesson-quiz-drag-icon">☰</span>
-                      <span>{qIndex + 1}</span>
-                    </div>
-                    <button
-                      type="button"
-                      className="lesson-quiz-delete-btn"
-                      onClick={() => handleRemoveQuestion(question.id)}
-                      disabled={isLoading}
-                      aria-label="Xóa câu hỏi"
-                    >
-                      <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                        <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-                      </svg>
-                    </button>
+            {writingQuestions.map((question, index) => (
+              <div key={question.id} className="lesson-quiz-question">
+                <div className="lesson-quiz-question-header">
+                  <div className="lesson-quiz-question-number">
+                    <span>{index + 1}</span>
                   </div>
+                  <button
+                    type="button"
+                    className="lesson-quiz-delete-btn"
+                    onClick={() => handleRemoveWritingQuestion(question.id)}
+                    disabled={isLoading}
+                  >
+                    Xóa
+                  </button>
+                </div>
 
-                  <div className="lesson-quiz-question-content">
+                <div className="lesson-details-field">
+                  <label className="lesson-details-label">LOẠI CÂU HỎI</label>
+                  <select
+                    className="lesson-details-type-select"
+                    value={question.questionType}
+                    onChange={(event) => handleUpdateWritingQuestion(question.id, { questionType: event.target.value })}
+                    disabled={isLoading}
+                  >
+                    {QUESTION_TYPES.map((type) => (
+                      <option key={type.value} value={type.value}>{type.label}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="lesson-details-field">
+                  <label className="lesson-details-label">ĐIỂM CÂU HỎI</label>
+                  <input
+                    className="lesson-details-input"
+                    type="number"
+                    min={1}
+                    value={question.points}
+                    onChange={(event) => handleUpdateWritingQuestion(question.id, { points: event.target.value })}
+                    disabled={isLoading}
+                  />
+                </div>
+
+                {question.questionType !== 'ESSAY_WRITING' && (
+                  <div className="lesson-details-field">
                     <label className="lesson-details-label">NỘI DUNG CÂU HỎI</label>
                     <textarea
                       className="lesson-details-textarea"
-                      placeholder="Nhập câu hỏi tại đây..."
-                      value={question.question}
-                      onChange={(event) => handleUpdateQuestion(question.id, 'question', event.target.value)}
+                      rows={3}
+                      value={question.questionText}
+                      onChange={(event) => handleUpdateWritingQuestion(question.id, { questionText: event.target.value })}
                       disabled={isLoading}
-                      rows={4}
                     />
                   </div>
+                )}
 
-                  <div className="lesson-quiz-answers">
-                    <label className="lesson-details-label">CÁC LỰA CHỌN TRẢ LỜI</label>
-                    {question.answers.map((answer, aIndex) => {
-                      const isCorrect = question.correctIndex === aIndex;
-                      return (
-                        <div key={aIndex} className={`lesson-quiz-answer ${isCorrect ? 'is-correct' : ''}`}>
-                          <button
-                            type="button"
-                            className="lesson-quiz-answer-radio"
-                            onClick={() => handleSetCorrectAnswer(question.id, aIndex)}
-                            disabled={isLoading}
-                            aria-label={isCorrect ? 'Đáp án đúng' : 'Chọn làm đáp án đúng'}
-                          >
-                            {isCorrect && (
-                              <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                <path d="M13 4L6 11L3 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                              </svg>
-                            )}
-                          </button>
-                          <input
-                            className="lesson-quiz-answer-input"
-                            type="text"
-                            placeholder={`Lựa chọn ${aIndex + 1}...`}
-                            value={answer}
-                            onChange={(event) => handleUpdateAnswer(question.id, aIndex, event.target.value)}
-                            disabled={isLoading}
-                          />
-                          {isCorrect && (
-                            <span className="lesson-quiz-answer-label">ĐÚNG</span>
-                          )}
-                        </div>
-                      );
-                    })}
+                {question.questionType === 'FILL_BLANK' && (
+                  <div className="lesson-details-field">
+                    <label className="lesson-details-label">SAMPLE ANSWER</label>
+                    <input
+                      className="lesson-details-input"
+                      type="text"
+                      value={question.sampleAnswer}
+                      onChange={(event) => handleUpdateWritingQuestion(question.id, { sampleAnswer: event.target.value })}
+                      disabled={isLoading}
+                    />
                   </div>
-                </div>
-              ))}
+                )}
 
-              <button
-                type="button"
-                className="lesson-quiz-add-question"
-                onClick={handleAddQuestion}
-                disabled={isLoading}
-              >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
-                </svg>
-                <span>THÊM CÂU HỎI</span>
-              </button>
-            </div>
-          </>
+                {question.questionType === 'REORDER' && (
+                  <div className="lesson-details-field">
+                    <label className="lesson-details-label">ITEMS (sắp xếp)</label>
+                    {question.items.map((item, itemIndex) => (
+                      <div key={`${question.id}-item-${itemIndex}`} className="lesson-quiz-answer">
+                        <input
+                          className="lesson-quiz-answer-input"
+                          type="text"
+                          value={item}
+                          placeholder={`Item ${itemIndex + 1}`}
+                          onChange={(event) => handleUpdateReorderItem(question.id, itemIndex, event.target.value)}
+                          disabled={isLoading}
+                        />
+                        <button
+                          type="button"
+                          className="lesson-quiz-delete-btn"
+                          onClick={() => handleRemoveReorderItem(question.id, itemIndex)}
+                          disabled={isLoading}
+                        >
+                          Xóa
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      className="course-outline-btn"
+                      onClick={() => handleAddReorderItem(question.id)}
+                      disabled={isLoading}
+                    >
+                      + Thêm item
+                    </button>
+                  </div>
+                )}
+
+                {question.questionType === 'MATCHING' && (
+                  <div className="lesson-details-field">
+                    <label className="lesson-details-label">MATCHING - COLUMN A</label>
+                    {question.columnA.map((item, itemIndex) => (
+                      <div key={`${question.id}-columnA-${itemIndex}`} className="lesson-quiz-answer">
+                        <input
+                          className="lesson-quiz-answer-input"
+                          type="text"
+                          value={item.text}
+                          placeholder={`A${itemIndex + 1}`}
+                          onChange={(event) => handleUpdateMatchingItem(question.id, 'columnA', itemIndex, event.target.value)}
+                          disabled={isLoading}
+                        />
+                        <button
+                          type="button"
+                          className="lesson-quiz-delete-btn"
+                          onClick={() => handleRemoveMatchingItem(question.id, 'columnA', itemIndex)}
+                          disabled={isLoading}
+                        >
+                          Xóa
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      className="course-outline-btn"
+                      onClick={() => handleAddMatchingItem(question.id, 'columnA')}
+                      disabled={isLoading}
+                    >
+                      + Thêm A
+                    </button>
+
+                    <label className="lesson-details-label" style={{ marginTop: 12 }}>MATCHING - COLUMN B</label>
+                    {question.columnB.map((item, itemIndex) => (
+                      <div key={`${question.id}-columnB-${itemIndex}`} className="lesson-quiz-answer">
+                        <input
+                          className="lesson-quiz-answer-input"
+                          type="text"
+                          value={item.text}
+                          placeholder={`B${itemIndex + 1}`}
+                          onChange={(event) => handleUpdateMatchingItem(question.id, 'columnB', itemIndex, event.target.value)}
+                          disabled={isLoading}
+                        />
+                        <button
+                          type="button"
+                          className="lesson-quiz-delete-btn"
+                          onClick={() => handleRemoveMatchingItem(question.id, 'columnB', itemIndex)}
+                          disabled={isLoading}
+                        >
+                          Xóa
+                        </button>
+                      </div>
+                    ))}
+                    <button
+                      type="button"
+                      className="course-outline-btn"
+                      onClick={() => handleAddMatchingItem(question.id, 'columnB')}
+                      disabled={isLoading}
+                    >
+                      + Thêm B
+                    </button>
+                  </div>
+                )}
+
+                {question.questionType === 'ESSAY_WRITING' && (
+                  <>
+                    <div className="lesson-details-field">
+                      <label className="lesson-details-label">TOPIC</label>
+                      <input
+                        className="lesson-details-input"
+                        type="text"
+                        value={question.topic}
+                        onChange={(event) => handleUpdateWritingQuestion(question.id, { topic: event.target.value })}
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div className="lesson-details-field">
+                      <label className="lesson-details-label">INSTRUCTIONS</label>
+                      <textarea
+                        className="lesson-details-textarea"
+                        rows={3}
+                        value={question.instructions}
+                        onChange={(event) => handleUpdateWritingQuestion(question.id, { instructions: event.target.value })}
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div className="lesson-quiz-answer">
+                      <input
+                        className="lesson-quiz-answer-input"
+                        type="number"
+                        min={1}
+                        value={question.minWords}
+                        placeholder="minWords"
+                        onChange={(event) => handleUpdateWritingQuestion(question.id, { minWords: event.target.value })}
+                        disabled={isLoading}
+                      />
+                      <input
+                        className="lesson-quiz-answer-input"
+                        type="number"
+                        min={1}
+                        value={question.maxWords}
+                        placeholder="maxWords"
+                        onChange={(event) => handleUpdateWritingQuestion(question.id, { maxWords: event.target.value })}
+                        disabled={isLoading}
+                      />
+                    </div>
+                  </>
+                )}
+              </div>
+            ))}
+
+            <button
+              type="button"
+              className="lesson-quiz-add-question"
+              onClick={handleAddWritingQuestion}
+              disabled={isLoading}
+            >
+              <span>+ THÊM CÂU WRITING</span>
+            </button>
+          </div>
         )}
 
-        {testType !== 'QUIZ' && (importError || testError) && (
-          <p className="course-error">{importError || testError}</p>
-        )}
-        {testError && !importError && <p className="course-error">{testError}</p>}
+        {(formError || testError) && <p className="course-error">{formError || testError}</p>}
 
         <div className="lesson-details-actions">
           <button
@@ -481,7 +780,7 @@ const CourseTestDetails = ({
             className="lesson-details-btn lesson-details-btn-save"
             disabled={isLoading || !title.trim()}
           >
-            {isLoading ? 'Đang lưu...' : 'Tạo bài kiểm tra'}
+            {isLoading ? 'Đang lưu...' : 'Tạo assignment'}
           </button>
         </div>
       </form>

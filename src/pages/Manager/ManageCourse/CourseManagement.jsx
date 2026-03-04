@@ -1,13 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
 import { createCourse, getCourses, getTeachers, updateCourse } from '../../../api/coursesApi';
 import { getEnrolledStudentsByCourse } from '../../../api/enrollmentApi';
 import { createLesson, updateLesson, getLessons, deleteLesson, uploadLessonVideo } from '../../../api/lessionApi';
 import {
   createAssignment,
+  createWritingQuestion,
   getAssignmentQuestions,
   getAssignmentsByCourse,
+  getWritingQuestions,
   uploadAssignmentQuestions,
 } from '../../../api/assignmentApi';
 import { createModule, deleteModule, getModulesByCourse } from '../../../api/module';
@@ -125,34 +126,6 @@ function CourseManagement() {
     if (raw === 'QUIZ') return 'QUIZ';
     if (raw === 'WRITING' || raw === 'ASSIGNMENT') return 'WRITING';
     return 'WRITING';
-  };
-
-  const mapCorrectIndexToLetter = (index) => {
-    const letters = ['A', 'B', 'C', 'D'];
-    return letters[index] ?? 'A';
-  };
-
-  const buildQuizExcelFile = (questions) => {
-    const header = ['Question', 'Option A', 'Option B', 'Option C', 'Option D', 'Correct Answer'];
-    const rows = questions.map((q) => ([
-      q.question || '',
-      q.answers?.[0] || '',
-      q.answers?.[1] || '',
-      q.answers?.[2] || '',
-      q.answers?.[3] || '',
-      mapCorrectIndexToLetter(q.correctIndex ?? 0),
-    ]));
-
-    const worksheet = XLSX.utils.aoa_to_sheet([header, ...rows]);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Questions');
-    const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-
-    return new File(
-      [buffer],
-      `quiz-${Date.now()}.xlsx`,
-      { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
-    );
   };
 
   const resetCourseForm = () => {
@@ -1151,6 +1124,30 @@ function CourseManagement() {
     return found >= 0 ? found : 0;
   };
 
+  const normalizeQuestionType = (value) => {
+    const raw = (value ?? '').toString().trim().toUpperCase();
+    if (raw === 'REORDER') return 'REORDER';
+    if (raw === 'MATCHING') return 'MATCHING';
+    if (raw === 'ESSAY_WRITING') return 'ESSAY_WRITING';
+    return 'FILL_BLANK';
+  };
+
+  const mapWritingQuestionFromApi = (question) => ({
+    id: question?.questionId ?? `${question?.questionText}-${question?.orderIndex}`,
+    questionId: question?.questionId ?? null,
+    questionType: normalizeQuestionType(question?.questionType),
+    questionText: question?.questionText ?? '',
+    sampleAnswer: question?.correctAnswer ?? '',
+    points: Number(question?.points ?? 1),
+    items: Array.isArray(question?.items) ? question.items : [],
+    columnA: Array.isArray(question?.columnA) ? question.columnA : [],
+    columnB: Array.isArray(question?.columnB) ? question.columnB : [],
+    topic: question?.topic ?? '',
+    instructions: question?.instructions ?? '',
+    minWords: question?.minWords ?? '',
+    maxWords: question?.maxWords ?? '',
+  });
+
   const loadTestsForCourse = async (courseId) => {
     if (!courseId) {
       setTests([]);
@@ -1168,10 +1165,13 @@ function CourseManagement() {
           id: assignmentId ?? assignment?.id ?? `assignment-${index}`,
           title: assignment?.title ?? '',
           description: assignment?.description ?? '',
+          maxScore: assignment?.maxScore ?? 100,
+          dueDate: assignment?.dueDate ?? '',
           orderIndex: assignment?.orderIndex ?? index + 1,
           isNew: false,
           testType: normalizeAssignmentType(assignment?.assignmentType ?? assignment?.testType),
-          questions: assignment?.questions,
+          questions: null,
+          questionsLoaded: false,
         };
       });
       setTests((prev) => {
@@ -1204,10 +1204,13 @@ function CourseManagement() {
       id: tempId,
       title: '',
       description: '',
+      maxScore: 100,
+      dueDate: '',
       orderIndex: nextOrderIndex,
       isNew: true,
       testType: 'QUIZ',
       questions: [],
+      questionsLoaded: true,
     };
 
     setTests((prev) => [...prev, newTest]);
@@ -1229,16 +1232,18 @@ function CourseManagement() {
     setTestError('');
 
     const currentTest = tests.find((t) => t.id === testId);
-    if (!currentTest || currentTest.isNew || currentTest.questions) return;
+    if (!currentTest || currentTest.isNew || currentTest.questionsLoaded) return;
 
     try {
-      const questionsResponse = await getAssignmentQuestions(testId);
-      const rawQuestions = Array.isArray(questionsResponse)
-        ? questionsResponse
-        : questionsResponse?.data ?? [];
-      if (rawQuestions.length > 0) {
+      const currentType = normalizeAssignmentType(currentTest?.testType ?? currentTest?.assignmentType);
+      if (currentType === 'QUIZ') {
+        const questionsResponse = await getAssignmentQuestions(testId);
+        const rawQuestions = Array.isArray(questionsResponse)
+          ? questionsResponse
+          : questionsResponse?.data ?? [];
         const mappedQuestions = rawQuestions.map((question) => ({
           id: question.questionId ?? `${question.questionText}-${question.orderIndex}`,
+          questionId: question.questionId ?? null,
           question: question.questionText ?? '',
           answers: [
             question.optionA ?? '',
@@ -1250,16 +1255,22 @@ function CourseManagement() {
         }));
         setTests((prev) => prev.map((t) => (
           t.id === testId
-            ? { ...t, questions: mappedQuestions, testType: 'QUIZ' }
+            ? { ...t, questions: mappedQuestions, questionsLoaded: true, testType: 'QUIZ' }
             : t
         )));
-      } else {
-        setTests((prev) => prev.map((t) => (
-          t.id === testId
-            ? { ...t, questions: [], testType: normalizeAssignmentType(t.testType) }
-            : t
-        )));
+        return;
       }
+
+      const writingResponse = await getWritingQuestions(testId);
+      const rawWritingQuestions = Array.isArray(writingResponse)
+        ? writingResponse
+        : writingResponse?.data ?? [];
+      const mappedWritingQuestions = rawWritingQuestions.map(mapWritingQuestionFromApi);
+      setTests((prev) => prev.map((t) => (
+        t.id === testId
+          ? { ...t, questions: mappedWritingQuestions, questionsLoaded: true, testType: 'WRITING' }
+          : t
+      )));
     } catch (error) {
       console.error('Load test questions error:', error);
     }
@@ -1292,6 +1303,15 @@ function CourseManagement() {
       setTestError('Vui lòng nhập tiêu đề bài kiểm tra.');
       return false;
     }
+    if (!testData?.dueDate) {
+      setTestError('Vui lòng chọn hạn nộp.');
+      return false;
+    }
+    const parsedMaxScore = Number(testData?.maxScore);
+    if (!Number.isFinite(parsedMaxScore) || parsedMaxScore <= 0) {
+      setTestError('Điểm tối đa phải lớn hơn 0.');
+      return false;
+    }
 
     try {
       setIsSavingTest(true);
@@ -1314,6 +1334,8 @@ function CourseManagement() {
         courseId: numericCourseId,
         title: testData.title.trim(),
         description: testData.description?.trim() || null,
+        maxScore: parsedMaxScore,
+        dueDate: testData.dueDate,
         assignmentType: normalizeAssignmentType(testData.testType),
       };
 
@@ -1332,24 +1354,65 @@ function CourseManagement() {
         id: assignmentId,
         title: createdAssignment?.title ?? assignmentPayload.title,
         description: createdAssignment?.description ?? assignmentPayload.description,
+        maxScore: createdAssignment?.maxScore ?? assignmentPayload.maxScore,
+        dueDate: createdAssignment?.dueDate ?? assignmentPayload.dueDate,
         orderIndex: createdAssignment?.orderIndex ?? nextOrderIndex,
         assignmentType: resolvedTestType,
         testType: resolvedTestType,
         isNew: false,
-        questions: [],
+        questions: null,
+        questionsLoaded: false,
       };
 
       if (resolvedTestType === 'QUIZ') {
-        const questions = Array.isArray(testData.quizQuestions) ? testData.quizQuestions : [];
-        if (questions.length < 25) {
-          throw new Error('Cần tối thiểu 25 câu hỏi để tạo bài trắc nghiệm.');
+        if (!(testData.quizFile instanceof File)) {
+          throw new Error('Vui lòng chọn file Excel cho bài QUIZ.');
         }
-        if (questions.length > 100) {
-          throw new Error('Tối đa 100 câu hỏi cho một bài trắc nghiệm.');
+        await uploadAssignmentQuestions(assignmentId, testData.quizFile);
+        const uploadedQuestionsResponse = await getAssignmentQuestions(assignmentId);
+        const uploadedRawQuestions = Array.isArray(uploadedQuestionsResponse)
+          ? uploadedQuestionsResponse
+          : uploadedQuestionsResponse?.data ?? [];
+        const uploadedQuestions = uploadedRawQuestions.map((question) => ({
+          id: question.questionId ?? `${question.questionText}-${question.orderIndex}`,
+          questionId: question.questionId ?? null,
+          question: question.questionText ?? '',
+          answers: [
+            question.optionA ?? '',
+            question.optionB ?? '',
+            question.optionC ?? '',
+            question.optionD ?? '',
+          ],
+          correctIndex: mapCorrectAnswerToIndex(question.correctAnswer),
+        }));
+        updatedTest = {
+          ...updatedTest,
+          testType: 'QUIZ',
+          questions: uploadedQuestions,
+          questionsLoaded: true,
+        };
+      } else {
+        const writingQuestions = Array.isArray(testData?.writingQuestions)
+          ? testData.writingQuestions
+          : [];
+        if (writingQuestions.length === 0) {
+          throw new Error('Vui lòng thêm ít nhất một câu hỏi WRITING.');
         }
-        const fileToUpload = buildQuizExcelFile(questions);
-        await uploadAssignmentQuestions(assignmentId, fileToUpload);
-        updatedTest = { ...updatedTest, testType: 'QUIZ', questions };
+        const createdWritingQuestions = [];
+        for (let index = 0; index < writingQuestions.length; index += 1) {
+          const questionPayload = {
+            ...writingQuestions[index],
+            orderIndex: index + 1,
+          };
+          const createdQuestion = await createWritingQuestion(assignmentId, questionPayload);
+          createdWritingQuestions.push(mapWritingQuestionFromApi(createdQuestion));
+        }
+        updatedTest = {
+          ...updatedTest,
+          testType: 'WRITING',
+          questions: createdWritingQuestions,
+          questionsLoaded: true,
+        };
       }
 
       setTests((prev) => {
