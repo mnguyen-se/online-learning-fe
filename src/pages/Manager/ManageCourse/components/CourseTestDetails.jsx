@@ -1,10 +1,10 @@
 import React, { useMemo, useState } from 'react';
 
 const QUESTION_TYPES = [
-  { value: 'FILL_BLANK', label: 'FILL_BLANK' },
-  { value: 'REORDER', label: 'REORDER' },
-  { value: 'MATCHING', label: 'MATCHING' },
-  { value: 'ESSAY_WRITING', label: 'ESSAY_WRITING' },
+  { value: 'FILL_BLANK', label: 'Điền vào chỗ trống' },
+  { value: 'REORDER', label: 'Sắp xếp câu' },
+  { value: 'MATCHING', label: 'Nối đáp án' },
+  { value: 'ESSAY_WRITING', label: 'Viết đoạn văn ngắn' },
 ];
 
 const toDateTimeLocalValue = (value) => {
@@ -241,14 +241,19 @@ const CourseTestDetails = ({
         const columnB = question.columnB
           .map((item, idx) => ({ id: item.id || `B${idx + 1}`, text: (item.text ?? '').trim() }))
           .filter((item) => item.text !== '');
+        const sampleAnswer = (question.sampleAnswer ?? '').trim();
         if (!question.questionText.trim() || columnA.length === 0 || columnB.length === 0) {
           return { ok: false, message: `Câu MATCHING ${index + 1}: cần nhập câu hỏi và dữ liệu cho cả 2 cột.` };
+        }
+        if (!sampleAnswer) {
+          return { ok: false, message: `Câu MATCHING ${index + 1}: cần nhập đáp án đúng (ví dụ: 1-B, 2-C, 3-A, 4-D).` };
         }
         payload.push({
           questionType,
           questionText: question.questionText.trim(),
           columnA,
           columnB,
+          sampleAnswer,
           points,
         });
         continue;
@@ -256,8 +261,12 @@ const CourseTestDetails = ({
 
       const topic = question.topic.trim();
       const instructions = question.instructions.trim();
+      const questionText = question.questionText.trim();
       const minWords = Number(question.minWords);
       const maxWords = Number(question.maxWords);
+      if (!questionText) {
+        return { ok: false, message: `Câu ESSAY_WRITING ${index + 1}: cần nhập nội dung câu hỏi (ví dụ: Viết đoạn văn ngắn giới thiệu bản thân bằng tiếng Nhật).` };
+      }
       if (!topic || !instructions) {
         return { ok: false, message: `Câu ESSAY_WRITING ${index + 1}: cần topic và instructions.` };
       }
@@ -267,15 +276,20 @@ const CourseTestDetails = ({
       if (minWords > maxWords) {
         return { ok: false, message: `Câu ESSAY_WRITING ${index + 1}: minWords không được lớn hơn maxWords.` };
       }
-      payload.push({
+      const essayPayload = {
         questionType: 'ESSAY_WRITING',
-        questionText: question.questionText.trim() || `Essay về chủ đề: ${topic}`,
+        questionText,
         topic,
         instructions,
         minWords: Math.round(minWords),
         maxWords: Math.round(maxWords),
         points,
-      });
+      };
+      const sampleAnswer = (question.sampleAnswer ?? '').trim();
+      if (sampleAnswer) {
+        essayPayload.sampleAnswer = sampleAnswer;
+      }
+      payload.push(essayPayload);
     }
 
     return { ok: true, payload };
@@ -296,11 +310,6 @@ const CourseTestDetails = ({
     }
     if (!dueDate) {
       setFormError('Vui lòng chọn hạn nộp.');
-      return;
-    }
-
-    if (testType === 'QUIZ' && !(quizFile instanceof File)) {
-      setFormError('Vui lòng chọn file Excel để upload cho bài QUIZ.');
       return;
     }
 
@@ -536,7 +545,7 @@ const CourseTestDetails = ({
         {testType === 'WRITING' && (
           <div className="lesson-quiz-section">
             <div className="lesson-quiz-header">
-              <h3 className="lesson-quiz-title">Builder câu hỏi WRITING</h3>
+              <h3 className="lesson-quiz-title">Tạo câu hỏi dạng tự luận (WRITING)</h3>
               <span className="lesson-quiz-badge">{writingQuestions.length} CÂU HỎI</span>
             </div>
 
@@ -597,14 +606,20 @@ const CourseTestDetails = ({
 
                 {question.questionType === 'FILL_BLANK' && (
                   <div className="lesson-details-field">
-                    <label className="lesson-details-label">SAMPLE ANSWER</label>
+                    <label className="lesson-details-label">ĐÁP ÁN ĐÚNG CHO CHỖ TRỐNG</label>
                     <input
                       className="lesson-details-input"
                       type="text"
+                      placeholder="Ví dụ: は"
                       value={question.sampleAnswer}
-                      onChange={(event) => handleUpdateWritingQuestion(question.id, { sampleAnswer: event.target.value })}
+                      onChange={(event) =>
+                        handleUpdateWritingQuestion(question.id, { sampleAnswer: event.target.value })
+                      }
                       disabled={isLoading}
                     />
+                    <p className="lesson-details-hint">
+                      Ví dụ câu hỏi: Hoàn thành câu sau: わたし（　）学生です。
+                    </p>
                   </div>
                 )}
 
@@ -703,18 +718,49 @@ const CourseTestDetails = ({
                     >
                       + Thêm B
                     </button>
+                    <div className="lesson-details-field" style={{ marginTop: 12 }}>
+                      <label className="lesson-details-label">
+                        ĐÁP ÁN ĐÚNG (A-B) – ví dụ: 1-B, 2-C, 3-A, 4-D
+                      </label>
+                      <input
+                        className="lesson-details-input"
+                        type="text"
+                        placeholder="Ví dụ: 1-B, 2-C, 3-A, 4-D"
+                        value={question.sampleAnswer || ''}
+                        onChange={(event) =>
+                          handleUpdateWritingQuestion(question.id, { sampleAnswer: event.target.value })
+                        }
+                        disabled={isLoading}
+                      />
+                    </div>
                   </div>
                 )}
 
                 {question.questionType === 'ESSAY_WRITING' && (
                   <>
                     <div className="lesson-details-field">
+                      <label className="lesson-details-label">NỘI DUNG CÂU HỎI</label>
+                      <textarea
+                        className="lesson-details-textarea"
+                        rows={3}
+                        placeholder="Ví dụ: Viết đoạn văn ngắn giới thiệu bản thân bằng tiếng Nhật."
+                        value={question.questionText}
+                        onChange={(event) =>
+                          handleUpdateWritingQuestion(question.id, { questionText: event.target.value })
+                        }
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div className="lesson-details-field">
                       <label className="lesson-details-label">TOPIC</label>
                       <input
                         className="lesson-details-input"
                         type="text"
+                        placeholder="Ví dụ: Jikoshoukai"
                         value={question.topic}
-                        onChange={(event) => handleUpdateWritingQuestion(question.id, { topic: event.target.value })}
+                        onChange={(event) =>
+                          handleUpdateWritingQuestion(question.id, { topic: event.target.value })
+                        }
                         disabled={isLoading}
                       />
                     </div>
@@ -723,8 +769,24 @@ const CourseTestDetails = ({
                       <textarea
                         className="lesson-details-textarea"
                         rows={3}
+                        placeholder="Ví dụ: Giới thiệu tên, tuổi, nghề nghiệp, sở thích. Dùng mẫu câu N4 cơ bản."
                         value={question.instructions}
-                        onChange={(event) => handleUpdateWritingQuestion(question.id, { instructions: event.target.value })}
+                        onChange={(event) =>
+                          handleUpdateWritingQuestion(question.id, { instructions: event.target.value })
+                        }
+                        disabled={isLoading}
+                      />
+                    </div>
+                    <div className="lesson-details-field">
+                      <label className="lesson-details-label">ĐÁP ÁN MẪU (sampleAnswer – không bắt buộc)</label>
+                      <textarea
+                        className="lesson-details-textarea"
+                        rows={3}
+                        placeholder="Ví dụ: わたしはロンです。ベトナムじんです。..."
+                        value={question.sampleAnswer || ''}
+                        onChange={(event) =>
+                          handleUpdateWritingQuestion(question.id, { sampleAnswer: event.target.value })
+                        }
                         disabled={isLoading}
                       />
                     </div>
@@ -734,8 +796,10 @@ const CourseTestDetails = ({
                         type="number"
                         min={1}
                         value={question.minWords}
-                        placeholder="minWords"
-                        onChange={(event) => handleUpdateWritingQuestion(question.id, { minWords: event.target.value })}
+                        placeholder="minWords (ví dụ: 100)"
+                        onChange={(event) =>
+                          handleUpdateWritingQuestion(question.id, { minWords: event.target.value })
+                        }
                         disabled={isLoading}
                       />
                       <input
@@ -743,8 +807,10 @@ const CourseTestDetails = ({
                         type="number"
                         min={1}
                         value={question.maxWords}
-                        placeholder="maxWords"
-                        onChange={(event) => handleUpdateWritingQuestion(question.id, { maxWords: event.target.value })}
+                        placeholder="maxWords (ví dụ: 150)"
+                        onChange={(event) =>
+                          handleUpdateWritingQuestion(question.id, { maxWords: event.target.value })
+                        }
                         disabled={isLoading}
                       />
                     </div>

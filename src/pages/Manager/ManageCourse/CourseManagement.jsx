@@ -1365,32 +1365,40 @@ function CourseManagement() {
       };
 
       if (resolvedTestType === 'QUIZ') {
-        if (!(testData.quizFile instanceof File)) {
-          throw new Error('Vui lòng chọn file Excel cho bài QUIZ.');
+        // Tạo bài kiểm tra trước, sau đó nếu có file Excel thì mới upload câu hỏi
+        if (testData.quizFile instanceof File) {
+          await uploadAssignmentQuestions(assignmentId, testData.quizFile);
+          const uploadedQuestionsResponse = await getAssignmentQuestions(assignmentId);
+          const uploadedRawQuestions = Array.isArray(uploadedQuestionsResponse)
+            ? uploadedQuestionsResponse
+            : uploadedQuestionsResponse?.data ?? [];
+          const uploadedQuestions = uploadedRawQuestions.map((question) => ({
+            id: question.questionId ?? `${question.questionText}-${question.orderIndex}`,
+            questionId: question.questionId ?? null,
+            question: question.questionText ?? '',
+            answers: [
+              question.optionA ?? '',
+              question.optionB ?? '',
+              question.optionC ?? '',
+              question.optionD ?? '',
+            ],
+            correctIndex: mapCorrectAnswerToIndex(question.correctAnswer),
+          }));
+          updatedTest = {
+            ...updatedTest,
+            testType: 'QUIZ',
+            questions: uploadedQuestions,
+            questionsLoaded: true,
+          };
+        } else {
+          // Không có file Excel: chỉ tạo assignment, để trống danh sách câu hỏi (có thể upload sau)
+          updatedTest = {
+            ...updatedTest,
+            testType: 'QUIZ',
+            questions: null,
+            questionsLoaded: false,
+          };
         }
-        await uploadAssignmentQuestions(assignmentId, testData.quizFile);
-        const uploadedQuestionsResponse = await getAssignmentQuestions(assignmentId);
-        const uploadedRawQuestions = Array.isArray(uploadedQuestionsResponse)
-          ? uploadedQuestionsResponse
-          : uploadedQuestionsResponse?.data ?? [];
-        const uploadedQuestions = uploadedRawQuestions.map((question) => ({
-          id: question.questionId ?? `${question.questionText}-${question.orderIndex}`,
-          questionId: question.questionId ?? null,
-          question: question.questionText ?? '',
-          answers: [
-            question.optionA ?? '',
-            question.optionB ?? '',
-            question.optionC ?? '',
-            question.optionD ?? '',
-          ],
-          correctIndex: mapCorrectAnswerToIndex(question.correctAnswer),
-        }));
-        updatedTest = {
-          ...updatedTest,
-          testType: 'QUIZ',
-          questions: uploadedQuestions,
-          questionsLoaded: true,
-        };
       } else {
         const writingQuestions = Array.isArray(testData?.writingQuestions)
           ? testData.writingQuestions
