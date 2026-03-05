@@ -28,6 +28,8 @@ import './LessonsView.css';
 
 const LessonVideoContent = lazy(() => import('./LessonVideoContent'));
 const LessonQuizContent = lazy(() => import('./LessonQuizContent'));
+const MatchingQuestion = lazy(() => import('./MatchingQuestion'));
+const ReorderQuestion = lazy(() => import('./ReorderQuestion'));
 
 const idToKey = (value) => String(value ?? '');
 
@@ -305,6 +307,9 @@ function LessonsView() {
   const isCourseLearningMode = Boolean(courseId);
 
   const [lessons, setLessons] = useState([]);
+  const [modules, setModules] = useState([]);
+  const [assignments, setAssignments] = useState([]);
+  const [expandedModules, setExpandedModules] = useState(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
   const [selectedLesson, setSelectedLesson] = useState(null);
@@ -316,9 +321,10 @@ function LessonsView() {
   const [assignmentStatuses, setAssignmentStatuses] = useState({});
 
   const selectedLessonKey = idToKey(resolveLessonId(selectedLesson));
+  const allLessonsForProgress = useMemo(() => [...lessons, ...assignments], [lessons, assignments]);
   const completedLessonSet = useMemo(
-    () => getCompletedLessonSetWithFallback(learningProcess, lessons),
-    [learningProcess, lessons],
+    () => getCompletedLessonSetWithFallback(learningProcess, allLessonsForProgress),
+    [learningProcess, allLessonsForProgress],
   );
   const selectedLessonCompleted = useMemo(() => {
     if (!selectedLesson) return false;
@@ -362,12 +368,13 @@ function LessonsView() {
   const nextLesson = useMemo(() => {
     if (!selectedLesson) return null;
     const selectedId = idToKey(resolveLessonId(selectedLesson));
-    const currentIndex = lessons.findIndex(
+    const allItems = [...lessons, ...assignments];
+    const currentIndex = allItems.findIndex(
       (lesson) => idToKey(resolveLessonId(lesson)) === selectedId,
     );
-    if (currentIndex < 0 || currentIndex + 1 >= lessons.length) return null;
-    return lessons[currentIndex + 1];
-  }, [lessons, selectedLesson]);
+    if (currentIndex < 0 || currentIndex + 1 >= allItems.length) return null;
+    return allItems[currentIndex + 1];
+  }, [lessons, assignments, selectedLesson]);
 
   const patchAssignmentItem = (assignmentId, updater) => {
     if (!assignmentId) return;
@@ -479,25 +486,45 @@ function LessonsView() {
           getAssignmentItemsByCourse(courseId),
         ]);
         const orderedLessons = Array.isArray(structure?.lessons) ? structure.lessons : [];
-        const learningItems = [...orderedLessons, ...assignmentItems];
+        const courseModules = Array.isArray(structure?.modules) ? structure.modules : [];
+        
+        // Tách lessons và assignments
         setLearningProcess(process);
-        setLessons(learningItems);
+        setModules(courseModules);
+        setLessons(orderedLessons);
+        setAssignments(assignmentItems);
         setCourseDetail(getCachedCourseDetail(courseId));
 
-        const routeLesson = learningItems.find(
+        // Mở module chứa lesson được chọn
+        const allItems = [...orderedLessons, ...assignmentItems];
+        const routeLesson = allItems.find(
           (lesson) => idToKey(resolveLessonId(lesson)) === idToKey(lessonId),
         );
         if (routeLesson) {
           setSelectedLesson(routeLesson);
+          // Tự động mở module chứa lesson này
+          if (!isAssignmentItem(routeLesson)) {
+            const lessonModuleId = resolveLessonModuleId(routeLesson);
+            if (lessonModuleId) {
+              setExpandedModules((prev) => new Set([...prev, idToKey(lessonModuleId)]));
+            }
+          }
           return;
         }
 
-        const resumeLessonId = resolveResumeLessonId(learningItems, process);
-        const fallbackLessonId = resumeLessonId ?? resolveLessonId(learningItems[0]) ?? null;
-        const fallbackLesson = learningItems.find(
+        const resumeLessonId = resolveResumeLessonId(orderedLessons, process);
+        const fallbackLessonId = resumeLessonId ?? resolveLessonId(orderedLessons[0]) ?? null;
+        const fallbackLesson = orderedLessons.find(
           (lesson) => idToKey(resolveLessonId(lesson)) === idToKey(fallbackLessonId),
         );
         setSelectedLesson(fallbackLesson ?? null);
+        // Tự động mở module chứa lesson đầu tiên
+        if (fallbackLesson) {
+          const lessonModuleId = resolveLessonModuleId(fallbackLesson);
+          if (lessonModuleId) {
+            setExpandedModules((prev) => new Set([...prev, idToKey(lessonModuleId)]));
+          }
+        }
         if (fallbackLessonId) {
           navigate(`/course/${courseId}/learn/${fallbackLessonId}`, { replace: true });
         }
@@ -558,6 +585,26 @@ function LessonsView() {
     if (selectedId) {
       navigate(`/course/${courseId}/learn/${selectedId}`);
     }
+    // Tự động mở module chứa lesson được chọn
+    if (!isAssignmentItem(lesson)) {
+      const lessonModuleId = resolveLessonModuleId(lesson);
+      if (lessonModuleId) {
+        setExpandedModules((prev) => new Set([...prev, idToKey(lessonModuleId)]));
+      }
+    }
+  };
+
+  const toggleModule = (moduleId) => {
+    const moduleKey = idToKey(moduleId);
+    setExpandedModules((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(moduleKey)) {
+        newSet.delete(moduleKey);
+      } else {
+        newSet.add(moduleKey);
+      }
+      return newSet;
+    });
   };
 
   useEffect(() => {
@@ -862,36 +909,49 @@ function LessonsView() {
                 <div className="quiz-question-number">Câu {index + 1}</div>
                 <div className="quiz-question-text">{question.question || 'Chưa có câu hỏi'}</div>
                 <div className="assignment-question-type">{questionType}</div>
-                {questionType === 'REORDER' && question.items.length > 0 ? (
-                  <p className="assignment-question-hint">
-                    Items: {question.items.join(', ')}
-                  </p>
-                ) : null}
-                {questionType === 'MATCHING' ? (
-                  <div className="assignment-question-hint">
-                    <p>Cột A: {(question.columnA || []).map((item) => `${item.id}-${item.text}`).join(' | ')}</p>
-                    <p>Cột B: {(question.columnB || []).map((item) => `${item.id}-${item.text}`).join(' | ')}</p>
-                    <p>Nhập mỗi dòng theo định dạng aId:bId</p>
-                  </div>
-                ) : null}
-                <textarea
-                  className="assignment-writing-input"
-                  value={answerValue}
-                  placeholder={
-                    questionType === 'REORDER'
-                      ? 'Nhập thứ tự sau khi sắp xếp, cách nhau bởi dấu phẩy. Ví dụ: item1,item2,item3'
-                      : questionType === 'MATCHING'
-                        ? 'Mỗi dòng một cặp nối. Ví dụ:\na1:b2\na2:b1'
-                        : 'Nhập câu trả lời của bạn'
-                  }
-                  rows={questionType === 'MATCHING' ? 4 : 3}
-                  onChange={(event) =>
-                    handleWritingAnswerChange(
-                      assignmentItem.assignmentId,
-                      question.questionId,
-                      event.target.value,
-                    )}
-                />
+                {questionType === 'REORDER' ? (
+                  <Suspense fallback={<div className="lesson-content-skeleton" />}>
+                    <ReorderQuestion
+                      question={question}
+                      answerValue={answerValue}
+                      onChange={(newValue) =>
+                        handleWritingAnswerChange(
+                          assignmentItem.assignmentId,
+                          question.questionId,
+                          newValue,
+                        )
+                      }
+                    />
+                  </Suspense>
+                ) : questionType === 'MATCHING' ? (
+                  <Suspense fallback={<div className="lesson-content-skeleton" />}>
+                    <MatchingQuestion
+                      question={question}
+                      answerValue={answerValue}
+                      onChange={(newValue) =>
+                        handleWritingAnswerChange(
+                          assignmentItem.assignmentId,
+                          question.questionId,
+                          newValue,
+                        )
+                      }
+                    />
+                  </Suspense>
+                ) : (
+                  <textarea
+                    className="assignment-writing-input"
+                    value={answerValue}
+                    placeholder="Nhập câu trả lời của bạn"
+                    rows={3}
+                    onChange={(event) =>
+                      handleWritingAnswerChange(
+                        assignmentItem.assignmentId,
+                        question.questionId,
+                        event.target.value,
+                      )
+                    }
+                  />
+                )}
               </div>
             );
           })}
@@ -1043,44 +1103,132 @@ function LessonsView() {
 
         <div className="lessons-layout">
           <div className="lessons-sidebar">
-            <h2 className="lessons-sidebar-title">Bài học ({lessons.length})</h2>
-            {lessons.length === 0 ? (
+            <h2 className="lessons-sidebar-title">
+              {isCourseLearningMode ? `Bài học (${lessons.length})` : `Bài học (${lessons.length})`}
+            </h2>
+            {isCourseLearningMode && modules.length === 0 && lessons.length === 0 && assignments.length === 0 ? (
               <div className="lessons-empty">
                 <p>Chưa có bài học nào được công bố</p>
               </div>
             ) : (
               <div className="lessons-list">
-                {lessons.map((lesson, index) => {
-                  const lessonKey = idToKey(resolveLessonId(lesson)) || String(index);
-                  const isCompleted = completedLessonSet.has(lessonKey);
-                  const assignmentStatus = isAssignmentItem(lesson)
-                    ? getAssignmentStatus(lesson.assignmentId)
-                    : null;
-                  return (
-                    <div
-                      key={lessonKey}
-                      className={`lesson-item ${selectedLessonKey === lessonKey ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
-                      onClick={() => handleSelectLesson(lesson)}
-                    >
-                      <div className="lesson-item-number">{index + 1}</div>
-                      <div className="lesson-item-content">
-                        <div className="lesson-item-title">{lesson.title || 'Chưa có tiêu đề'}</div>
-                        <div className="lesson-item-type">
-                          {isAssignmentItem(lesson)
-                            ? lesson.assignmentType === 'QUIZ'
-                              ? '❓ Trắc nghiệm'
-                              : '📝 Tự luận'
-                            : null}
-                          {!isAssignmentItem(lesson) && lesson.lessonType === 'VIDEO' && '📹 Video'}
-                          {!isAssignmentItem(lesson) && lesson.lessonType === 'TEXT' && '📄 Văn bản'}
-                          {!isAssignmentItem(lesson) && lesson.lessonType === 'QUIZ' && '❓ Trắc nghiệm'}
-                          {assignmentStatus === 'SUBMITTED' ? ' • ✅ Đã nộp' : ''}
-                          {isCompleted ? ' • ✅ Đã hoàn thành' : ''}
+                {/* Hiển thị modules và lessons bên trong */}
+                {isCourseLearningMode && modules.length > 0 ? (
+                  <>
+                    {modules
+                      .sort((a, b) => getModuleOrder(a) - getModuleOrder(b))
+                      .map((module) => {
+                        const moduleId = resolveModuleId(module);
+                        const moduleKey = idToKey(moduleId);
+                        const moduleLessons = lessons.filter(
+                          (lesson) => idToKey(resolveLessonModuleId(lesson)) === moduleKey
+                        );
+                        const isExpanded = expandedModules.has(moduleKey);
+                        const moduleTitle = module?.title || module?.moduleTitle || 'Chương chưa có tên';
+
+                        return (
+                          <div key={moduleKey} className="module-container">
+                            <div
+                              className="module-header"
+                              onClick={() => toggleModule(moduleId)}
+                            >
+                              <span className="module-toggle-icon">
+                                {isExpanded ? '▾' : '▸'}
+                              </span>
+                              <span className="module-title">{moduleTitle}</span>
+                              <span className="module-lesson-count">({moduleLessons.length})</span>
+                            </div>
+                            {isExpanded && (
+                              <div className="module-lessons">
+                                {moduleLessons.length === 0 ? (
+                                  <div className="module-empty">Chưa có bài học trong chương này</div>
+                                ) : (
+                                  moduleLessons.map((lesson, lessonIndex) => {
+                                    const lessonKey = idToKey(resolveLessonId(lesson)) || String(lessonIndex);
+                                    const isCompleted = completedLessonSet.has(lessonKey);
+                                    return (
+                                      <div
+                                        key={lessonKey}
+                                        className={`lesson-item lesson-item-nested ${selectedLessonKey === lessonKey ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          handleSelectLesson(lesson);
+                                        }}
+                                      >
+                                        <div className="lesson-item-number">{lessonIndex + 1}</div>
+                                        <div className="lesson-item-content">
+                                          <div className="lesson-item-title">{lesson.title || 'Chưa có tiêu đề'}</div>
+                                          <div className="lesson-item-type">
+                                            {lesson.lessonType === 'VIDEO' && '📹 Video'}
+                                            {lesson.lessonType === 'TEXT' && '📄 Văn bản'}
+                                            {lesson.lessonType === 'QUIZ' && '❓ Trắc nghiệm'}
+                                            {isCompleted ? ' • ✅ Đã hoàn thành' : ''}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    );
+                                  })
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                  </>
+                ) : (
+                  // Nếu không có modules, hiển thị lessons như cũ (cho trường hợp không phải course learning mode)
+                  lessons.map((lesson, index) => {
+                    const lessonKey = idToKey(resolveLessonId(lesson)) || String(index);
+                    const isCompleted = completedLessonSet.has(lessonKey);
+                    return (
+                      <div
+                        key={lessonKey}
+                        className={`lesson-item ${selectedLessonKey === lessonKey ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
+                        onClick={() => handleSelectLesson(lesson)}
+                      >
+                        <div className="lesson-item-number">{index + 1}</div>
+                        <div className="lesson-item-content">
+                          <div className="lesson-item-title">{lesson.title || 'Chưa có tiêu đề'}</div>
+                          <div className="lesson-item-type">
+                            {lesson.lessonType === 'VIDEO' && '📹 Video'}
+                            {lesson.lessonType === 'TEXT' && '📄 Văn bản'}
+                            {lesson.lessonType === 'QUIZ' && '❓ Trắc nghiệm'}
+                            {isCompleted ? ' • ✅ Đã hoàn thành' : ''}
+                          </div>
                         </div>
                       </div>
+                    );
+                  })
+                )}
+
+                {/* Hiển thị assignments ở dưới cùng */}
+                {isCourseLearningMode && assignments.length > 0 && (
+                  <>
+                    <div className="assignments-separator">
+                      <h3 className="assignments-title">Bài tập ({assignments.length})</h3>
                     </div>
-                  );
-                })}
+                    {assignments.map((assignment, index) => {
+                      const assignmentKey = idToKey(resolveLessonId(assignment)) || `assignment-${index}`;
+                      const assignmentStatus = getAssignmentStatus(assignment.assignmentId);
+                      return (
+                        <div
+                          key={assignmentKey}
+                          className={`lesson-item assignment-item ${selectedLessonKey === assignmentKey ? 'active' : ''}`}
+                          onClick={() => handleSelectLesson(assignment)}
+                        >
+                          <div className="lesson-item-number">{index + 1}</div>
+                          <div className="lesson-item-content">
+                            <div className="lesson-item-title">{assignment.title || 'Chưa có tiêu đề'}</div>
+                            <div className="lesson-item-type">
+                              {assignment.assignmentType === 'QUIZ' ? '❓ Trắc nghiệm' : '📝 Tự luận'}
+                              {assignmentStatus === 'SUBMITTED' ? ' • ✅ Đã nộp' : ''}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
               </div>
             )}
           </div>
