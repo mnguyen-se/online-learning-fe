@@ -1,9 +1,10 @@
 import apiClient from '../config/axios';
-
-export const createLesson = async (lessonData = {}) => {
-  const response = await apiClient.post('/lessons/create', lessonData);
-  return response.data;
-};
+import { uploadVideoToCloudinary } from "./cloudinaryApi";
+import axios from "axios";
+// export const createLesson = async (lessonData = {}) => {
+//   const response = await apiClient.post('/lessons/create', lessonData);
+//   return response.data;
+// };
 
 export const updateLesson = async (lessonId, lessonData) => {
   const response = await apiClient.put(`/lessons/update/${lessonId}`, lessonData);
@@ -30,6 +31,10 @@ export const getLessonView = async () => {
 export const completeLessonById = async (lessonId) => {
   const response = await apiClient.post(`/lessonsCompletion/${lessonId}/complete`);
   return response.data;
+};
+
+export const createLesson = (data) => {
+  return apiClient.post("http://localhost:8080/api/v1/lessons/create", data);
 };
 
 /**
