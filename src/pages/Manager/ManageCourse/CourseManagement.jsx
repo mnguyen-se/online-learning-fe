@@ -461,6 +461,7 @@ function CourseManagement() {
       id: tempId, // ID tạm để phân biệt
       title: '', // Title rỗng, người dùng sẽ nhập
       lessonType: 'VIDEO',
+      videoUrl: '',
       contentUrl: '',
       textContent: '',
       orderIndex: nextOrderIndex,
@@ -501,7 +502,10 @@ function CourseManagement() {
             ? rawLessonType
             : 'TEXT';
           const contentUrl = l.contentUrl ?? '';
-          const textContent = lessonType === 'TEXT' ? contentUrl : '';
+          const videoUrl = l.videoUrl ?? contentUrl ?? '';
+          const textContent = lessonType === 'TEXT'
+            ? (l.textContent ?? contentUrl ?? '')
+            : (l.textContent ?? '');
 
           // Lấy lessonId từ nhiều nguồn có thể
           const lessonId = l.lessonId ?? l.id ?? l._id;
@@ -511,7 +515,8 @@ function CourseManagement() {
             lessonId: lessonId, // Lưu thêm lessonId để dùng cho update/delete
             title: l.title ?? 'Bài học mới',
             lessonType: lessonType,
-            contentUrl: lessonType === 'VIDEO' ? contentUrl : '',
+            videoUrl: lessonType === 'VIDEO' ? videoUrl : '',
+            contentUrl: lessonType === 'VIDEO' ? (contentUrl || videoUrl) : '',
             textContent: textContent,
             orderIndex: l.orderIndex ?? 0,
             moduleId: moduleId,
@@ -636,7 +641,7 @@ function CourseManagement() {
           lessonPayload.videoUrl = uploadedUrl;   // 👈 QUAN TRỌNG: dùng videoUrl
 
         } else {
-          lessonPayload.videoUrl = lessonData.videoUrl || '';
+          lessonPayload.videoUrl = lessonData.videoUrl || lessonData.contentUrl || '';
         }
 
       } else if (lessonData.lessonType === 'TEXT') {

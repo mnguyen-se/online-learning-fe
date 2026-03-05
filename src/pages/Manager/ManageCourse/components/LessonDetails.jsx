@@ -2,6 +2,15 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { uploadVideoToCloudinary }
   from "../../../../api/cloudinaryApi";
 
+const toEmbedVideoUrl = (videoSource) => {
+  if (!videoSource) return '';
+  if (videoSource.includes('youtube.com/watch') || videoSource.includes('youtu.be/')) {
+    const videoId = videoSource.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/)?.[1];
+    if (videoId) return `https://www.youtube.com/embed/${videoId}`;
+  }
+  return videoSource;
+};
+
 function getInitialFromLesson(lesson) {
   if (!lesson) {
     return { title: '', lessonType: 'VIDEO', videoUrl: '', contentUrl: '', textContent: '', quizQuestions: [] };
@@ -10,7 +19,7 @@ function getInitialFromLesson(lesson) {
   let contentUrl = '';
   let textContent = '';
   if (lt === 'VIDEO') {
-    contentUrl = lesson.contentUrl || '';
+    contentUrl = lesson.contentUrl || lesson.videoUrl || '';
   } else if (lt === 'TEXT' || lt === 'QUIZ' || lt === 'ASSIGNMENT') {
     textContent = lesson.textContent || lesson.contentUrl || '';
   } else {
@@ -40,7 +49,7 @@ function getInitialFromLesson(lesson) {
     title: lesson.title || '',
     lessonType: lt,
     contentUrl,
-    videoUrl: lesson.videoUrl || '',
+    videoUrl: lesson.videoUrl || lesson.contentUrl || '',
     textContent,
     quizQuestions,
   };
@@ -95,16 +104,14 @@ const LessonDetails = ({
   };
 
 
-  console.log("selectedLesson:", selectedLesson);
-  console.log("selectedLesson.videoUrl:", selectedLesson?.videoUrl);
-  console.log("videoUrl state:", videoUrl);
-
   const previewUrl = useMemo(() => {
     if (contentFile) {
       return URL.createObjectURL(contentFile);
     }
-    return videoUrl || '';
-  }, [contentFile, videoUrl]);
+    return videoUrl || contentUrl || '';
+  }, [contentFile, videoUrl, contentUrl]);
+
+  const embedPreviewUrl = useMemo(() => toEmbedVideoUrl(previewUrl), [previewUrl]);
 
   useEffect(() => {
     return () => {
@@ -161,7 +168,7 @@ const LessonDetails = ({
     }
 
     try {
-      let finalVideoUrl = "";
+      let finalVideoUrl = videoUrl || contentUrl || "";
       let finalContentUrl = "";
 
       // ✅ Upload nếu là VIDEO
@@ -251,11 +258,16 @@ const LessonDetails = ({
             <div className="lesson-details-field">
               <label className="lesson-details-label">VIDEO BÀI GIẢNG</label>
 
-              {videoUrl ? (
-                <video
-                  className="lesson-details-video"
-                  controls
-                  src={videoUrl}
+              {(videoUrl || contentUrl) ? (
+                <iframe
+                  width="100%"
+                  height="500"
+                  src={toEmbedVideoUrl(videoUrl || contentUrl)}
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  loading="lazy"
+                  title={title || 'Video bài giảng'}
                 />
               ) : (
                 <div className="lesson-details-view-value">
@@ -400,7 +412,20 @@ const LessonDetails = ({
               <div className="lesson-details-file-name">Đang dùng video hiện tại.</div>
             )}
             {previewUrl && (
-              <video className="lesson-details-video" controls src={previewUrl} />
+              contentFile ? (
+                <video className="lesson-details-video" controls src={previewUrl} />
+              ) : (
+                <iframe
+                  width="100%"
+                  height="500"
+                  src={embedPreviewUrl}
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  loading="lazy"
+                  title={title || 'Preview video bài giảng'}
+                />
+              )
             )}
           </div>
         )}
@@ -535,7 +560,7 @@ const LessonDetails = ({
           <button
             type="submit"
             className="lesson-details-btn lesson-details-btn-save"
-            disabled={isLoading || !title.trim() || (lessonType === 'VIDEO' && !contentFile && !contentUrl)}
+            disabled={isLoading || !title.trim() || (lessonType === 'VIDEO' && !contentFile && !videoUrl && !contentUrl)}
           >
             {isLoading ? (isNewLesson ? 'Đang tạo...' : 'Đang lưu...') : (isNewLesson ? 'Tạo bài học' : 'Lưu')}
           </button>
