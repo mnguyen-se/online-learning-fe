@@ -30,6 +30,8 @@ const CourseContentLayout = ({
   onSelectTest,
   onDeleteChapter,
   onDeleteLesson,
+  onPublishChapter,
+  onPublishLesson,
   onSaveChapter,
   onCancelChapter,
   onSaveLesson,
@@ -53,6 +55,8 @@ const CourseContentLayout = ({
   isEditingLesson = false,
   isLoadingTests = false,
   testsError = '',
+  publishingModuleIds = [],
+  publishingLessonIds = [],
 }) => {
   const selectedChapter = selectedChapterId
     ? lessons.find((l) => l.id === selectedChapterId) ?? null
@@ -84,6 +88,8 @@ const CourseContentLayout = ({
         onSelectTest={onSelectTest}
         onDeleteChapter={onDeleteChapter}
         onDeleteLesson={onDeleteLesson}
+        onPublishChapter={onPublishChapter}
+        onPublishLesson={onPublishLesson}
         onSaveAndFinish={onSaveAndFinish}
         getCourseId={getCourseId}
         isLoadingLessons={isLoadingLessons}
@@ -95,6 +101,8 @@ const CourseContentLayout = ({
         selectedLessonId={selectedLessonId}
         isReloadingLessons={isReloadingLessons}
         isSavingTest={isSavingTest}
+        publishingModuleIds={publishingModuleIds}
+        publishingLessonIds={publishingLessonIds}
       />
 
       <div className="course-content-main">

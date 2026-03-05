@@ -43,3 +43,19 @@ export const getModulesByCourse = async (courseId) => {
     throw err;
   }
 };
+
+/** GET /api/v1/modules/IdAndPublic?courseId={courseId} – lấy danh sách module public theo khóa học. */
+export const getPublicModulesByCourse = async (courseId) => {
+  try {
+    const response = await apiClient.get(`${base}/IdAndPublic`, {
+      params: { courseId },
+    });
+    return response.data;
+  } catch (err) {
+    const status = err?.response?.status;
+    if (status === 404) {
+      return [];
+    }
+    throw err;
+  }
+};

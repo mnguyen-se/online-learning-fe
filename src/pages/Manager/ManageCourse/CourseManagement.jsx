@@ -11,7 +11,7 @@ import {
   getWritingQuestions,
   uploadAssignmentQuestions,
 } from '../../../api/assignmentApi';
-import { createModule, deleteModule, getModulesByCourse } from '../../../api/module';
+import { createModule, deleteModule, getModulesByCourse, getPublicModulesByCourse, updateModule } from '../../../api/module';
 import DashboardLayout from '../../../components/DashboardLayout';
 import CourseCard from './components/CourseCard';
 import CourseContentLayout from './components/CourseContentLayout';
@@ -61,6 +61,8 @@ function CourseManagement() {
   const [deleteLessonModal, setDeleteLessonModal] = useState({ isOpen: false, lessonId: null });
   const [isReloadingLessons, setIsReloadingLessons] = useState(false);
   const [teachers, setTeachers] = useState([]);
+  const [publishingModuleIds, setPublishingModuleIds] = useState([]);
+  const [publishingLessonIds, setPublishingLessonIds] = useState([]);
 
   // Utility functions
   const getCourseId = (course) =>
@@ -127,6 +129,45 @@ function CourseManagement() {
     if (raw === 'WRITING' || raw === 'ASSIGNMENT') return 'WRITING';
     return 'WRITING';
   };
+
+  const resolvePublicModuleIdSet = async (courseId) => {
+    if (!courseId) return new Set();
+    try {
+      const publicModules = await getPublicModulesByCourse(courseId);
+      const rawPublicModules = Array.isArray(publicModules) ? publicModules : publicModules?.data ?? [];
+      const ids = rawPublicModules
+        .map((module) => module?.id ?? module?.moduleId ?? module?._id ?? null)
+        .filter((id) => id !== null && id !== undefined && String(id).trim() !== '');
+      return new Set(ids.map((id) => String(id)));
+    } catch (error) {
+      console.error('Fetch public modules error:', error);
+      return new Set();
+    }
+  };
+
+  const mapModulesToLessonItems = (rawModules = [], publicModuleIds = new Set()) =>
+    rawModules
+      .map((module, index) => {
+        const moduleIdentifier = module?.id ?? module?.moduleId ?? module?._id ?? null;
+        const normalizedModuleId = moduleIdentifier ?? Date.now() + index;
+        return {
+          id: normalizedModuleId,
+          title: module?.title ?? 'Chương mới',
+          lessonType: 'VIDEO',
+          contentUrl: '',
+          contentFile: null,
+          duration: 0,
+          orderIndex: module?.orderIndex ?? index + 1,
+          sectionId: moduleIdentifier,
+          isOpen: false,
+          isServer: true,
+          isModule: true,
+          isPublic: moduleIdentifier !== null && moduleIdentifier !== undefined
+            ? publicModuleIds.has(String(moduleIdentifier))
+            : false,
+        };
+      })
+      .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
 
   const resetCourseForm = () => {
     setCourseTitle('');
@@ -275,6 +316,7 @@ function CourseManagement() {
       sectionId: null,
       isServer: false,
       isModule: true,
+      isPublic: false,
       isNew: true, // Đánh dấu là chương mới chưa lưu
     };
 
@@ -357,24 +399,12 @@ function CourseManagement() {
       }
 
       // Load lại danh sách modules từ server để đảm bảo orderIndex chính xác
-      const modulesList = await getModulesByCourse(courseId);
+      const [modulesList, publicModuleIds] = await Promise.all([
+        getModulesByCourse(courseId),
+        resolvePublicModuleIdSet(courseId),
+      ]);
       const updatedRawModules = Array.isArray(modulesList) ? modulesList : modulesList?.data ?? [];
-      
-      // Chuyển đổi modules thành format lessons để hiển thị
-      const serverModules = updatedRawModules.map((module, index) => ({
-        id: module.id ?? module.moduleId ?? module._id ?? Date.now() + index,
-        title: module.title ?? 'Chương mới',
-        lessonType: 'VIDEO',
-        contentUrl: '',
-        contentFile: null,
-        duration: 0,
-        orderIndex: module.orderIndex ?? index + 1,
-        sectionId: module.id ?? module.moduleId ?? module._id ?? null,
-        isOpen: false,
-        isServer: true,
-        isModule: true,
-      }))
-      .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
+      const serverModules = mapModulesToLessonItems(updatedRawModules, publicModuleIds);
       
       // Giữ lại các chương mới chưa lưu (trừ chương vừa lưu)
       const newChapters = lessons.filter(l => l.isNew && l.isModule && l.id !== selectedChapterId);
@@ -438,6 +468,7 @@ function CourseManagement() {
       moduleId: selectedChapterId,
       isNew: true, // Đánh dấu là lesson mới chưa lưu
       isServer: false,
+      isPublic: false,
     };
 
     setModuleLessons([...moduleLessons, newLesson]);
@@ -460,12 +491,11 @@ function CourseManagement() {
       const existingLessons = await getLessons({ courseId });
       const rawLessons = Array.isArray(existingLessons) ? existingLessons : existingLessons?.data ?? [];
       
-      // Lọc lessons thuộc module (CHỈ LẤY CÁC LESSON CHƯA BỊ XÓA)
+      // Lọc lessons thuộc module
       const serverLessons = rawLessons
         .filter(l => {
           const lessonModuleId = l.moduleId ?? l.module?.moduleId ?? l.sectionId ?? l.section?.id;
-          const isPublic = l.isPublic ?? l.is_public ?? true; // Mặc định là true nếu không có field
-          return lessonModuleId === moduleId && isPublic === true;
+          return String(lessonModuleId) === String(moduleId);
         })
         .map(l => {
           const rawLessonType = l.lessonType ?? 'VIDEO';
@@ -488,6 +518,7 @@ function CourseManagement() {
             orderIndex: l.orderIndex ?? 0,
             moduleId: moduleId,
             isServer: true,
+            isPublic: Boolean(l.isPublic ?? l.is_public ?? false),
           };
         })
         .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
@@ -497,7 +528,7 @@ function CourseManagement() {
       const existingOrderIndexes = new Set(serverLessons.map(l => Number(l.orderIndex ?? 0)));
       const newLessons = moduleLessons.filter(l => 
         l.isNew 
-        && l.moduleId === moduleId
+        && String(l.moduleId) === String(moduleId)
         && !existingOrderIndexes.has(Number(l.orderIndex ?? 0)) // Không trùng orderIndex với server lessons
       );
       
@@ -506,7 +537,7 @@ function CourseManagement() {
     } catch (error) {
       console.error('Load module lessons error:', error);
       // Giữ lại các lesson mới chưa lưu nếu có lỗi
-      const newLessons = moduleLessons.filter(l => l.isNew && l.moduleId === moduleId);
+      const newLessons = moduleLessons.filter(l => l.isNew && String(l.moduleId) === String(moduleId));
       setModuleLessons(newLessons);
     }
   };
@@ -835,24 +866,12 @@ function CourseManagement() {
       await deleteModule(chapterId);
       
       // Load lại danh sách modules sau khi xóa
-      const modulesList = await getModulesByCourse(courseId);
+      const [modulesList, publicModuleIds] = await Promise.all([
+        getModulesByCourse(courseId),
+        resolvePublicModuleIdSet(courseId),
+      ]);
       const rawModules = Array.isArray(modulesList) ? modulesList : modulesList?.data ?? [];
-      
-      // Chuyển đổi modules thành format lessons để hiển thị
-      const serverModules = rawModules.map((module, index) => ({
-        id: module.id ?? module.moduleId ?? module._id ?? Date.now() + index,
-        title: module.title ?? 'Chương mới',
-        lessonType: 'VIDEO',
-        contentUrl: '',
-        contentFile: null,
-        duration: 0,
-        orderIndex: module.orderIndex ?? index + 1,
-        sectionId: module.id ?? module.moduleId ?? module._id ?? null,
-        isOpen: false,
-        isServer: true,
-        isModule: true,
-      }))
-      .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
+      const serverModules = mapModulesToLessonItems(rawModules, publicModuleIds);
       
       // Giữ lại các chương mới chưa lưu (có isNew: true)
       const newChapters = lessons.filter(l => l.isNew && l.isModule);
@@ -955,6 +974,99 @@ function CourseManagement() {
 
   const cancelDeleteLesson = () => {
     setDeleteLessonModal({ isOpen: false, lessonId: null });
+  };
+
+  const handlePublishChapter = async (chapterId) => {
+    const chapter = lessons.find((item) => item.id === chapterId);
+    if (!chapter) {
+      toast.error('Không tìm thấy chương để public.');
+      return;
+    }
+    if (chapter.isNew) {
+      toast.warning('Vui lòng lưu chương trước khi public.');
+      return;
+    }
+    if (chapter.isPublic) {
+      toast.info('Chương này đã ở trạng thái public.');
+      return;
+    }
+
+    const courseId = getCourseId(selectedCourse);
+    const moduleId = chapter.sectionId ?? chapter.id;
+    if (!courseId || !moduleId) {
+      toast.error('Không tìm thấy mã khóa học hoặc chương.');
+      return;
+    }
+
+    const normalizedCourseId = Number.isNaN(Number(courseId)) ? courseId : Number(courseId);
+    const moduleKey = String(moduleId);
+    setPublishingModuleIds((prev) => (prev.includes(moduleKey) ? prev : [...prev, moduleKey]));
+
+    try {
+      await updateModule(moduleId, {
+        courseId: normalizedCourseId,
+        title: chapter.title ?? '',
+        isPublic: true,
+      });
+
+      setLessons((prev) =>
+        prev.map((item) =>
+          String(item.sectionId ?? item.id) === moduleKey
+            ? { ...item, isPublic: true }
+            : item
+        )
+      );
+      toast.success('Đã public chương thành công.');
+    } catch (error) {
+      const msg = error?.response?.data?.message || error?.message || 'Public chương thất bại. Vui lòng thử lại.';
+      toast.error(msg);
+      console.error('Publish module error:', error);
+    } finally {
+      setPublishingModuleIds((prev) => prev.filter((id) => id !== moduleKey));
+    }
+  };
+
+  const handlePublishLesson = async (lessonId) => {
+    const lesson = moduleLessons.find((item) => item.id === lessonId);
+    if (!lesson) {
+      toast.error('Không tìm thấy bài học để public.');
+      return;
+    }
+    if (lesson.isNew) {
+      toast.warning('Vui lòng lưu bài học trước khi public.');
+      return;
+    }
+    if (lesson.isPublic) {
+      toast.info('Bài học này đã ở trạng thái public.');
+      return;
+    }
+
+    const realLessonId = lesson.lessonId ?? lesson.id;
+    if (!realLessonId) {
+      toast.error('Không tìm thấy mã bài học.');
+      return;
+    }
+
+    const lessonKey = String(realLessonId);
+    setPublishingLessonIds((prev) => (prev.includes(lessonKey) ? prev : [...prev, lessonKey]));
+
+    try {
+      await updateLesson(realLessonId, { isPublic: true });
+      setModuleLessons((prev) =>
+        prev.map((item) =>
+          String(item.lessonId ?? item.id) === lessonKey
+            ? { ...item, isPublic: true }
+            : item
+        )
+      );
+      toast.success('Đã public bài học thành công.');
+    } catch (error) {
+      const msg = error?.response?.data?.message || error?.message || 'Public bài học thất bại. Vui lòng thử lại.';
+      toast.error(msg);
+      console.error('Publish lesson error:', error);
+    } finally {
+      setPublishingLessonIds((prev) => prev.filter((id) => id !== lessonKey));
+    }
   };
 
   const loadCourseStats = async (courseId) => {
@@ -1082,24 +1194,12 @@ function CourseManagement() {
       setLessonsError('');
       
       // Load modules từ API
-      const modulesList = await getModulesByCourse(courseId);
+      const [modulesList, publicModuleIds] = await Promise.all([
+        getModulesByCourse(courseId),
+        resolvePublicModuleIdSet(courseId),
+      ]);
       const rawModules = Array.isArray(modulesList) ? modulesList : modulesList?.data ?? [];
-      
-      // Chuyển đổi modules thành format lessons để hiển thị
-      const serverModules = rawModules.map((module, index) => ({
-        id: module.id ?? module.moduleId ?? module._id ?? Date.now() + index,
-        title: module.title ?? 'Chương mới',
-        lessonType: 'VIDEO',
-        contentUrl: '',
-        contentFile: null,
-        duration: 0,
-        orderIndex: module.orderIndex ?? index + 1,
-        sectionId: module.id ?? module.moduleId ?? module._id ?? null,
-        isOpen: false,
-        isServer: true,
-        isModule: true,
-      }))
-      .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
+      const serverModules = mapModulesToLessonItems(rawModules, publicModuleIds);
       
       // Giữ lại các chương mới chưa lưu (có isNew: true)
       const newChapters = lessons.filter(l => l.isNew && l.isModule);
@@ -1706,6 +1806,8 @@ function CourseManagement() {
     setTests([]);
     setTestError('');
     setTestsError('');
+    setPublishingModuleIds([]);
+    setPublishingLessonIds([]);
     loadLessonsForCourse(courseId);
     loadTestsForCourse(courseId);
     setViewMode('content');
@@ -1922,6 +2024,8 @@ function CourseManagement() {
                 onSelectTest={handleSelectTest}
                 onDeleteChapter={handleDeleteChapter}
                 onDeleteLesson={handleDeleteLesson}
+                onPublishChapter={handlePublishChapter}
+                onPublishLesson={handlePublishLesson}
                 onSaveChapter={handleSaveChapter}
                 onCancelChapter={handleCancelChapter}
                 onSaveLesson={handleSaveLesson}
@@ -1947,6 +2051,8 @@ function CourseManagement() {
                   setLessons([]);
                   setModuleLessons([]);
                   setTests([]);
+                  setPublishingModuleIds([]);
+                  setPublishingLessonIds([]);
                   setContentTab('general');
                   setActiveNavTab('management');
                 }}
@@ -1955,6 +2061,8 @@ function CourseManagement() {
                 onSaveGeneralConfig={handleSaveGeneralConfig}
                 isSavingGeneralConfig={isSavingGeneralConfig}
                 teachers={teachers}
+                publishingModuleIds={publishingModuleIds}
+                publishingLessonIds={publishingLessonIds}
               />
             </div>
           ) : viewMode === 'create' ? (
