@@ -1,13 +1,15 @@
-import apiClient from '../config/axios';
-import { uploadVideoToCloudinary } from "./cloudinaryApi";
-import axios from "axios";
-// export const createLesson = async (lessonData = {}) => {
-//   const response = await apiClient.post('/lessons/create', lessonData);
-//   return response.data;
-// };
+import apiClient from "../config/axios";
+
+export const createLesson = async (lessonData = {}) => {
+  const response = await apiClient.post("/lessons/create", lessonData);
+  return response.data;
+};
 
 export const updateLesson = async (lessonId, lessonData) => {
-  const response = await apiClient.put(`/lessons/update/${lessonId}`, lessonData);
+  const response = await apiClient.put(
+    `/lessons/update/${lessonId}`,
+    lessonData
+  );
   return response.data;
 };
 
@@ -17,24 +19,36 @@ export const deleteLesson = async (lessonId) => {
 };
 
 export const getLessons = async (params = {}) => {
-  const response = await apiClient.get('/lessons/', {
+  const response = await apiClient.get("/lessons/", {
     params,
   });
   return response.data;
 };
 
 export const getLessonView = async () => {
-  const response = await apiClient.get('/lessons/view');
+  const response = await apiClient.get("/lessons/view");
   return response.data;
 };
 
 export const completeLessonById = async (lessonId) => {
-  const response = await apiClient.post(`/lessonsCompletion/${lessonId}/complete`);
+  const response = await apiClient.post(
+    `/lessonsCompletion/${lessonId}/complete`
+  );
   return response.data;
 };
 
-export const createLesson = (data) => {
-  return apiClient.post("http://localhost:8080/api/v1/lessons/create", data);
+/** GET /ai/lessons/{lessonId}/hint - AI gợi ý cho bài học */
+export const getAiLessonHint = async (lessonId) => {
+  const response = await apiClient.get(`/ai/lessons/${lessonId}/hint`);
+  return response.data;
+};
+
+/** GET /ai/lessons/{lessonId}/quiz - AI tạo quiz practice (trả về HTML) */
+export const getAiLessonQuiz = async (lessonId) => {
+  const response = await apiClient.get(`/ai/lessons/${lessonId}/quiz`, {
+    responseType: "text",
+  });
+  return response.data;
 };
 
 /**
@@ -45,10 +59,10 @@ export const createLesson = (data) => {
  */
 export const uploadLessonVideo = async (file) => {
   const formData = new FormData();
-  formData.append('file', file);
-  const response = await apiClient.post('/lessons/upload-video', formData, {
+  formData.append("file", file);
+  const response = await apiClient.post("/lessons/upload-video", formData, {
     headers: {
-      'Content-Type': 'multipart/form-data',
+      "Content-Type": "multipart/form-data",
     },
   });
   return response.data;
@@ -57,13 +71,13 @@ export const uploadLessonVideo = async (file) => {
 /** POST /lessons/{lessonId}/upload-video – Đúng OpenAPI (dùng khi đã có lessonId) */
 export const uploadLessonVideoForLesson = async (lessonId, file) => {
   const formData = new FormData();
-  formData.append('file', file);
+  formData.append("file", file);
   const response = await apiClient.post(
     `/lessons/${lessonId}/upload-video`,
     formData,
     {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        "Content-Type": "multipart/form-data",
       },
     }
   );
