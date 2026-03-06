@@ -22,6 +22,7 @@ import TeacherCourseDetail from './pages/Teacher/TeacherCourseDetail';
 import TeacherModuleDetail from './pages/Teacher/TeacherModuleDetail';
 import LessonsView from './pages/Lessons/LessonsView';
 import MyCourses from "./pages/MyCourses/MyCourses";
+import StudentWritingResult from "./pages/Student/StudentWritingResult";
 
 function App() {
   const router = createBrowserRouter([
@@ -89,6 +90,10 @@ function App() {
     {
       path: "/my-courses",
       element: <MyCourses />
+    },
+    {
+      path: "/writing-result/:assignmentId",
+      element: <StudentWritingResult />
     },
 
     {
