@@ -5,9 +5,19 @@ import { useNavigate } from 'react-router-dom';
 import { getTeacherCourses } from '../../api/teacherApi';
 import './TeacherPages.css';
 
+/** Chuẩn hóa một item khóa học từ API (GET /courses/my-courses – CourseDtoRes: courseId, title, description, isPublic) */
+const normalizeCourse = (c) => {
+  if (!c || typeof c !== 'object') return null;
+  const courseId = c.courseId ?? c.id ?? c.course_id;
+  const title = c.title ?? c.name ?? c.courseName ?? '';
+  const description = c.description ?? c.courseDescription ?? '';
+  const isPublic = c.public === true || c.isPublic === true;
+  return { courseId, title, description, isPublic, raw: c };
+};
+
 /**
- * Trang "Khóa học của tôi" – hiển thị dạng card (Ant Design).
- * Bấm vào card → chuyển đến chi tiết khóa học (2 tab: Nội dung | Danh sách học sinh).
+ * Trang "Khóa học của tôi" – hiển thị theo API GET /courses/my-courses.
+ * Nội dung card (tên khóa học, mô tả) lấy từ API, bấm card → chi tiết khóa học.
  */
 function TeacherMyCourses() {
   const navigate = useNavigate();
@@ -20,9 +30,9 @@ function TeacherMyCourses() {
     const q = courseSearch.trim().toLowerCase();
     if (!q) return courses;
     return courses.filter((c) => {
-      const title = (c?.title ?? c?.name ?? c?.courseName ?? '').toLowerCase();
-      const desc = (c?.description ?? c?.courseDescription ?? '').toLowerCase();
-      return title.includes(q) || desc.includes(q);
+      const t = (c.title ?? '').toLowerCase();
+      const d = (c.description ?? '').toLowerCase();
+      return t.includes(q) || d.includes(q);
     });
   }, [courses, courseSearch]);
 
@@ -36,8 +46,15 @@ function TeacherMyCourses() {
     });
     getTeacherCourses()
       .then((data) => {
-        const raw = Array.isArray(data) ? data : [];
-        if (!cancelled) setCourses(raw.filter((c) => c.public === true || c.isPublic === true));
+        const raw = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.content)
+          ? data.content
+          : Array.isArray(data?.data)
+            ? data.data
+            : [];
+        const list = raw.map(normalizeCourse).filter((c) => c && c.isPublic);
+        if (!cancelled) setCourses(list);
       })
       .catch((err) => {
         if (!cancelled) {
@@ -54,13 +71,14 @@ function TeacherMyCourses() {
   if (loading) {
     return (
       <div className="teacher-page-wrap teacher-tmc-wrap">
-        <div className="teacher-tmc-header">
-          <h1 className="teacher-tmc-title">Khóa học của tôi</h1>
+        <h1 className="teacher-page-title">Khóa học của tôi</h1>
+        <p className="teacher-page-desc">Chỉ hiển thị các khóa học đã được gán cho bạn và đã xuất bản bởi quản lý. Nhấn vào khóa học để xem chương và bài học.</p>
+        <Card className="teacher-tmc-content-card" bordered={false}>
+          <div className="teacher-tmc-loading">
+            <Spin size="large" />
+            <p>Đang tải khóa học...</p>
           </div>
-        <div className="teacher-tmc-loading">
-          <Spin size="large" />
-          <p>Đang tải khóa học...</p>
-        </div>
+        </Card>
       </div>
     );
   }
@@ -68,9 +86,8 @@ function TeacherMyCourses() {
   if (error) {
     return (
       <div className="teacher-page-wrap teacher-tmc-wrap">
-        <div className="teacher-tmc-header">
-          <h1 className="teacher-tmc-title">Khóa học của tôi</h1>
-        </div>
+        <h1 className="teacher-page-title">Khóa học của tôi</h1>
+        <p className="teacher-page-desc">Chỉ hiển thị các khóa học đã được gán cho bạn và đã xuất bản bởi quản lý. Nhấn vào khóa học để xem chương và bài học.</p>
         <Card className="teacher-tmc-error-card">
           <Empty description={error} />
         </Card>
@@ -80,75 +97,75 @@ function TeacherMyCourses() {
 
   return (
     <div className="teacher-page-wrap teacher-tmc-wrap">
-      <div className="teacher-tmc-header">
-        <h1 className="teacher-tmc-title">Khóa học của tôi</h1>
-        <p className="teacher-tmc-desc">Chỉ hiển thị các khóa học đã được gán cho bạn và đã xuất bản bởi quản lý. Nhấn vào khóa học để xem chương và bài học.</p>
-      </div>
+      <h1 className="teacher-page-title">Khóa học của tôi</h1>
+      <p className="teacher-page-desc">Chỉ hiển thị các khóa học đã được gán cho bạn và đã xuất bản bởi quản lý. Nhấn vào khóa học để xem chương và bài học.</p>
 
-      {!loading && courses.length > 0 && (
-        <div className="teacher-tmc-search-wrap">
-          <Search size={18} className="teacher-tmc-search-icon" />
-          <Input
-            placeholder="Tìm khóa học theo tên, mô tả..."
-            value={courseSearch}
-            onChange={(e) => setCourseSearch(e.target.value)}
-            allowClear
-            className="teacher-tmc-search-input"
-            aria-label="Tìm khóa học"
-          />
-        </div>
-      )}
+      <Card className="teacher-tmc-content-card" bordered={false}>
+        {courses.length > 0 && (
+          <div className="teacher-tmc-search-wrap">
+            <Search size={18} className="teacher-tmc-search-icon" />
+            <Input
+              placeholder="Tìm khóa học theo tên, mô tả..."
+              value={courseSearch}
+              onChange={(e) => setCourseSearch(e.target.value)}
+              allowClear
+              className="teacher-tmc-search-input"
+              aria-label="Tìm khóa học"
+            />
+          </div>
+        )}
 
-      {filteredCourses.length === 0 ? (
-        <Card className="teacher-tmc-card-wrap">
-          <Empty
-            description={
-              courseSearch.trim()
-                ? `Không có khóa học nào khớp với "${courseSearch.trim()}".`
-                : 'Chưa có khóa học nào được gán cho bạn.'
-            }
-          />
-        </Card>
-      ) : (
-        <Row gutter={[20, 20]} className="teacher-tmc-grid">
-          {filteredCourses.map((course) => {
-            const courseId = course?.courseId ?? course?.id ?? course?.course_id;
-            const title = course?.title ?? course?.name ?? course?.courseName ?? 'Khóa học';
-            const description = course?.description ?? course?.courseDescription ?? '';
-            return (
-              <Col xs={24} sm={24} md={12} lg={8} xl={6} key={courseId}>
-                <Card
-                  className="teacher-tmc-card"
-                  hoverable
-                  actions={[
-                    <Button
-                      type="link"
-                      key="view"
-                      icon={<ChevronRight size={18} />}
-                      iconPosition="end"
-                      onClick={() => navigate(`/teacher-page/courses/${courseId}`)}
+        <div className="teacher-tmc-list-scroll">
+          {filteredCourses.length === 0 ? (
+            <Empty
+              description={
+                courseSearch.trim()
+                  ? `Không có khóa học nào khớp với "${courseSearch.trim()}".`
+                  : 'Chưa có khóa học nào được gán cho bạn.'
+              }
+            />
+          ) : (
+            <Row gutter={[20, 20]} className="teacher-tmc-grid">
+              {filteredCourses.map((course) => {
+                const courseId = course.courseId;
+                const title = course.title || 'Khóa học';
+                const description = course.description || '';
+                return (
+                  <Col xs={24} sm={24} md={12} lg={8} xl={6} key={courseId}>
+                    <Card
+                      className="teacher-tmc-card"
+                      hoverable
+                      actions={[
+                        <Button
+                          type="link"
+                          key="view"
+                          icon={<ChevronRight size={18} />}
+                          iconPosition="end"
+                          onClick={() => navigate(`/teacher-page/courses/${courseId}`)}
+                        >
+                          Xem chi tiết
+                        </Button>,
+                      ]}
                     >
-                      Xem chi tiết
-                    </Button>,
-                  ]}
-                >
-                  <div className="teacher-tmc-card-icon">
-                    <BookOpen size={28} strokeWidth={1.8} />
-                  </div>
-                  <Card.Meta
-                    title={title}
-                    description={
-                      description
-                        ? (description.length > 100 ? `${description.slice(0, 100)}...` : description)
-                        : 'Không có mô tả'
-                    }
-                  />
-                </Card>
-              </Col>
-            );
-          })}
-        </Row>
-      )}
+                      <div className="teacher-tmc-card-icon">
+                        <BookOpen size={28} strokeWidth={1.8} />
+                      </div>
+                      <Card.Meta
+                        title={title}
+                        description={
+                          description
+                            ? (description.length > 100 ? `${description.slice(0, 100)}...` : description)
+                            : 'Không có mô tả'
+                        }
+                      />
+                    </Card>
+                  </Col>
+                );
+              })}
+            </Row>
+          )}
+        </div>
+      </Card>
     </div>
   );
 }

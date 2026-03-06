@@ -2,7 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { Users, Clock, BookOpen } from 'lucide-react';
 import { getTeacherCourses } from '../../api/teacherApi';
 import { getEnrolledStudentsByCourse } from '../../api/enrollmentApi';
+import {
+  getAssignmentsByCourse,
+  getQuizSubmissions,
+  getWritingSubmissions,
+} from '../../api/assignmentApi';
 import './TeacherPages.css';
+
+const ASSIGNMENT_TYPE_WRITING = 'WRITING';
 
 // Thanh tiến trình trên Dashboard dùng để xem tiến trình học sinh (không gọi API learning-process của giáo viên).
 // BE chỉ có API tiến độ theo user hiện tại (học viên). Tỉ lệ hoàn thành hiển thị theo học viên khi BE hỗ trợ API thống kê.
@@ -14,6 +21,7 @@ function TeacherDashboard() {
   const [loading, setLoading] = useState(true);
   const [hoveredBar, setHoveredBar] = useState(null);
   const [studentsCount, setStudentsCount] = useState(0);
+  const [ungradedCount, setUngradedCount] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -28,6 +36,7 @@ function TeacherDashboard() {
         const courseIds = publishedOnly.map((c) => c.courseId ?? c.id).filter(Boolean);
         if (courseIds.length === 0) {
           setStudentsCount(0);
+          setUngradedCount(0);
           return;
         }
 
@@ -42,6 +51,43 @@ function TeacherDashboard() {
             0
           );
           setStudentsCount(total);
+        });
+
+        // Đếm bài tập chưa chấm: với từng khóa -> assignments -> submissions chưa GRADED
+        Promise.all(
+          courseIds.map(async (courseId) => {
+            let assignments = [];
+            try {
+              const data = await getAssignmentsByCourse(courseId);
+              assignments = Array.isArray(data) ? data : [];
+            } catch {
+              return 0;
+            }
+            let count = 0;
+            await Promise.all(
+              assignments.map(async (a) => {
+                const assignmentId = a.assignmentId ?? a.id;
+                const type = (a.assignmentType ?? a.assignment_type ?? '').toUpperCase();
+                const isWriting = type === ASSIGNMENT_TYPE_WRITING;
+                try {
+                  const list = isWriting
+                    ? await getWritingSubmissions(assignmentId)
+                    : await getQuizSubmissions(assignmentId);
+                  const subs = Array.isArray(list) ? list : [];
+                  subs.forEach((s) => {
+                    const graded = (s.status || '').toUpperCase() === 'GRADED' || s.score != null;
+                    if (!graded) count += 1;
+                  });
+                } catch {
+                  // bỏ qua assignment lỗi
+                }
+              })
+            );
+            return count;
+          })
+        ).then((counts) => {
+          if (cancelled) return;
+          setUngradedCount(counts.reduce((a, b) => a + b, 0));
         });
       })
       .catch(() => {
@@ -89,9 +135,6 @@ function TeacherDashboard() {
             <span className="teacher-dash-card__value">
               {loading ? '...' : studentsCount}
             </span>
-            <span className="teacher-dash-card__trend teacher-dash-card__trend--up">
-              ↑ 12% so với tháng trước
-            </span>
           </div>
         </div>
 
@@ -101,9 +144,8 @@ function TeacherDashboard() {
           </div>
           <div className="teacher-dash-card__body">
             <span className="teacher-dash-card__label">Bài tập chưa chấm</span>
-            <span className="teacher-dash-card__value">24</span>
-            <span className="teacher-dash-card__trend teacher-dash-card__trend--down">
-              ↓ 5% so với tháng trước
+            <span className="teacher-dash-card__value">
+              {loading ? '...' : ungradedCount}
             </span>
           </div>
         </div>

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { useSearchParams, Link, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { Card, Select, Table, Input, Avatar, Tag, Button, Modal, Form, InputNumber, Breadcrumb, Spin, Empty } from 'antd';
+import { Card, Select, Table, Input, Avatar, Tag, Button, Modal, Form, InputNumber, Spin, Empty } from 'antd';
 import { Search, ClipboardCheck } from 'lucide-react';
 import { getTeacherCourses } from '../../api/teacherApi';
 import {
@@ -325,18 +325,9 @@ function TeacherGrading() {
   ];
 
   return (
-    <div className="grading-page">
-      <header className="grading-header">
-        <Breadcrumb
-          className="grading-breadcrumb"
-          items={[
-            { title: <Link to="/teacher-page">Dashboard</Link> },
-            { title: 'Chấm bài' },
-          ]}
-        />
-        <h1 className="grading-title">Chấm bài</h1>
-        <p className="grading-subtitle">Quản lý và đánh giá kết quả học tập của học sinh.</p>
-      </header>
+    <div className="teacher-page-wrap grading-page">
+      <h1 className="teacher-page-title">Chấm điểm</h1>
+      <p className="teacher-page-desc">Quản lý và đánh giá kết quả học tập của học sinh.</p>
 
       <Card className="grading-filter-card" bordered={false}>
         <div className="grading-filter-row">

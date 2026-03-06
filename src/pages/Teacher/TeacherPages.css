@@ -1,4 +1,4 @@
-/* Teacher area – nền hiện đại, trung tính nhẹ */
+/* Teacher area – nền hiện đại, trung tính nhẹ; chiếm hết chiều cao còn lại */
 .teacher-area {
   min-height: 100%;
   width: 100%;
@@ -7,6 +7,7 @@
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  flex: 1;
   min-height: 0;
 }
 
@@ -962,8 +963,12 @@
   max-width: 1280px;
   margin: 0 auto;
   padding: 0 1rem 1.5rem;
-  background: #fff;
+  background: transparent;
   min-height: 100%;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
 }
 
 .teacher-tmc-header {
@@ -994,6 +999,7 @@
   width: 100%;
   min-height: 44px;
   box-sizing: border-box;
+  flex-shrink: 0;
 }
 
 .teacher-tmc-search-icon {
@@ -1127,6 +1133,34 @@
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
 }
 
+.teacher-tmc-content-card {
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow-x: hidden;
+}
+
+.teacher-tmc-content-card .ant-card-body {
+  padding: 1.25rem 1.5rem;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Vùng cuộn danh sách: chỉ cuộn dọc, container dài ra; card giữ chiều cao tự nhiên */
+.teacher-tmc-list-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+}
+
 .teacher-tmc-card-wrap {
   border-radius: 10px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
@@ -1136,12 +1170,17 @@
   margin-top: 0.5rem;
 }
 
+.teacher-tmc-grid .ant-col {
+  margin-bottom: 20px;
+}
+
 .teacher-tmc-card.ant-card {
   background: #f0f5fa;
   border: 2px solid #b8d0e8;
   border-radius: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
   transition: box-shadow 0.2s, border-color 0.2s, background 0.2s;
+  width: 100%;
 }
 
 .teacher-tmc-card.ant-card:hover {
