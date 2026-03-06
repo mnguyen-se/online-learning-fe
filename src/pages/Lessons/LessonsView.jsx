@@ -1,5 +1,5 @@
 import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Header from '../../components/Header/header';
 import { getLearningProcess } from '../../api/learningProcessApi';
@@ -17,6 +17,7 @@ import {
 } from '../../api/learningCache';
 import { runWithRetry } from '../../api/requestRetry';
 import { completeLessonById, getLessonView } from '../../api/lessionApi';
+import { getAssignmentsByCourse, getMyWritingStatus } from '../../api/assignmentApi';
 import './LessonsView.css';
 
 const LessonVideoContent = lazy(() => import('./LessonVideoContent'));
@@ -208,6 +209,8 @@ function LessonsView() {
   const [selectedLesson, setSelectedLesson] = useState(null);
   const [learningProcess, setLearningProcess] = useState(null);
   const [courseDetail, setCourseDetail] = useState(null);
+  const [courseAssignments, setCourseAssignments] = useState([]);
+  const [assignmentStatuses, setAssignmentStatuses] = useState({});
   const [isCompleting, setIsCompleting] = useState(false);
 
   const selectedLessonKey = idToKey(resolveLessonId(selectedLesson));
@@ -280,6 +283,27 @@ function LessonsView() {
         setLearningProcess(process);
         setLessons(orderedLessons);
         setCourseDetail(getCachedCourseDetail(courseId));
+        getAssignmentsByCourse(courseId)
+          .then((data) => {
+            const list = Array.isArray(data) ? data : [];
+            setCourseAssignments(list);
+            const writingIds = list
+              .filter((a) => ((a.assignmentType ?? a.assignment_type ?? '').toUpperCase() === 'WRITING'))
+              .map((a) => a.assignmentId ?? a.id)
+              .filter(Boolean);
+            if (writingIds.length > 0) {
+              Promise.all(
+                writingIds.map((id) =>
+                  getMyWritingStatus(id).then((s) => ({ id: String(id), status: s })),
+                )
+              ).then((results) => {
+                const next = {};
+                results.forEach(({ id, status }) => { next[id] = status; });
+                setAssignmentStatuses((prev) => ({ ...prev, ...next }));
+              }).catch(() => {});
+            }
+          })
+          .catch(() => setCourseAssignments([]));
 
         const routeLesson = orderedLessons.find(
           (lesson) => idToKey(resolveLessonId(lesson)) === idToKey(lessonId),
@@ -545,6 +569,88 @@ function LessonsView() {
                 })}
               </div>
             )}
+            {isCourseLearningMode && courseAssignments.length > 0 ? (
+              <div className="lessons-sidebar-assignments">
+                <h3 className="lessons-sidebar-assignments-title">Bài kiểm tra trong khóa</h3>
+                <ul className="lessons-assignment-list">
+                  {courseAssignments.map((a) => {
+                    const aid = a.assignmentId ?? a.id;
+                    const title = a.title || a.name || `Bài tập #${aid}`;
+                    const type = (a.assignmentType || a.assignment_type || '').toUpperCase();
+                    const isWriting = type === 'WRITING';
+                    const status = assignmentStatuses[String(aid)];
+                    const state = status?.state ?? 'not_submitted';
+                    const score = status?.data?.score != null ? Number(status.data.score) : null;
+                    const maxScore = status?.data?.maxScore ?? status?.data?.max_score ?? a?.maxScore ?? 100;
+                    const dueDate = a?.dueDate ?? a?.due_date;
+                    const dueStr = dueDate
+                      ? new Date(dueDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
+                      : null;
+                    return (
+                      <li key={aid} className={`lessons-assignment-item lessons-assignment-item--${state}`}>
+                        <span className="lessons-assignment-item-title">{title}</span>
+                        {dueStr && <span className="lessons-assignment-item-due">Hạn nộp: {dueStr}</span>}
+                        <span className="lessons-assignment-item-type">{isWriting ? 'Writing' : 'Quiz'}</span>
+                        {isWriting ? (
+                          <>
+                            {state === 'not_submitted' && (
+                              <>
+                                <span className="lessons-assignment-status lessons-assignment-status--not-done">Chưa làm bài</span>
+                                <Link
+                                  to={courseId ? { pathname: `/student/assignments/${aid}/do`, state: { courseId, lessonId } } : `/student/assignments/${aid}/do`}
+                                  className="lessons-assignment-link lessons-assignment-link--do"
+                                >
+                                  Làm bài
+                                </Link>
+                              </>
+                            )}
+                            {state === 'pending' && (
+                              <>
+                                <span className="lessons-assignment-status lessons-assignment-status--pending">Đã nộp bài</span>
+                                <p className="lessons-assignment-pending-msg">Bài đã nộp thành công, đang chờ giáo viên chấm điểm.</p>
+                                <Link
+                                  to={
+                                    courseId
+                                      ? { pathname: `/writing-result/${aid}`, search: `?courseId=${courseId}${lessonId ? `&lessonId=${lessonId}` : ''}`, state: { courseId, lessonId } }
+                                      : `/writing-result/${aid}`
+                                  }
+                                  className="lessons-assignment-link lessons-assignment-link--view"
+                                >
+                                  Xem bài đã nộp
+                                </Link>
+                              </>
+                            )}
+                            {state === 'graded' && (
+                              <>
+                                <span className="lessons-assignment-status lessons-assignment-status--graded">Đã có điểm</span>
+                                <p className="lessons-assignment-score">Điểm: <strong>{score}</strong> / {maxScore}</p>
+                                <Link
+                                  to={
+                                    courseId
+                                      ? { pathname: `/writing-result/${aid}`, search: `?courseId=${courseId}${lessonId ? `&lessonId=${lessonId}` : ''}`, state: { courseId, lessonId } }
+                                      : `/writing-result/${aid}`
+                                  }
+                                  className="lessons-assignment-link lessons-assignment-link--result"
+                                >
+                                  Xem kết quả
+                                </Link>
+                              </>
+                            )}
+                          </>
+                        ) : (
+                          <Link
+                            to={courseId ? { pathname: `/student/assignments/${aid}/do`, state: { courseId, lessonId } } : `/student/assignments/${aid}/do`}
+                            className="lessons-assignment-link lessons-assignment-link--do"
+                          >
+                            Làm bài
+                          </Link>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ul>
+              </div>
+            ) : null}
           </div>
 
           <div className="lessons-main">

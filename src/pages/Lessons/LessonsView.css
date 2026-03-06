@@ -1,18 +1,43 @@
+/* Chiều cao header + spacing chuẩn UX/UI cho card và sidebar */
 .lessons-page {
+  --lessons-header-height: 56px;
+  --lessons-sidebar-width: 320px;
+  --lessons-content-gap: 24px;   /* Khoảng cách từ sidebar và từ rìa phải màn hình */
+  --lessons-card-gap: 16px;      /* Khoảng cách giữa 2 card */
   min-height: 100vh;
   background: #f5f5f5;
   display: flex;
   flex-direction: column;
 }
 
+/* Giữ header cố định trên trang học bài để không bị tách khỏi sidebar khi scroll */
+.lessons-page .header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 100;
+}
+
 .lessons-view-container {
   flex: 1;
   min-height: 0;
-  padding: 2rem;
+  padding: 0;
+  padding-top: var(--lessons-header-height, 56px);
+  display: flex;
+  flex-direction: column;
 }
 
 .lessons-header {
-  margin-bottom: 2rem;
+  margin-left: calc(var(--lessons-sidebar-width) + var(--lessons-content-gap));
+  margin-right: var(--lessons-content-gap);
+  margin-top: var(--lessons-content-gap);
+  margin-bottom: var(--lessons-card-gap);
+  padding: 24px;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e5e7eb;
 }
 
 .back-to-courses-btn {
@@ -61,20 +86,47 @@
 }
 
 .lessons-layout {
-  display: grid;
-  grid-template-columns: 350px 1fr;
-  gap: 2rem;
-  max-width: 1400px;
-  margin: 0 auto;
+  display: flex;
+  width: 100%;
+  flex: 1;
+  min-height: 0;
 }
 
 .lessons-sidebar {
-  background: white;
-  border-radius: 12px;
-  padding: 1.5rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  max-height: calc(100vh - 200px);
+  position: fixed;
+  left: 0;
+  top: var(--lessons-header-height, 56px);
+  width: var(--lessons-sidebar-width, 320px);
+  height: calc(100vh - var(--lessons-header-height, 56px));
   overflow-y: auto;
+  overflow-x: hidden;
+  background: #fff;
+  border-right: 1px solid #e5e7eb;
+  box-shadow: 2px 0 12px rgba(0, 0, 0, 0.06);
+  z-index: 20;
+  padding: 1.25rem 1rem 2rem 1rem;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+}
+
+/* Thanh cuộn sidebar rõ ràng khi nội dung dài */
+.lessons-sidebar::-webkit-scrollbar {
+  width: 8px;
+}
+
+.lessons-sidebar::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+.lessons-sidebar::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+.lessons-sidebar::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
 }
 
 .lessons-sidebar-title {
@@ -121,6 +173,161 @@
   border-color: #22c55e;
 }
 
+/* ----- Bài kiểm tra trong khóa (sidebar) - luôn hiển thị tất cả, không lọc theo đã chấm ----- */
+.lessons-sidebar-assignments {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 2px solid #e5e5e5;
+}
+
+.lessons-sidebar-assignments-title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1a1a1a;
+  margin: 0 0 0.35rem 0;
+}
+
+.lessons-sidebar-assignments-desc {
+  font-size: 0.8rem;
+  color: #6b7280;
+  margin: 0 0 0.75rem 0;
+}
+
+.lessons-assignment-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.lessons-assignment-item {
+  padding: 0.6rem 0.75rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.lessons-assignment-item-title {
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: #1e293b;
+  line-height: 1.3;
+}
+
+.lessons-assignment-item-due {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.lessons-assignment-item-type {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+/* Trạng thái: Xanh (Làm bài), Vàng (Chờ chấm), Xanh lá (Đã có điểm) */
+.lessons-assignment-status {
+  display: inline-block;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.5rem;
+  border-radius: 6px;
+  margin-top: 0.25rem;
+}
+
+.lessons-assignment-status--not-done {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.lessons-assignment-item--pending {
+  background: #fffbeb;
+  border-color: #fde047;
+}
+
+.lessons-assignment-status--pending {
+  background: #fef9c3;
+  color: #854d0e;
+}
+
+.lessons-assignment-item--graded {
+  background: #f0fdf4;
+  border-color: #86efac;
+}
+
+.lessons-assignment-status--graded {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.lessons-assignment-link {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-decoration: none;
+  margin-top: 0.35rem;
+  display: inline-block;
+}
+
+.lessons-assignment-link--do {
+  padding: 0.35rem 0.75rem;
+  background: #2563eb;
+  color: #fff;
+  border-radius: 8px;
+}
+.lessons-assignment-link--do:hover {
+  background: #1d4ed8;
+  color: #fff;
+}
+
+.lessons-assignment-link--view {
+  color: #854d0e;
+  border: 1px solid #eab308;
+  padding: 0.35rem 0.6rem;
+  border-radius: 6px;
+  font-size: 0.8125rem;
+  background: #fef9c3;
+}
+.lessons-assignment-link--view:hover {
+  background: #fde047;
+  color: #713f12;
+}
+
+.lessons-assignment-link--result {
+  color: #fff;
+  background: #16a34a;
+  padding: 0.35rem 0.75rem;
+  border-radius: 8px;
+}
+.lessons-assignment-link--result:hover {
+  background: #15803d;
+  color: #fff;
+}
+
+.lessons-assignment-pending-msg {
+  margin: 0.35rem 0 0;
+  font-size: 0.8125rem;
+  color: #854d0e;
+  line-height: 1.4;
+}
+
+.lessons-assignment-score {
+  margin: 0.25rem 0 0;
+  font-size: 0.8125rem;
+  color: #166534;
+}
+.lessons-assignment-score strong {
+  color: #15803d;
+}
+
+.lessons-assignment-item-hint {
+  font-size: 0.8rem;
+  color: #94a3b8;
+}
+
 .lesson-item-number {
   display: flex;
   align-items: center;
@@ -161,11 +368,16 @@
 }
 
 .lessons-main {
-  background: white;
+  margin-left: calc(var(--lessons-sidebar-width) + var(--lessons-content-gap));
+  margin-right: var(--lessons-content-gap);
+  margin-bottom: var(--lessons-content-gap);
+  flex: 1;
+  padding: 24px;
+  min-height: calc(100vh - 80px);
+  background: #fff;
   border-radius: 12px;
-  padding: 2rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
-  min-height: 500px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e5e7eb;
 }
 
 .lesson-detail-header {
@@ -408,9 +620,9 @@
   justify-content: center;
   min-height: 400px;
   text-align: center;
-}
-
-.lessons-error {
+  margin-left: calc(var(--lessons-sidebar-width, 320px) + var(--lessons-content-gap, 24px));
+  margin-right: var(--lessons-content-gap, 24px);
+  padding: 24px;
   color: #d32f2f;
 }
 
