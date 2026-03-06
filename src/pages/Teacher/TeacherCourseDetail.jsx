@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Spin } from 'antd';
 import { ChevronLeft, BookOpen, Users, ArrowRight, Layers } from 'lucide-react';
-import { getPublicModulesByCourse } from '../../api/module';
+import { getModulesByCourse } from '../../api/module';
 import { getLessonView } from '../../api/lessionApi';
 import { getCourseById } from '../../api/coursesApi';
 import CourseStudentList from './components/CourseStudentList';
@@ -13,8 +13,8 @@ const resolveModuleId = (m) => m?.moduleId ?? m?.id ?? m?.module_id;
 const resolveLessonModuleId = (l) => l?.moduleId ?? l?.module?.moduleId ?? l?.sectionId ?? l?.section?.id;
 
 /**
- * Trang chi tiết khóa học giáo viên: hiển thị các chương (module) public + card Danh sách học viên.
- * Click chương → trang Module (bài học public). Chỉ hiển thị bài đã public.
+ * Trang chi tiết khóa học giáo viên: hiển thị tất cả chương (module) của khóa được gán + card Danh sách học viên.
+ * Giáo viên luôn thấy đủ chương/bài học bất kể học sinh đã hoàn thành hay chưa.
  */
 function TeacherCourseDetail() {
   const { courseId } = useParams();
@@ -36,7 +36,7 @@ function TeacherCourseDetail() {
       }
     });
     Promise.all([
-      getPublicModulesByCourse(courseId),
+      getModulesByCourse(courseId),
       getLessonView().catch(() => []),
       getCourseById(courseId).catch(() => null),
     ])
@@ -112,7 +112,7 @@ function TeacherCourseDetail() {
         <span className="teacher-breadcrumb__current">{courseName || 'Chi tiết khóa học'}</span>
       </nav>
       <h1 className="teacher-cd-heading">{courseName || 'Chi tiết khóa học'}</h1>
-      <p className="teacher-cd-subtitle">Chọn chương để xem bài học đã xuất bản. Chỉ hiển thị nội dung public.</p>
+      <p className="teacher-cd-subtitle">Chọn chương để xem bài học trong khóa. Giáo viên xem toàn bộ chương đã gán cho khóa này.</p>
 
       <div className="teacher-cd-modules-grid">
         {modules.map((mod, index) => {
@@ -160,7 +160,7 @@ function TeacherCourseDetail() {
       {modules.length === 0 && (
         <div className="teacher-cd-empty">
           <BookOpen size={48} strokeWidth={1} className="teacher-cd-empty-icon" />
-          <p>Chưa có chương học nào được xuất bản cho khóa này.</p>
+          <p>Chưa có chương học nào trong khóa này.</p>
         </div>
       )}
     </div>
