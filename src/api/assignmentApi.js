@@ -86,3 +86,36 @@ export const gradeWritingSubmission = async (submissionId, payload) => {
   const response = await apiClient.post(`/assignments/writing-submissions/${submissionId}/grade`, payload);
   return response.data;
 };
+
+/** GET /assignments/{assignmentId}/writing-result – Học sinh xem điểm và nhận xét bài Writing */
+export const getWritingResult = async (assignmentId) => {
+  const response = await apiClient.get(`/assignments/${assignmentId}/writing-result`);
+  return response.data;
+};
+
+/**
+ * Trạng thái bài nộp Writing của học sinh: not_submitted | pending | graded
+ */
+export const getMyWritingStatus = async (assignmentId) => {
+  try {
+    const data = await getWritingResult(assignmentId);
+    const raw = data?.data ?? data;
+    const score = raw?.score;
+    const hasSubmission =
+      raw != null &&
+      (raw.submittedAt != null || raw.submitted_at != null || raw.submissionId != null);
+    if (score != null && Number(score) === Number(score)) {
+      return { state: 'graded', data: raw };
+    }
+    if (hasSubmission) return { state: 'pending', data: raw };
+    return { state: 'not_submitted', data: raw };
+  } catch (err) {
+    const status = err?.response?.status;
+    const msg = (err?.response?.data?.message ?? err?.response?.data?.error ?? '').toString().toLowerCase();
+    const isPendingGrade =
+      msg.includes('chưa được giáo viên chấm') || msg.includes('chờ giáo viên chấm');
+    if (isPendingGrade) return { state: 'pending' };
+    if (status === 404 || status === 403) return { state: 'not_submitted' };
+    throw err;
+  }
+};
