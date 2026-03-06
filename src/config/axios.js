@@ -69,8 +69,8 @@ apiClient.interceptors.response.use(
       if (!isModulesByCourse404) {
         const text =
           error.response?.data?.message ||
-          (error.code === 'ECONNABORTED' ? 'Kết nối quá thời gian. Vui lòng thử lại.' : 'Đã xảy ra lỗi. Vui lòng thử lại.');
-        toast.error(text);
+          (error.code === 'ECONNABORTED' ? 'Kết nối quá thời gian. Vui lòng thử lại.' : null);
+        if (text) toast.error(text);
       }
     }
 
