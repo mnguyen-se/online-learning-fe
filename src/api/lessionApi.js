@@ -27,6 +27,19 @@ export const getLessonView = async () => {
   return response.data;
 };
 
+/** GET /lessons/IdAndPublic?moduleId={moduleId} – Lấy danh sách bài học public của một module (cho giáo viên/học viên). */
+export const getLessonsByModuleIdAndIsPublicTrue = async (moduleId) => {
+  try {
+    const response = await apiClient.get('/lessons/IdAndPublic', {
+      params: { moduleId },
+    });
+    return response.data;
+  } catch (err) {
+    if (err?.response?.status === 404) return [];
+    throw err;
+  }
+};
+
 export const completeLessonById = async (lessonId) => {
   const response = await apiClient.post(`/lessonsCompletion/${lessonId}/complete`);
   return response.data;

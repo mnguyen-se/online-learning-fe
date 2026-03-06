@@ -21,10 +21,11 @@ function TeacherDashboard() {
     getTeacherCourses()
       .then((data) => {
         const list = Array.isArray(data) ? data : [];
+        const publishedOnly = list.filter((c) => c.public === true || c.isPublic === true);
         if (cancelled) return;
-        setCourses(list);
+        setCourses(publishedOnly);
 
-        const courseIds = list.map((c) => c.courseId).filter(Boolean);
+        const courseIds = publishedOnly.map((c) => c.courseId ?? c.id).filter(Boolean);
         if (courseIds.length === 0) {
           setStudentsCount(0);
           return;

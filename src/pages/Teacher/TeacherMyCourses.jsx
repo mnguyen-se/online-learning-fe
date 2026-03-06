@@ -36,7 +36,8 @@ function TeacherMyCourses() {
     });
     getTeacherCourses()
       .then((data) => {
-        if (!cancelled) setCourses(Array.isArray(data) ? data : []);
+        const raw = Array.isArray(data) ? data : [];
+        if (!cancelled) setCourses(raw.filter((c) => c.public === true || c.isPublic === true));
       })
       .catch((err) => {
         if (!cancelled) {
@@ -81,7 +82,7 @@ function TeacherMyCourses() {
     <div className="teacher-page-wrap teacher-tmc-wrap">
       <div className="teacher-tmc-header">
         <h1 className="teacher-tmc-title">Khóa học của tôi</h1>
-        <p className="teacher-tmc-desc">Danh sách khóa học được gán cho bạn. Nhấn vào khóa học để xem nội dung và danh sách học viên.</p>
+        <p className="teacher-tmc-desc">Chỉ hiển thị các khóa học đã được gán cho bạn và đã xuất bản bởi quản lý. Nhấn vào khóa học để xem chương và bài học.</p>
       </div>
 
       {!loading && courses.length > 0 && (

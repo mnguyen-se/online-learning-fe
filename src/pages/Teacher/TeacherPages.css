@@ -1846,6 +1846,12 @@
   color: #1e293b;
 }
 
+.teacher-drawer-section-desc {
+  margin: 0 0 0.75rem 0;
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+
 /* Accordion Ant (sidebar) */
 .tcd-accordion-ant .ant-collapse-header {
   align-items: center;
@@ -2218,5 +2224,180 @@
 
   .teacher-select {
     min-width: 100%;
+  }
+}
+
+/* ========== Teacher LMS: Breadcrumb, Course detail (modules grid), Module detail (lessons + video) ========== */
+.teacher-breadcrumb {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  font-size: 0.875rem;
+  color: #64748b;
+  margin-bottom: 0.75rem;
+}
+.teacher-breadcrumb__link {
+  background: none;
+  border: none;
+  color: #3b82f6;
+  cursor: pointer;
+  padding: 0;
+  font-size: inherit;
+}
+.teacher-breadcrumb__link:hover {
+  text-decoration: underline;
+}
+.teacher-breadcrumb__sep {
+  color: #cbd5e1;
+  user-select: none;
+}
+.teacher-breadcrumb__current {
+  color: #1e293b;
+  font-weight: 500;
+}
+
+.teacher-cd-wrap--modules {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+.teacher-cd-heading {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #1e293b;
+  margin: 0 0 0.25rem 0;
+}
+.teacher-cd-subtitle {
+  font-size: 0.9375rem;
+  color: #64748b;
+  margin: 0 0 1.5rem 0;
+}
+
+.teacher-cd-progress {
+  margin-bottom: 1.5rem;
+  padding: 1rem 1.25rem;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+.teacher-cd-progress__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+.teacher-cd-progress__label {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+.teacher-cd-progress__text {
+  font-size: 0.8125rem;
+  color: #64748b;
+}
+.teacher-cd-progress__bar-wrap {
+  height: 8px;
+  background: #e2e8f0;
+  border-radius: 4px;
+  overflow: hidden;
+}
+.teacher-cd-progress__bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #3b82f6, #60a5fa);
+  border-radius: 4px;
+  transition: width 0.3s ease;
+}
+
+.teacher-cd-modules-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1rem;
+}
+.teacher-module-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 1.25rem 1.25rem;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  transition: box-shadow 0.2s, border-color 0.2s;
+  text-align: left;
+  width: 100%;
+}
+.teacher-module-card:hover {
+  border-color: #cbd5e1;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.06);
+}
+.teacher-module-card__icon {
+  flex-shrink: 0;
+  width: 48px;
+  height: 48px;
+  border-radius: 10px;
+  background: #eff6ff;
+  color: #2563eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.teacher-module-card__icon--purple {
+  background: #f5f3ff;
+  color: #7c3aed;
+}
+.teacher-module-card__body {
+  flex: 1;
+  min-width: 0;
+}
+.teacher-module-card__title {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+  margin: 0 0 0.25rem 0;
+}
+.teacher-module-card__meta {
+  font-size: 0.8125rem;
+  color: #64748b;
+  margin: 0;
+}
+.teacher-module-card__arrow {
+  flex-shrink: 0;
+  color: #94a3b8;
+}
+
+.teacher-cd-empty {
+  text-align: center;
+  padding: 2rem;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px dashed #e2e8f0;
+  color: #64748b;
+}
+.teacher-cd-empty-icon {
+  margin-bottom: 0.75rem;
+  opacity: 0.6;
+}
+
+/* Module detail page (lessons + video) */
+.teacher-md-wrap {
+  padding: 0 1rem 1rem;
+}
+.teacher-md-back {
+  margin-bottom: 1rem;
+}
+.teacher-md-main {
+  display: grid;
+  grid-template-columns: 1fr 320px;
+  gap: 1.5rem;
+  align-items: start;
+}
+.teacher-md-lesson-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+@media (max-width: 900px) {
+  .teacher-md-main {
+    grid-template-columns: 1fr;
   }
 }

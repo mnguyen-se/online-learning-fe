@@ -16,6 +16,12 @@ export const getActiveCourses = async () => {
   return response.data;
 };
 
+/** GET /api/v1/courses/getById?id={id} – Lấy thông tin khóa học (public). */
+export const getCourseById = async (courseId) => {
+  const response = await apiClient.get('/courses/getById', { params: { id: courseId } });
+  return response.data;
+};
+
 /** GET /api/v1/courses/teachers – Danh sách giáo viên (COURSE_MANAGER / ADMIN) */
 export const getTeachers = async () => {
   const response = await apiClient.get('/courses/teachers');

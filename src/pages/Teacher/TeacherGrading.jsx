@@ -1,13 +1,46 @@
-import React, { useEffect, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import React, { useEffect, useState, useMemo } from 'react';
+import { useSearchParams, Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
+import { Card, Select, Table, Input, Avatar, Tag, Button, Modal, Form, InputNumber, Breadcrumb, Spin, Empty } from 'antd';
+import { Search, ClipboardCheck } from 'lucide-react';
 import { getTeacherCourses } from '../../api/teacherApi';
-import { getAssignmentsByCourse } from '../../api/assignmentApi';
-import { getSubmissionsByAssignment, gradeSubmission } from '../../api/teacherApi';
+import {
+  getAssignmentsByCourse,
+  getQuizSubmissions,
+  getWritingSubmissions,
+  getQuizSubmission,
+  getWritingSubmission,
+  gradeQuizSubmission,
+  gradeWritingSubmission,
+} from '../../api/assignmentApi';
 import './TeacherPages.css';
+import './TeacherGrading.css';
+
+const ASSIGNMENT_TYPE_QUIZ = 'QUIZ';
+const ASSIGNMENT_TYPE_WRITING = 'WRITING';
+
+const formatSubmissionDate = (dateStr) => {
+  if (!dateStr) return '—';
+  const d = new Date(dateStr);
+  const day = String(d.getDate()).padStart(2, '0');
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const year = d.getFullYear();
+  const hour = String(d.getHours()).padStart(2, '0');
+  const minute = String(d.getMinutes()).padStart(2, '0');
+  return `${day}/${month}/${year} ${hour}:${minute}`;
+};
+
+const getStatusType = (submission, assignment) => {
+  if (submission.score != null) return 'graded';
+  const submittedAt = submission.submittedAt ? new Date(submission.submittedAt) : null;
+  const dueDate = assignment?.dueDate ? new Date(assignment.dueDate) : null;
+  if (dueDate && submittedAt && submittedAt > dueDate) return 'late';
+  return 'pending';
+};
 
 function TeacherGrading() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const navigate = useNavigate();
   const courseIdParam = searchParams.get('courseId');
   const assignmentIdParam = searchParams.get('assignmentId');
 
@@ -16,213 +49,424 @@ function TeacherGrading() {
   const [submissions, setSubmissions] = useState([]);
   const [selectedCourseId, setSelectedCourseId] = useState(courseIdParam || '');
   const [selectedAssignmentId, setSelectedAssignmentId] = useState(assignmentIdParam || '');
+
+  /** Đồng bộ filter lên URL để reload trang vẫn giữ khóa học + bài tập. */
+  useEffect(() => {
+    const nextCourse = selectedCourseId || '';
+    const nextAssignment = selectedAssignmentId || '';
+    if (courseIdParam !== nextCourse || assignmentIdParam !== nextAssignment) {
+      const next = {};
+      if (nextCourse) next.courseId = nextCourse;
+      if (nextAssignment) next.assignmentId = nextAssignment;
+      setSearchParams(next, { replace: true });
+    }
+  }, [selectedCourseId, selectedAssignmentId, courseIdParam, assignmentIdParam, setSearchParams]);
   const [loadingCourses, setLoadingCourses] = useState(true);
   const [loadingAssignments, setLoadingAssignments] = useState(false);
   const [loadingSubmissions, setLoadingSubmissions] = useState(false);
   const [modalSubmission, setModalSubmission] = useState(null);
-  const [gradeValue, setGradeValue] = useState('');
-  const [feedbackText, setFeedbackText] = useState('');
+  const [submissionDetail, setSubmissionDetail] = useState(null);
+  const [loadingDetail, setLoadingDetail] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [searchText, setSearchText] = useState('');
+  const [gradeForm] = Form.useForm();
 
   useEffect(() => {
     getTeacherCourses()
-      .then((data) => setCourses(Array.isArray(data) ? data : []))
+      .then((data) => {
+        const raw = Array.isArray(data) ? data : [];
+        setCourses(raw.filter((c) => c.public === true || c.isPublic === true));
+      })
       .catch(() => setCourses([]))
       .finally(() => setLoadingCourses(false));
   }, []);
 
   useEffect(() => {
-    if (courseIdParam) setSelectedCourseId(courseIdParam);
+    if (courseIdParam) {
+      queueMicrotask(() => setSelectedCourseId(courseIdParam));
+    }
   }, [courseIdParam]);
 
   useEffect(() => {
-    if (assignmentIdParam) setSelectedAssignmentId(assignmentIdParam);
+    if (assignmentIdParam) {
+      queueMicrotask(() => setSelectedAssignmentId(assignmentIdParam));
+    }
   }, [assignmentIdParam]);
 
   useEffect(() => {
     if (!selectedCourseId) {
-      setAssignments([]);
-      return;
+      const tid = setTimeout(() => setAssignments([]), 0);
+      return () => clearTimeout(tid);
     }
-    setLoadingAssignments(true);
+    const tid = setTimeout(() => {
+      setAssignments([]);
+      setLoadingAssignments(true);
+    }, 0);
+    let cancelled = false;
     getAssignmentsByCourse(selectedCourseId)
-      .then((data) => setAssignments(Array.isArray(data) ? data : []))
-      .catch(() => setAssignments([]))
-      .finally(() => setLoadingAssignments(false));
+      .then((data) => {
+        if (!cancelled) setAssignments(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {
+        if (!cancelled) setAssignments([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingAssignments(false);
+      });
+    return () => {
+      clearTimeout(tid);
+      cancelled = true;
+    };
   }, [selectedCourseId]);
 
   useEffect(() => {
-    if (!selectedAssignmentId) {
-      setSubmissions([]);
-      return;
+    if (!selectedAssignmentId || assignments.length === 0) {
+      const tid = setTimeout(() => setSubmissions([]), 0);
+      return () => clearTimeout(tid);
     }
-    setLoadingSubmissions(true);
-    getSubmissionsByAssignment(selectedAssignmentId)
-      .then((data) => setSubmissions(Array.isArray(data) ? data : []))
-      .catch(() => setSubmissions([]))
-      .finally(() => setLoadingSubmissions(false));
-  }, [selectedAssignmentId]);
+    const assignment = assignments.find((a) => String(a.assignmentId ?? a.id) === String(selectedAssignmentId));
+    if (!assignment) {
+      const tid = setTimeout(() => setSubmissions([]), 0);
+      return () => clearTimeout(tid);
+    }
+    const type = (assignment.assignmentType || assignment.assignment_type || '').toUpperCase();
+    const tid = setTimeout(() => setLoadingSubmissions(true), 0);
+    let cancelled = false;
+    const fetchSubmissions = type === ASSIGNMENT_TYPE_WRITING ? getWritingSubmissions : getQuizSubmissions;
+    fetchSubmissions(selectedAssignmentId)
+      .then((data) => {
+        if (!cancelled) setSubmissions(Array.isArray(data) ? data : []);
+      })
+      .catch(() => {
+        if (!cancelled) setSubmissions([]);
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingSubmissions(false);
+      });
+    return () => {
+      clearTimeout(tid);
+      cancelled = true;
+    };
+  }, [selectedAssignmentId, assignments]);
+
+  const selectedAssignment = assignments.find((a) => String(a.assignmentId ?? a.id) === String(selectedAssignmentId));
+
+  const filteredAndSortedSubmissions = useMemo(() => {
+    let list = [...(submissions || [])];
+    const q = searchText.trim().toLowerCase();
+    if (q) {
+      list = list.filter((s) => {
+        const name = (s.studentName || s.student_name || s.userName || '').toLowerCase();
+        const email = (s.studentEmail || s.email || '').toLowerCase();
+        const code = (s.studentId ?? s.student_id ?? s.code ?? s.userCode ?? '').toString().toLowerCase();
+        return name.includes(q) || email.includes(q) || code.includes(q);
+      });
+    }
+    list.sort((a, b) => {
+      const ta = a.submittedAt ? new Date(a.submittedAt).getTime() : 0;
+      const tb = b.submittedAt ? new Date(b.submittedAt).getTime() : 0;
+      return tb - ta;
+    });
+    return list;
+  }, [submissions, searchText]);
 
   const openGradeModal = (sub) => {
     setModalSubmission(sub);
-    setGradeValue(sub.score != null ? String(sub.score) : '');
-    setFeedbackText(sub.feedback || '');
+    const score = sub.score != null ? sub.score : undefined;
+    gradeForm.setFieldsValue({ score, feedback: sub.feedback || '' });
+    setSubmissionDetail(null);
+    const sid = sub.submissionId ?? sub.id;
+    if (!sid || !selectedAssignment) return;
+    const type = (selectedAssignment.assignmentType || selectedAssignment.assignment_type || '').toUpperCase();
+    setLoadingDetail(true);
+    const fetchDetail = type === ASSIGNMENT_TYPE_WRITING ? getWritingSubmission(sid) : getQuizSubmission(sid);
+    fetchDetail
+      .then((data) => setSubmissionDetail(data))
+      .catch(() => toast.error('Không tải được chi tiết bài nộp.'))
+      .finally(() => setLoadingDetail(false));
   };
 
   const closeGradeModal = () => {
     setModalSubmission(null);
-    setGradeValue('');
-    setFeedbackText('');
+    setSubmissionDetail(null);
+    gradeForm.resetFields();
   };
 
-  const handleSubmitGrade = (e) => {
-    e.preventDefault();
-    if (!modalSubmission?.id) return;
-    const score = gradeValue.trim() === '' ? null : Number(gradeValue);
-    if (score != null && (Number.isNaN(score) || score < 0 || score > 10)) {
+  const handleSubmitGrade = (values) => {
+    const sid = modalSubmission?.submissionId ?? modalSubmission?.id;
+    if (!sid || !selectedAssignment) return;
+    const scoreVal = values.score;
+    if (scoreVal != null && (Number.isNaN(scoreVal) || scoreVal < 0 || scoreVal > 10)) {
       toast.warning('Điểm số hợp lệ từ 0 đến 10.');
       return;
     }
+    const type = (selectedAssignment.assignmentType || selectedAssignment.assignment_type || '').toUpperCase();
+    const answers = submissionDetail?.answers ?? [];
+    const answerGrades = answers.map((a) => ({
+      answerId: a.answerId,
+      pointsEarned: a.pointsEarned ?? 0,
+      isCorrect: a.isCorrect ?? false,
+    }));
+    const payload = {
+      score: scoreVal ?? 0,
+      feedback: (values.feedback || '').trim() || null,
+      answerGrades,
+    };
     setSubmitting(true);
-    gradeSubmission(modalSubmission.id, { score, feedback: feedbackText.trim() || null })
+    const gradeFn = type === ASSIGNMENT_TYPE_WRITING ? gradeWritingSubmission : gradeQuizSubmission;
+    gradeFn(sid, payload)
       .then(() => {
         toast.success('Đã lưu điểm và nhận xét.');
         closeGradeModal();
-        getSubmissionsByAssignment(selectedAssignmentId).then((data) => setSubmissions(Array.isArray(data) ? data : []));
+        const fetchSubmissions = type === ASSIGNMENT_TYPE_WRITING ? getWritingSubmissions : getQuizSubmissions;
+        fetchSubmissions(selectedAssignmentId).then((data) => setSubmissions(Array.isArray(data) ? data : []));
       })
       .catch(() => toast.error('Không thể lưu. Vui lòng thử lại.'))
       .finally(() => setSubmitting(false));
   };
 
-  const selectedAssignment = assignments.find((a) => String(a.id) === String(selectedAssignmentId));
+  const columns = [
+    {
+      title: 'Học sinh',
+      key: 'student',
+      width: 300,
+      render: (_, record) => {
+        const name = record.studentName || record.student_name || record.userName || record.email || 'Học viên';
+        const email = record.studentEmail || record.student_email || record.email || '';
+        const initial = (name && name[0]) ? name[0].toUpperCase() : '?';
+        return (
+          <div className="grading-table-student">
+            <Avatar size={48} className="grading-table-avatar grading-table-avatar-purple">
+              {initial}
+            </Avatar>
+            <div className="grading-table-student-info">
+              <span className="grading-table-student-name">{name}</span>
+              {email && <span className="grading-table-student-email">{email}</span>}
+            </div>
+          </div>
+        );
+      },
+    },
+    {
+      title: 'NGÀY NỘP',
+      dataIndex: 'submittedAt',
+      key: 'submittedAt',
+      width: 160,
+      sorter: (a, b) => {
+        const ta = a.submittedAt ? new Date(a.submittedAt).getTime() : 0;
+        const tb = b.submittedAt ? new Date(b.submittedAt).getTime() : 0;
+        return ta - tb;
+      },
+      defaultSortOrder: 'descend',
+      render: (v) => (
+        <span className="grading-table-date">{formatSubmissionDate(v)}</span>
+      ),
+    },
+    {
+      title: 'Trạng thái',
+      key: 'status',
+      width: 130,
+      render: (_, record) => {
+        const statusType = getStatusType(record, selectedAssignment);
+        if (statusType === 'graded') {
+          return <Tag color="success" className="grading-table-status-tag">Đã chấm</Tag>;
+        }
+        if (statusType === 'late') {
+          return <Tag color="error" className="grading-table-status-tag">Nộp trễ</Tag>;
+        }
+        return <Tag color="warning" className="grading-table-status-tag">Chưa chấm</Tag>;
+      },
+    },
+    {
+      title: 'Điểm',
+      dataIndex: 'score',
+      key: 'score',
+      width: 100,
+      align: 'center',
+      render: (score) =>
+        score != null ? (
+          <span className="grading-table-score-value">{score}</span>
+        ) : (
+          <span className="grading-table-score-empty">—</span>
+        ),
+    },
+    {
+      title: 'Thao tác',
+      key: 'action',
+      width: 160,
+      render: (_, record) => {
+        const type = (selectedAssignment?.assignmentType ?? selectedAssignment?.assignment_type ?? '').toUpperCase();
+        const isWriting = type === ASSIGNMENT_TYPE_WRITING;
+        const sid = record.submissionId ?? record.id;
+        return (
+          <Button
+            type="primary"
+            size="middle"
+            icon={<ClipboardCheck size={16} strokeWidth={2.25} />}
+            onClick={() => {
+              if (isWriting && sid) {
+                navigate(`/teacher-page/grade/writing/${sid}`, {
+                  state: {
+                    courseId: selectedCourseId,
+                    assignmentId: selectedAssignmentId,
+                  },
+                });
+              } else {
+                openGradeModal(record);
+              }
+            }}
+            className="grading-table-btn-grade"
+          >
+            Chấm điểm
+          </Button>
+        );
+      },
+    },
+  ];
 
   return (
-    <div className="teacher-page-wrap">
-      <h1 className="teacher-page-title">Chấm bài</h1>
-      <p className="teacher-page-desc">Chọn khóa học và bài tập để xem bài nộp và chấm điểm.</p>
+    <div className="grading-page">
+      <header className="grading-header">
+        <Breadcrumb
+          className="grading-breadcrumb"
+          items={[
+            { title: <Link to="/teacher-page">Dashboard</Link> },
+            { title: 'Chấm bài' },
+          ]}
+        />
+        <h1 className="grading-title">Chấm bài</h1>
+        <p className="grading-subtitle">Quản lý và đánh giá kết quả học tập của học sinh.</p>
+      </header>
 
-      <div className="teacher-grading-filters">
-        <div className="teacher-form-group">
-          <label>Khóa học</label>
-          <select
-            value={selectedCourseId}
-            onChange={(e) => setSelectedCourseId(e.target.value)}
-            disabled={loadingCourses}
-            className="teacher-select"
-          >
-            <option value="">-- Chọn khóa học --</option>
-            {courses.map((c) => (
-              <option key={c.id || c.courseId} value={c.id || c.courseId}>{c.name || c.courseName || c.code || '—'}</option>
-            ))}
-          </select>
+      <Card className="grading-filter-card" bordered={false}>
+        <div className="grading-filter-row">
+          <div className="grading-filter-group">
+            <label className="grading-filter-label">Khóa học</label>
+            <Select
+              size="large"
+              placeholder="Chọn khóa học"
+              value={selectedCourseId || undefined}
+              onChange={(courseId) => {
+                setSelectedCourseId(courseId);
+                setSelectedAssignmentId('');
+                setSubmissions([]);
+                setSearchText('');
+                setAssignments([]);
+              }}
+              loading={loadingCourses}
+              allowClear
+              className="grading-select grading-select-course"
+              options={[
+                { value: '', label: 'Chọn khóa học' },
+                ...courses.map((c) => ({
+                  value: String(c.courseId ?? c.id),
+                  label: c.title || c.name || c.courseName || c.code || '—',
+                })),
+              ]}
+            />
+          </div>
+          <div className="grading-filter-group">
+            <label className="grading-filter-label">Bài tập</label>
+            <Select
+              size="large"
+              placeholder="Chọn bài tập"
+              value={selectedAssignmentId || undefined}
+              onChange={setSelectedAssignmentId}
+              loading={loadingAssignments}
+              disabled={!selectedCourseId}
+              allowClear
+              className="grading-select grading-select-assignment"
+              options={[
+                { value: '', label: 'Chọn bài tập' },
+                ...assignments.map((a) => ({
+                  value: String(a.assignmentId ?? a.id),
+                  label: a.title || a.name || `Bài tập #${a.assignmentId ?? a.id}`,
+                })),
+              ]}
+            />
+          </div>
+          <div className="grading-filter-group grading-filter-group-search">
+            <label className="grading-filter-label">Tìm kiếm học sinh</label>
+            <Input
+              size="large"
+              placeholder="Tên hoặc mã học sinh..."
+              prefix={<Search size={18} />}
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              allowClear
+              className="grading-filter-search"
+            />
+          </div>
         </div>
-        <div className="teacher-form-group">
-          <label>Bài tập</label>
-          <select
-            value={selectedAssignmentId}
-            onChange={(e) => setSelectedAssignmentId(e.target.value)}
-            disabled={loadingAssignments || !selectedCourseId}
-            className="teacher-select"
-          >
-            <option value="">-- Chọn bài tập --</option>
-            {assignments.map((a) => (
-              <option key={a.id} value={a.id}>{a.title || a.name || `Bài tập #${a.id}`}</option>
-            ))}
-          </select>
-        </div>
-      </div>
+      </Card>
 
-      <section className="teacher-section">
-        <h2 className="teacher-section__title">
-          Bài nộp {selectedAssignment ? `: ${selectedAssignment.title || selectedAssignment.name || ''}` : ''}
-        </h2>
-        {loadingSubmissions ? (
-          <p className="teacher-muted">Đang tải bài nộp...</p>
-        ) : !selectedAssignmentId ? (
-          <p className="teacher-muted">Vui lòng chọn khóa học và bài tập.</p>
+      <Card className="grading-table-card" bordered={false}>
+        <h2 className="grading-table-card-title">Danh sách bài nộp</h2>
+
+        {!selectedAssignmentId ? (
+          <Empty description="Vui lòng chọn khóa học và bài tập để xem bài nộp." className="grading-empty" />
         ) : (
-          <div className="teacher-table-wrap">
-            <table className="teacher-table">
-              <thead>
-                <tr>
-                  <th>Học viên</th>
-                  <th>Ngày nộp</th>
-                  <th>Điểm</th>
-                  <th>Trạng thái</th>
-                  <th>Thao tác</th>
-                </tr>
-              </thead>
-              <tbody>
-                {submissions.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="teacher-table-empty">Chưa có bài nộp.</td>
-                  </tr>
-                ) : (
-                  submissions.map((s) => (
-                    <tr key={s.id}>
-                      <td>{s.studentName || s.userName || s.email || `#${s.id}`}</td>
-                      <td>{s.submittedAt ? new Date(s.submittedAt).toLocaleDateString('vi-VN') : '—'}</td>
-                      <td>{s.score != null ? s.score : '—'}</td>
-                      <td>
-                        <span className={`teacher-badge ${s.score != null ? 'teacher-badge--done' : 'teacher-badge--pending'}`}>
-                          {s.score != null ? 'Đã chấm' : 'Chưa chấm'}
-                        </span>
-                      </td>
-                      <td>
-                        <button type="button" className="teacher-btn teacher-btn--small teacher-btn--primary" onClick={() => openGradeModal(s)}>
-                          Chấm / Sửa
-                        </button>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+          <Table
+            columns={columns}
+            dataSource={filteredAndSortedSubmissions.map((s, i) => ({ ...s, key: s.submissionId ?? s.id ?? i }))}
+            loading={loadingSubmissions}
+            pagination={{
+              pageSize: 10,
+              showSizeChanger: true,
+              pageSizeOptions: ['10', '20', '50'],
+              showTotal: (total) => `Tổng ${total} bài nộp`,
+              className: 'grading-pagination',
+            }}
+            locale={{
+              emptyText: <Empty description="Chưa có bài nộp nào." />,
+            }}
+            className="grading-table"
+          />
         )}
-      </section>
+      </Card>
 
-      {modalSubmission && (
-        <div className="teacher-modal-overlay" onClick={closeGradeModal} role="presentation">
-          <div className="teacher-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="teacher-modal__header">
-              <h3>Chấm bài — {modalSubmission.studentName || modalSubmission.userName || 'Học viên'}</h3>
-              <button type="button" className="teacher-modal__close" onClick={closeGradeModal} aria-label="Đóng">×</button>
+      <Modal
+        title={`Chấm bài — ${modalSubmission?.studentName || modalSubmission?.userName || 'Học viên'}`}
+        open={!!modalSubmission}
+        onCancel={closeGradeModal}
+        footer={null}
+        destroyOnClose
+        width={480}
+        className="grading-modal"
+      >
+        {(loadingDetail || modalSubmission) && (
+          <Form
+            form={gradeForm}
+            layout="vertical"
+            onFinish={handleSubmitGrade}
+          >
+            <Form.Item
+              name="score"
+              label="Điểm số (0–10)"
+              rules={[
+                { required: true, message: 'Vui lòng nhập điểm.' },
+                { type: 'number', min: 0, max: 10, message: 'Điểm từ 0 đến 10.' },
+              ]}
+            >
+              <InputNumber min={0} max={10} step={0.25} placeholder="Nhập điểm" className="grading-modal-input" style={{ width: '100%' }} />
+            </Form.Item>
+            <Form.Item name="feedback" label="Nhận xét (feedback)">
+              <Input.TextArea rows={4} placeholder="Nhập nhận xét cho học viên..." />
+            </Form.Item>
+            <div className="grading-modal-actions">
+              <Button onClick={closeGradeModal}>Hủy</Button>
+              <Button
+                type="primary"
+                htmlType="submit"
+                loading={submitting}
+                disabled={loadingDetail}
+              >
+                {loadingDetail ? 'Đang tải...' : 'Lưu điểm và nhận xét'}
+              </Button>
             </div>
-            <form onSubmit={handleSubmitGrade} className="teacher-grade-form">
-              <div className="teacher-form-group">
-                <label>Điểm số (0–10)</label>
-                <input
-                  type="number"
-                  min="0"
-                  max="10"
-                  step="0.25"
-                  value={gradeValue}
-                  onChange={(e) => setGradeValue(e.target.value)}
-                  className="teacher-input"
-                  placeholder="Nhập điểm"
-                />
-              </div>
-              <div className="teacher-form-group">
-                <label>Nhận xét (feedback)</label>
-                <textarea
-                  value={feedbackText}
-                  onChange={(e) => setFeedbackText(e.target.value)}
-                  className="teacher-textarea"
-                  rows={4}
-                  placeholder="Nhập nhận xét cho học viên..."
-                />
-              </div>
-              <div className="teacher-modal__actions">
-                <button type="button" className="teacher-btn teacher-btn--secondary" onClick={closeGradeModal}>Hủy</button>
-                <button type="submit" className="teacher-btn teacher-btn--primary" disabled={submitting}>
-                  {submitting ? 'Đang lưu...' : 'Lưu điểm và nhận xét'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+          </Form>
+        )}
+      </Modal>
     </div>
   );
 }

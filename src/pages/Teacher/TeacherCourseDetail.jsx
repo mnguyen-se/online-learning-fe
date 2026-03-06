@@ -1,34 +1,30 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Button, Spin } from 'antd';
-import { ChevronLeft, BookOpen, Users, ArrowRight } from 'lucide-react';
-import { getModulesByCourse } from '../../api/module';
-import CourseVideoPlayer from './components/CourseVideoPlayer';
-import CourseLearningSidebar from './components/CourseLearningSidebar';
+import { Spin } from 'antd';
+import { ChevronLeft, BookOpen, Users, ArrowRight, Layers } from 'lucide-react';
+import { getPublicModulesByCourse } from '../../api/module';
+import { getLessonView } from '../../api/lessionApi';
+import { getCourseById } from '../../api/coursesApi';
 import CourseStudentList from './components/CourseStudentList';
 import './TeacherPages.css';
 
-function getAllLessons(modules) {
-  const list = [];
-  (modules || []).forEach((mod) => {
-    (mod.lessons || []).forEach((l) => list.push(l));
-  });
-  return list.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
-}
+const idToKey = (v) => String(v ?? '');
+const resolveModuleId = (m) => m?.moduleId ?? m?.id ?? m?.module_id;
+const resolveLessonModuleId = (l) => l?.moduleId ?? l?.module?.moduleId ?? l?.sectionId ?? l?.section?.id;
 
 /**
- * Trang chi tiết khóa học: màn hình 2 card (Danh sách học viên | Nội dung khóa học),
- * bấm link vào từng khu vực tương ứng.
+ * Trang chi tiết khóa học giáo viên: hiển thị các chương (module) public + card Danh sách học viên.
+ * Click chương → trang Module (bài học public). Chỉ hiển thị bài đã public.
  */
 function TeacherCourseDetail() {
   const { courseId } = useParams();
   const navigate = useNavigate();
   const [modules, setModules] = useState([]);
+  const [lessonCountByModule, setLessonCountByModule] = useState({});
+  const [courseName, setCourseName] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [currentLesson, setCurrentLesson] = useState(null);
-  const [courseName, setCourseName] = useState('');
-  const [view, setView] = useState('cards'); // 'cards' | 'content' | 'students'
+  const [view, setView] = useState('overview'); // 'overview' | 'students'
 
   useEffect(() => {
     if (!courseId) return;
@@ -39,14 +35,23 @@ function TeacherCourseDetail() {
         setError(null);
       }
     });
-    getModulesByCourse(courseId)
-      .then((modulesData) => {
+    Promise.all([
+      getPublicModulesByCourse(courseId),
+      getLessonView().catch(() => []),
+      getCourseById(courseId).catch(() => null),
+    ])
+      .then(([modulesData, lessonsData, course]) => {
         if (cancelled) return;
-        const list = Array.isArray(modulesData) ? modulesData : [];
-        setModules(list);
-        const lessons = getAllLessons(list);
-        if (lessons.length > 0) setCurrentLesson((prev) => prev || lessons[0]);
-        if (list[0]?.course?.title) setCourseName(list[0].course.title);
+        const rawModules = Array.isArray(modulesData) ? modulesData : modulesData?.data ?? [];
+        const rawLessons = Array.isArray(lessonsData) ? lessonsData : lessonsData?.data ?? [];
+        setModules(rawModules.sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0)));
+        const countByModule = {};
+        rawLessons.forEach((l) => {
+          const mid = idToKey(resolveLessonModuleId(l));
+          countByModule[mid] = (countByModule[mid] || 0) + 1;
+        });
+        setLessonCountByModule(countByModule);
+        if (course?.title) setCourseName(course.title);
       })
       .catch((err) => {
         if (!cancelled) {
@@ -59,10 +64,6 @@ function TeacherCourseDetail() {
       });
     return () => { cancelled = true; };
   }, [courseId]);
-
-  const handleSelectLesson = useCallback((lesson) => {
-    setCurrentLesson(lesson);
-  }, []);
 
   if (loading) {
     return (
@@ -80,7 +81,7 @@ function TeacherCourseDetail() {
       <div className="teacher-page-wrap teacher-cd-wrap">
         <div className="teacher-cd-error">
           <p>{error}</p>
-          <button type="button" className="teacher-cd-back-btn" onClick={() => navigate(-1)} aria-label="Quay lại">
+          <button type="button" className="teacher-cd-back-btn" onClick={() => navigate('/teacher-page/courses')} aria-label="Quay lại">
             <ChevronLeft size={20} strokeWidth={2} />
             <span>Quay lại</span>
           </button>
@@ -89,105 +90,79 @@ function TeacherCourseDetail() {
     );
   }
 
-  const contentArea = (
-    <div className="teacher-cd-content-tab">
-      <div className="tcd-main">
-        <section className="tcd-video-col">
-          <div className="tcd-video-card">
-            <CourseVideoPlayer lesson={currentLesson} />
-            {currentLesson && (
-              <h2 className="tcd-video-title">{currentLesson.title}</h2>
-            )}
-          </div>
-        </section>
-        <aside className="tcd-sidebar-col">
-          <div className="tcd-sidebar-card">
-            <CourseLearningSidebar
-              modules={modules}
-              currentLessonId={currentLesson?.lessonId}
-              onSelectLesson={handleSelectLesson}
-            />
-          </div>
-        </aside>
-      </div>
-    </div>
-  );
-
-  const studentsArea = (
-    <div className="teacher-cd-students-tab">
-      <CourseStudentList courseId={courseId} courseName={courseName} />
-    </div>
-  );
-
-  if (view === 'cards') {
+  if (view === 'students') {
     return (
       <div className="teacher-page-wrap teacher-cd-wrap">
-        <button
-          type="button"
-          onClick={() => navigate('/teacher-page/courses')}
-          className="teacher-cd-back-btn"
-          aria-label="Quay lại"
-        >
+        <button type="button" onClick={() => setView('overview')} className="teacher-cd-back-btn" aria-label="Quay lại">
           <ChevronLeft size={20} strokeWidth={2} />
           <span>Quay lại</span>
         </button>
-        <div className="teacher-cd-cards">
-          <article className="teacher-cd-card teacher-cd-card--students">
-            <div className="teacher-cd-card__icon-wrap teacher-cd-card__icon-wrap--purple">
-              <Users size={28} strokeWidth={1.8} />
-            </div>
-            <div className="teacher-cd-card__bg-icon" aria-hidden>
-              <Users size={120} strokeWidth={0.8} />
-            </div>
-            <h2 className="teacher-cd-card__title">Danh sách học viên</h2>
-            <p className="teacher-cd-card__desc">
-              Theo dõi tiến độ học tập, quản lý chuyên cần và chấm điểm bài tập.
-            </p>
-            <button
-              type="button"
-              className="teacher-cd-card__link teacher-cd-card__link--blue"
-              onClick={() => setView('students')}
-            >
-              Truy cập danh sách <ArrowRight size={16} />
-            </button>
-          </article>
-          <article className="teacher-cd-card teacher-cd-card--content">
-            <div className="teacher-cd-card__icon-wrap teacher-cd-card__icon-wrap--green">
-              <BookOpen size={28} strokeWidth={1.8} />
-            </div>
-            <div className="teacher-cd-card__bg-icon teacher-cd-card__bg-icon--green" aria-hidden>
-              <BookOpen size={120} strokeWidth={0.8} />
-            </div>
-            <h2 className="teacher-cd-card__title">Nội dung khóa học</h2>
-            <p className="teacher-cd-card__desc">
-              Quản lý giáo trình, bài giảng video, tài liệu và cấu trúc bài kiểm tra.
-            </p>
-            <button
-              type="button"
-              className="teacher-cd-card__link teacher-cd-card__link--green"
-              onClick={() => setView('content')}
-            >
-              Truy cập giáo trình <ArrowRight size={16} />
-            </button>
-          </article>
-        </div>
+        <CourseStudentList courseId={courseId} courseName={courseName} />
       </div>
     );
   }
 
   return (
-    <div className={`teacher-page-wrap teacher-cd-wrap ${view === 'students' ? 'teacher-cd-wrap--students' : ''}`}>
-      <button
-        type="button"
-        onClick={() => setView('cards')}
-        className="teacher-cd-back-btn"
-        aria-label="Quay lại"
-      >
-        <ChevronLeft size={20} strokeWidth={2} />
-        <span>Quay lại</span>
-      </button>
-      {view === 'content' && contentArea}
-      {view === 'students' && studentsArea}
+    <div className="teacher-page-wrap teacher-cd-wrap teacher-cd-wrap--modules">
+      <nav className="teacher-breadcrumb" aria-label="Breadcrumb">
+        <button type="button" className="teacher-breadcrumb__link" onClick={() => navigate('/teacher-page/courses')}>
+          Khóa học của tôi
+        </button>
+        <span className="teacher-breadcrumb__sep">/</span>
+        <span className="teacher-breadcrumb__current">{courseName || 'Chi tiết khóa học'}</span>
+      </nav>
+      <h1 className="teacher-cd-heading">{courseName || 'Chi tiết khóa học'}</h1>
+      <p className="teacher-cd-subtitle">Chọn chương để xem bài học đã xuất bản. Chỉ hiển thị nội dung public.</p>
+
+      <div className="teacher-cd-modules-grid">
+        {modules.map((mod, index) => {
+          const mid = resolveModuleId(mod);
+          const count = lessonCountByModule[idToKey(mid)] ?? 0;
+          const cardTitle = index === 0 ? 'Bài học' : (mod.title || 'Chương');
+          return (
+            <article
+              key={mid}
+              className="teacher-module-card"
+              onClick={() => navigate(`/teacher-page/courses/${courseId}/modules/${mid}`)}
+              onKeyDown={(e) => e.key === 'Enter' && navigate(`/teacher-page/courses/${courseId}/modules/${mid}`)}
+              role="button"
+              tabIndex={0}
+            >
+              <div className="teacher-module-card__icon">
+                <Layers size={24} strokeWidth={1.8} />
+              </div>
+              <div className="teacher-module-card__body">
+                <h2 className="teacher-module-card__title">{cardTitle}</h2>
+                <p className="teacher-module-card__meta">{count} bài học</p>
+              </div>
+              <ArrowRight size={18} className="teacher-module-card__arrow" />
+            </article>
+          );
+        })}
+        <article
+          className="teacher-module-card teacher-module-card--students"
+          onClick={() => setView('students')}
+          onKeyDown={(e) => e.key === 'Enter' && setView('students')}
+          role="button"
+          tabIndex={0}
+        >
+          <div className="teacher-module-card__icon teacher-module-card__icon--purple">
+            <Users size={24} strokeWidth={1.8} />
+          </div>
+          <div className="teacher-module-card__body">
+            <h2 className="teacher-module-card__title">Danh sách học viên</h2>
+            <p className="teacher-module-card__meta">Xem và chấm điểm bài nộp</p>
+          </div>
+          <ArrowRight size={18} className="teacher-module-card__arrow" />
+        </article>
+      </div>
+
+      {modules.length === 0 && (
+        <div className="teacher-cd-empty">
+          <BookOpen size={48} strokeWidth={1} className="teacher-cd-empty-icon" />
+          <p>Chưa có chương học nào được xuất bản cho khóa này.</p>
+        </div>
+      )}
     </div>
   );
 }

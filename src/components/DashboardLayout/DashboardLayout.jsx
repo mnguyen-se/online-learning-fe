@@ -35,7 +35,6 @@ const getSidebarItems = (role) => {
       { key: '/teacher-page', label: 'Dashboard', path: '/teacher-page', icon: 'dashboard' },
       { key: '/teacher-page/courses', label: 'Khóa học của tôi', path: '/teacher-page/courses', icon: 'book' },
       { key: '/teacher-page/grade', label: 'Chấm bài', path: '/teacher-page/grade', icon: 'clipboard' },
-      { key: '/teacher-page/feedback', label: 'Feedback', path: '/teacher-page/feedback', icon: 'message' },
     ];
   }
   return base;

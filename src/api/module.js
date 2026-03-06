@@ -43,3 +43,10 @@ export const getModulesByCourse = async (courseId) => {
     throw err;
   }
 };
+
+/** Lấy danh sách module public của khóa học (filter từ getModulesByCourse). */
+export const getPublicModulesByCourse = async (courseId) => {
+  const list = await getModulesByCourse(courseId);
+  const arr = Array.isArray(list) ? list : [];
+  return arr.filter((m) => m?.public === true || m?.isPublic === true);
+};

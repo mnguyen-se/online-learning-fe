@@ -1,0 +1,410 @@
+/* ========== Chấm bài – Main content area (LMS dashboard style) ========== */
+/* Chỉ áp dụng cho khu vực content bên phải, giữ nguyên header/sidebar hệ thống */
+
+.grading-page {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 28px 32px 40px;
+  min-height: 100%;
+  width: 100%;
+}
+
+/* ----- Header (trong content) ----- */
+.grading-header {
+  margin-bottom: 28px;
+}
+
+.grading-breadcrumb {
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.grading-breadcrumb .ant-breadcrumb-link a {
+  color: #64748b;
+}
+
+.grading-breadcrumb .ant-breadcrumb-link a:hover {
+  color: #2563eb;
+}
+
+.grading-breadcrumb li:last-child .ant-breadcrumb-link {
+  color: #1e293b;
+  font-weight: 500;
+}
+
+.grading-title {
+  margin: 0 0 6px 0;
+  font-size: 30px;
+  font-weight: 700;
+  color: #0f172a;
+  letter-spacing: -0.02em;
+  line-height: 1.25;
+}
+
+.grading-subtitle {
+  margin: 0;
+  font-size: 15px;
+  color: #64748b;
+  line-height: 1.4;
+}
+
+/* ----- Filter Card ----- */
+.grading-filter-card {
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
+  margin-bottom: 24px;
+  overflow: hidden;
+}
+
+.grading-filter-card .ant-card-body {
+  padding: 24px 28px;
+}
+
+.grading-filter-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.grading-filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 200px;
+  flex: 1;
+  max-width: 300px;
+}
+
+.grading-filter-group-search {
+  max-width: 340px;
+}
+
+.grading-filter-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #475569;
+}
+
+/* Input/Select height 40–44px (Ant Design large = 40px) */
+.grading-filter-card .ant-select-lg,
+.grading-filter-card .ant-input-affix-wrapper-lg {
+  min-height: 44px !important;
+}
+
+.grading-filter-card .ant-select-lg .ant-select-selector {
+  min-height: 44px !important;
+  padding-top: 6px !important;
+  padding-bottom: 6px !important;
+}
+
+.grading-select {
+  width: 100%;
+}
+
+.grading-select .ant-select-selector {
+  border-radius: 10px !important;
+  border-color: #e2e8f0 !important;
+  font-size: 15px !important;
+}
+
+.grading-select.ant-select-focused .ant-select-selector {
+  border-color: #2563eb !important;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12) !important;
+}
+
+.grading-filter-search.ant-input-affix-wrapper {
+  border-radius: 10px;
+  border-color: #e2e8f0;
+  font-size: 15px;
+}
+
+.grading-filter-search.ant-input-affix-wrapper-focused {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.12);
+}
+
+/* ----- Table Card ----- */
+.grading-table-card {
+  width: 100%;
+  border-radius: 12px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+}
+
+.grading-table-card .ant-card-body {
+  padding: 24px;
+}
+
+.grading-table-card-title {
+  margin: 0 0 20px 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+/* ----- Table: font 15–16px, row height 56–64px ----- */
+.grading-table.ant-table-wrapper {
+  width: 100%;
+}
+
+.grading-table .ant-table-thead > tr > th {
+  background: #f8fafc !important;
+  font-weight: 600;
+  font-size: 15px;
+  color: #475569;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e2e8f0;
+  height: 56px;
+}
+
+.grading-table .ant-table-tbody > tr > td {
+  padding: 18px 20px;
+  font-size: 15px;
+  vertical-align: middle;
+  border-bottom: 1px solid #f1f5f9;
+  min-height: 60px;
+}
+
+.grading-table .ant-table-tbody > tr {
+  height: 64px;
+}
+
+.grading-table .ant-table-tbody > tr:hover > td {
+  background: #f8fafc !important;
+}
+
+/* Student column: avatar + tên + email */
+.grading-table-student {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.grading-table-avatar {
+  flex-shrink: 0;
+}
+
+.grading-table-student-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.grading-table-student-name {
+  font-weight: 500;
+  color: #1e293b;
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.grading-table-student-email {
+  font-size: 14px;
+  color: #64748b;
+  line-height: 1.35;
+}
+
+.grading-table-avatar-purple.ant-avatar {
+  background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%) !important;
+  color: #fff;
+}
+
+/* Date */
+.grading-table-date {
+  color: #475569;
+  font-size: 15px;
+}
+
+/* Status badges: Đã chấm xanh, Chưa chấm vàng */
+.grading-table-status-tag {
+  font-weight: 600;
+  font-size: 14px;
+  border-radius: 8px;
+  padding: 4px 12px;
+}
+
+.grading-table-status-tag.ant-tag-success {
+  background: #dcfce7 !important;
+  color: #166534 !important;
+  border-color: #86efac !important;
+}
+
+.grading-table-status-tag.ant-tag-warning {
+  background: #fef9c3 !important;
+  color: #854d0e !important;
+  border-color: #fde047 !important;
+}
+
+.grading-table-status-tag.ant-tag-error {
+  background: #fee2e2 !important;
+  color: #991b1b !important;
+  border-color: #fca5a5 !important;
+}
+
+/* Score */
+.grading-table-score-value {
+  font-weight: 600;
+  font-size: 16px;
+  color: #1e293b;
+}
+
+.grading-table-score-empty {
+  color: #94a3b8;
+  font-size: 15px;
+}
+
+/* ----- Nút Chấm điểm: gradient, icon, hover/active ----- */
+.grading-table-btn-grade {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-weight: 600;
+  font-size: 14px;
+  letter-spacing: 0.01em;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 10px;
+  border: none !important;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 50%, #4338ca 100%) !important;
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.35);
+  color: #fff !important;
+  transition: transform 0.15s ease, box-shadow 0.2s ease, filter 0.2s ease;
+}
+
+.grading-table-btn-grade .ant-btn-icon,
+.grading-table-btn-grade .anticon {
+  display: inline-flex;
+  align-items: center;
+  margin-inline-end: 0;
+}
+
+.grading-table-btn-grade:hover {
+  filter: brightness(1.08);
+  box-shadow: 0 4px 14px rgba(99, 102, 241, 0.45) !important;
+  color: #fff !important;
+  border: none !important;
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 50%, #4338ca 100%) !important;
+}
+
+.grading-table-btn-grade:active {
+  transform: scale(0.97);
+  box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3) !important;
+}
+
+/* Pagination */
+.grading-pagination.ant-pagination {
+  margin-top: 20px;
+  font-size: 15px;
+}
+
+.grading-pagination .ant-pagination-item-active {
+  border-color: #2563eb;
+  background: #2563eb;
+}
+
+.grading-pagination .ant-pagination-item-active a {
+  color: #fff;
+}
+
+.grading-empty {
+  padding: 48px 24px;
+  font-size: 15px;
+}
+
+/* ----- Modal ----- */
+.grading-modal .ant-modal-header {
+  border-bottom: 1px solid #e2e8f0;
+  padding: 1rem 1.5rem;
+}
+
+.grading-modal .ant-modal-body {
+  padding: 1.5rem;
+}
+
+.grading-modal .ant-modal-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.grading-modal-input.ant-input-number {
+  border-radius: 8px;
+}
+
+.grading-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.75rem;
+  margin-top: 1.25rem;
+  padding-top: 1rem;
+  border-top: 1px solid #f1f5f9;
+}
+
+/* ----- Responsive ----- */
+@media (max-width: 1024px) {
+  .grading-page {
+    padding: 24px 20px 32px;
+    max-width: 100%;
+  }
+
+  .grading-title {
+    font-size: 26px;
+  }
+}
+
+@media (max-width: 768px) {
+  .grading-page {
+    padding: 20px 16px 28px;
+  }
+
+  .grading-title {
+    font-size: 24px;
+  }
+
+  .grading-subtitle {
+    font-size: 14px;
+  }
+
+  .grading-filter-card .ant-card-body {
+    padding: 20px;
+  }
+
+  .grading-filter-row {
+    flex-direction: column;
+  }
+
+  .grading-filter-group,
+  .grading-filter-group-search {
+    max-width: none;
+  }
+
+  .grading-table-card .ant-card-body {
+    padding: 20px;
+  }
+
+  .grading-table .ant-table-thead > tr > th,
+  .grading-table .ant-table-tbody > tr > td {
+    padding: 14px 12px;
+    font-size: 14px;
+  }
+
+  .grading-table-student-name,
+  .grading-table-student-email {
+    font-size: 14px;
+  }
+
+  .grading-table-avatar.ant-avatar {
+    width: 42px !important;
+    height: 42px !important;
+    line-height: 42px !important;
+  }
+
+  .grading-table-btn-grade {
+    height: 40px;
+    font-size: 14px;
+  }
+}

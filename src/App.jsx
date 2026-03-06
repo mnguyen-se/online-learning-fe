@@ -16,8 +16,10 @@ import TeacherLayout from './pages/Teacher/TeacherLayout';
 import TeacherDashboard from './pages/Teacher/TeacherDashboard';
 import TeacherMyCourses from './pages/Teacher/TeacherMyCourses';
 import TeacherGrading from './pages/Teacher/TeacherGrading';
+import TeacherGradingDetail from './pages/Teacher/TeacherGradingDetail';
 import TeacherFeedback from './pages/Teacher/TeacherFeedback';
 import TeacherCourseDetail from './pages/Teacher/TeacherCourseDetail';
+import TeacherModuleDetail from './pages/Teacher/TeacherModuleDetail';
 import LessonsView from './pages/Lessons/LessonsView';
 import MyCourses from "./pages/MyCourses/MyCourses";
 
@@ -66,7 +68,9 @@ function App() {
         { index: true, element: <TeacherDashboard /> },
         { path: 'courses', element: <TeacherMyCourses /> },
         { path: 'courses/:courseId', element: <TeacherCourseDetail /> },
+        { path: 'courses/:courseId/modules/:moduleId', element: <TeacherModuleDetail /> },
         { path: 'grade', element: <TeacherGrading /> },
+        { path: 'grade/writing/:submissionId', element: <TeacherGradingDetail /> },
         { path: 'feedback', element: <TeacherFeedback /> },
       ],
     },

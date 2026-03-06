@@ -1,17 +1,92 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { Table, Button, Spin, Empty, message, Input } from 'antd';
-import { User, Mail, Eye, FileText, Search } from 'lucide-react';
+import { Table, Button, Empty, message, Input, Popover, Tag } from 'antd';
+import { User, Mail, Eye, FileText, Search, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { getEnrolledStudentsByCourse } from '../../../api/enrollmentApi';
+import {
+  getAssignmentsByCourse,
+  getQuizSubmissions,
+  getWritingSubmissions,
+} from '../../../api/assignmentApi';
 import MinimalPagination from '../../../components/MinimalPagination/MinimalPagination';
 import StudentDetailDrawer from './StudentDetailDrawer';
+import './CourseStudentList.css';
 
 const PAGE_SIZE = 10;
+const ASSIGNMENT_TYPE_QUIZ = 'QUIZ';
+const ASSIGNMENT_TYPE_WRITING = 'WRITING';
 
 /**
- * Tab "Danh sách học sinh": bảng Tên, Email, Số bài chưa chấm, Nút "Xem chi tiết".
- * Backend: GET /enrollments/courses/:courseId/students (hiện chỉ ADMIN/COURSE_MANAGER – có thể mở thêm TEACHER).
+ * Gộp bài nộp chưa chấm theo studentId từ assignments + quiz/writing submissions.
+ * @param {Array} students - Danh sách học viên (có studentId)
+ * @param {string} courseId - ID khóa học
+ * @returns Promise<Array> students với ungradedAssignments
+ */
+async function fetchStudentsWithUngraded(students, courseId) {
+  if (!courseId || !Array.isArray(students) || students.length === 0) {
+    return students.map((s) => ({ ...s, ungradedAssignments: [] }));
+  }
+  let assignments = [];
+  try {
+    const data = await getAssignmentsByCourse(courseId);
+    assignments = Array.isArray(data) ? data : [];
+  } catch {
+    return students.map((s) => ({ ...s, ungradedAssignments: [] }));
+  }
+
+  const ungradedByStudent = new Map(); // studentId -> [{ assignmentId, title, type, submittedAt, submissionId }]
+
+  const addUngraded = (studentId, item) => {
+    const key = String(studentId ?? '');
+    if (!ungradedByStudent.has(key)) ungradedByStudent.set(key, []);
+    ungradedByStudent.get(key).push(item);
+  };
+
+  await Promise.all(
+    assignments.map(async (a) => {
+      const assignmentId = a.assignmentId ?? a.id;
+      const title = a.title || a.name || `Bài tập #${assignmentId}`;
+      const type = (a.assignmentType || a.assignment_type || '').toUpperCase();
+      const isWriting = type === ASSIGNMENT_TYPE_WRITING;
+      try {
+        const list = isWriting
+          ? await getWritingSubmissions(assignmentId)
+          : await getQuizSubmissions(assignmentId);
+        const subs = Array.isArray(list) ? list : [];
+        subs
+          .filter((s) => (s.status || '').toUpperCase() !== 'GRADED')
+          .forEach((s) => {
+            const sid = s.studentId ?? s.student?.userId;
+            if (sid != null) {
+              addUngraded(sid, {
+                assignmentId,
+                title,
+                type,
+                submittedAt: s.submittedAt,
+                submissionId: s.submissionId ?? s.id,
+              });
+            }
+          });
+      } catch {
+        // bỏ qua assignment lỗi
+      }
+    })
+  );
+
+  return students.map((s) => {
+    const studentId = s.studentId ?? s.userId;
+    const key = String(studentId ?? '');
+    const ungradedAssignments = ungradedByStudent.get(key) || [];
+    return { ...s, ungradedAssignments };
+  });
+}
+
+/**
+ * Trang quản lý khóa học – danh sách học viên đã enroll.
+ * Bảng: Học viên, Email, Bài chưa chấm (badge + popover), Thao tác (Xem chi tiết).
  */
 function CourseStudentList({ courseId, courseName }) {
+  const navigate = useNavigate();
   const [students, setStudents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedStudent, setSelectedStudent] = useState(null);
@@ -23,10 +98,9 @@ function CourseStudentList({ courseId, courseName }) {
     const q = studentSearch.trim().toLowerCase();
     if (!q) return students;
     return students.filter((s) => {
-      const name = (s.name ?? '').toLowerCase();
-      const username = (s.username ?? '').toLowerCase();
+      const name = (s.name ?? s.username ?? '').toLowerCase();
       const email = (s.email ?? '').toLowerCase();
-      return name.includes(q) || username.includes(q) || email.includes(q);
+      return name.includes(q) || email.includes(q);
     });
   }, [students, studentSearch]);
 
@@ -37,15 +111,15 @@ function CourseStudentList({ courseId, courseName }) {
   useEffect(() => {
     if (!courseId) return;
     let cancelled = false;
-    queueMicrotask(() => {
-      if (!cancelled) {
-        setLoading(true);
-        setCurrentPage(1);
-      }
-    });
+    setLoading(true);
     getEnrolledStudentsByCourse(courseId)
       .then((data) => {
-        if (!cancelled) setStudents(Array.isArray(data) ? data : []);
+        const raw = Array.isArray(data) ? data : [];
+        if (cancelled) return;
+        return fetchStudentsWithUngraded(raw, courseId);
+      })
+      .then((withUngraded) => {
+        if (!cancelled) setStudents(withUngraded || []);
       })
       .catch(() => {
         if (!cancelled) {
@@ -64,12 +138,87 @@ function CourseStudentList({ courseId, courseName }) {
     setDrawerOpen(true);
   };
 
+  const goToGrade = (courseId, assignmentId, onClosePopover) => {
+    onClosePopover?.();
+    navigate(`/teacher-page/grade?courseId=${courseId}&assignmentId=${assignmentId}`);
+  };
+
+  const renderUngradedCell = (_, record) => {
+    const list = record.ungradedAssignments ?? [];
+    const count = list.length;
+
+    const badge =
+      count === 0 ? (
+        <Tag className="course-student-ungraded-badge course-student-ungraded-badge--zero">
+          <CheckCircle2 size={14} className="course-student-ungraded-badge__icon" />
+          <span>Đã chấm hết</span>
+        </Tag>
+      ) : (
+        <Tag className="course-student-ungraded-badge course-student-ungraded-badge--pending">
+          <AlertTriangle size={14} className="course-student-ungraded-badge__icon" />
+          <span>{count} bài chưa chấm</span>
+        </Tag>
+      );
+
+    if (count === 0) {
+      return <div className="course-student-ungraded-cell">{badge}</div>;
+    }
+
+    const popoverContent = (
+      <div className="course-student-ungraded-popover">
+        <div className="course-student-ungraded-popover__title">Bài chưa chấm</div>
+        <ul className="course-student-ungraded-popover__list">
+          {list.map((item, idx) => (
+            <li key={`${item.assignmentId}-${item.submissionId}-${idx}`} className="course-student-ungraded-popover__item">
+              <div className="course-student-ungraded-popover__item-head">
+                <span className="course-student-ungraded-popover__item-title">{item.title}</span>
+                <Tag className="course-student-ungraded-popover__item-type" color={item.type === ASSIGNMENT_TYPE_WRITING ? 'blue' : 'green'}>
+                  {item.type === ASSIGNMENT_TYPE_WRITING ? 'Writing' : 'Quiz'}
+                </Tag>
+              </div>
+              <div className="course-student-ungraded-popover__item-meta">
+                {item.submittedAt
+                  ? new Date(item.submittedAt).toLocaleDateString('vi-VN', {
+                      day: '2-digit',
+                      month: '2-digit',
+                      year: 'numeric',
+                    })
+                  : '—'}
+              </div>
+              <Button
+                type="primary"
+                size="small"
+                className="course-student-ungraded-popover__btn"
+                onClick={() => goToGrade(courseId, item.assignmentId)}
+              >
+                Chấm bài
+              </Button>
+            </li>
+          ))}
+        </ul>
+      </div>
+    );
+
+    return (
+      <div className="course-student-ungraded-cell">
+        <Popover
+          content={popoverContent}
+          trigger="click"
+          placement="bottomLeft"
+          overlayClassName="course-student-ungraded-popover-overlay"
+        >
+          <span className="course-student-ungraded-trigger">{badge}</span>
+        </Popover>
+      </div>
+    );
+  };
+
   const columns = [
     {
       title: 'Học viên',
       dataIndex: 'name',
       key: 'name',
-      width: '30%',
+      width: '28%',
       render: (name, record) => (
         <span className="teacher-student-cell-name">
           <User size={16} style={{ marginRight: 8, verticalAlign: 'middle', color: '#64748b' }} />
@@ -81,7 +230,7 @@ function CourseStudentList({ courseId, courseName }) {
       title: 'Email',
       dataIndex: 'email',
       key: 'email',
-      width: '30%',
+      width: '28%',
       render: (email) => (
         <span className="teacher-student-cell-email">
           <Mail size={14} style={{ marginRight: 6, verticalAlign: 'middle', color: '#94a3b8' }} />
@@ -91,25 +240,15 @@ function CourseStudentList({ courseId, courseName }) {
     },
     {
       title: 'Bài chưa chấm',
-      key: 'ungradedCount',
-      width: '22%',
+      key: 'ungraded',
+      width: '24%',
       align: 'center',
-      render: (_, record) => {
-        const count = record.ungradedCount ?? 0;
-        const isActive = count > 0;
-        return (
-          <span className={`teacher-ungraded-pill ${isActive ? 'teacher-ungraded-pill--active' : 'teacher-ungraded-pill--zero'}`}>
-            <FileText size={16} className="teacher-ungraded-pill__icon" />
-            <span className="teacher-ungraded-pill__num">{count}</span>
-            <span className="teacher-ungraded-pill__label">Bài tập</span>
-          </span>
-        );
-      },
+      render: renderUngradedCell,
     },
     {
       title: 'Thao tác',
       key: 'action',
-      width: '23%',
+      width: '20%',
       align: 'right',
       render: (_, record) => (
         <div className="teacher-student-cell-action">
@@ -138,13 +277,12 @@ function CourseStudentList({ courseId, courseName }) {
       .map((s, index) => ({
         ...s,
         key: s.enrollmentId ?? s.studentId ?? start + index,
-        ungradedCount: s.ungradedCount ?? 0,
       }));
   }, [filteredStudents, currentPage]);
 
   return (
-    <div className="teacher-course-student-list">
-      <h3 className="teacher-course-student-list__title">Danh sách học sinh</h3>
+    <div className="teacher-course-student-list course-student-list-lms">
+      <h3 className="teacher-course-student-list__title">Danh sách học viên</h3>
       {!loading && (
         <div className="teacher-course-student-list__header">
           <div className="teacher-course-student-list__search">

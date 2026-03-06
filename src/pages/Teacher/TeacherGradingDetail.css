@@ -1,0 +1,203 @@
+/* ========== Trang chấm điểm chi tiết (SubmissionDetail) – Header + 2 cột 70/30 ========== */
+/* Giữ nguyên Header/Sidebar hệ thống; chỉ style phần content. */
+
+.grading-detail-page {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 24px 28px 32px;
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+.grading-detail-loading,
+.grading-detail-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 320px;
+  padding: 2rem;
+}
+
+/* ----- Page Header: card trắng, viền nhẹ ----- */
+.submission-detail-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding: 16px 20px;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
+}
+
+.submission-detail-header-left {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
+
+.submission-detail-back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  color: #475569;
+}
+
+.submission-detail-back-btn:hover {
+  background: #f1f5f9;
+  color: #1e293b;
+}
+
+.submission-detail-header-avatar {
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%) !important;
+  color: #fff;
+  font-weight: 600;
+  font-size: 18px;
+}
+
+.submission-detail-header-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.submission-detail-header-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.3;
+}
+
+.submission-detail-header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.submission-detail-status-badge {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 6px 14px;
+  border-radius: 8px;
+}
+
+.submission-detail-status-graded {
+  background: #dcfce7;
+  color: #166534;
+  border: 1px solid #86efac;
+}
+
+.submission-detail-status-pending {
+  background: #fef9c3;
+  color: #854d0e;
+  border: 1px solid #fde047;
+}
+
+.submission-detail-menu-btn {
+  color: #64748b;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+}
+
+.submission-detail-menu-btn:hover {
+  background: #f1f5f9;
+  color: #475569;
+}
+
+/* ----- Layout 2 cột: 2fr 1fr – sidebar phải full chiều cao content ----- */
+.submission-detail-layout {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 18px;
+  align-items: stretch;
+  flex: 1;
+  min-height: 0;
+  height: 100%;
+}
+
+.submission-detail-left {
+  min-width: 0;
+  overflow-y: auto;
+}
+
+/* Sidebar phải: stretch full height từ header content xuống cuối trang */
+.submission-detail-right {
+  position: sticky;
+  top: 0;
+  align-self: stretch;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: calc(100vh - 140px);
+  max-width: 420px;
+}
+
+.submission-detail-right .submission-detail-card-grading,
+.submission-detail-right .ant-card {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.submission-detail-right .submission-detail-card-grading .ant-card-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* ----- Responsive ----- */
+@media (max-width: 1024px) {
+  .submission-detail-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .submission-detail-right {
+    position: static;
+    min-height: 0;
+    max-width: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .grading-detail-page {
+    padding: 20px 16px 24px;
+  }
+
+  .submission-detail-header {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .submission-detail-header-right {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .submission-detail-header-name {
+    font-size: 16px;
+  }
+
+  .submission-detail-header-avatar {
+    width: 42px !important;
+    height: 42px !important;
+    line-height: 42px !important;
+    font-size: 16px !important;
+  }
+}
