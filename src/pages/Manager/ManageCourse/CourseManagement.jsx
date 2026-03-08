@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
-import { createCourse, getCourses, getTeachers, updateCourse } from '../../../api/coursesApi';
+import { createCourse, getCourses, getTeachers, updateCourse, getActiveCourses } from '../../../api/coursesApi';
 import { getEnrolledStudentsByCourse } from '../../../api/enrollmentApi';
-import { createLesson, updateLesson, getLessons, deleteLesson, uploadLessonVideo } from '../../../api/lessionApi';
+import { createLesson, updateLesson, getLessons, deleteLesson } from '../../../api/lessionApi';
 import {
   createAssignment,
   createWritingQuestion,
@@ -101,13 +101,6 @@ function CourseManagement() {
     course?.teacher?.userId ??
     null;
 
-  const hasAssignedTeacher = (course) => {
-    const teacherId = getCourseTeacherId(course);
-    if (teacherId == null) return false;
-    if (typeof teacherId === 'string') return teacherId.trim() !== '';
-    return true;
-  };
-
   const resolveCourseActiveState = (course) => {
     const courseId = getCourseId(course);
     if (courseId && typeof courseActiveStates[courseId] === 'boolean') {
@@ -197,20 +190,11 @@ function CourseManagement() {
   };
 
   const handleCreatePublicChange = (nextIsPublic) => {
+    // Theo backend, isPublic không bắt buộc phải có teacherId
+    setCourseIsPublic(Boolean(nextIsPublic));
     if (!nextIsPublic) {
-      setCourseIsPublic(false);
-      return;
+      setCourseError('');
     }
-
-    const hasTeacher = typeof courseTeacherId === 'string' ? courseTeacherId.trim() !== '' : !!courseTeacherId;
-    if (!hasTeacher) {
-      setCourseError(PUBLIC_REQUIRES_TEACHER_MESSAGE);
-      toast.warning(PUBLIC_REQUIRES_TEACHER_MESSAGE);
-      return;
-    }
-
-    setCourseError('');
-    setCourseIsPublic(true);
   };
 
   const handleCreateTeacherChange = (teacherId) => {
@@ -226,13 +210,6 @@ function CourseManagement() {
 
     if (!trimmedTitle || !trimmedDescription) {
       setCourseError('Vui lòng nhập tên khóa học và mô tả.');
-      return;
-    }
-
-    const hasTeacher = typeof courseTeacherId === 'string' ? courseTeacherId.trim() !== '' : !!courseTeacherId;
-    if (courseIsPublic && !hasTeacher) {
-      setCourseError(PUBLIC_REQUIRES_TEACHER_MESSAGE);
-      toast.warning(PUBLIC_REQUIRES_TEACHER_MESSAGE);
       return;
     }
 
@@ -617,40 +594,22 @@ function CourseManagement() {
         }
       }
 
-      // Chuẩn bị payload theo LessonDtoReq
+      // Chuẩn bị payload theo LessonDtoReq backend (title, lessonType, textContent, videoUrl, moduleId, isPublic)
+      const normalizedLessonType = lessonData.lessonType || 'VIDEO';
       const lessonPayload = {
         title: lessonData.title,
-        lessonType: lessonData.lessonType || 'VIDEO',
-        orderIndex: orderIndex,
+        lessonType: normalizedLessonType,
         moduleId: selectedChapterId,
         videoUrl: '',
-        contentUrl: '',
         textContent: '',
+        // isPublic sẽ để mặc định false khi tạo; publish dùng handlePublishLesson
       };
 
-      // Xử lý contentUrl và textContent theo lessonType
-      if (lessonData.lessonType === 'VIDEO') {
-        if (lessonData.contentFile) {
-
-          const uploadedUrl = await uploadVideoToCloudinary(lessonData.contentFile);
-
-          if (!uploadedUrl) {
-            throw new Error('Không thể tải video lên. Vui lòng thử lại.');
-          }
-
-          lessonPayload.videoUrl = uploadedUrl;   // 👈 QUAN TRỌNG: dùng videoUrl
-
-        } else {
-          lessonPayload.videoUrl = lessonData.videoUrl || lessonData.contentUrl || '';
-        }
-
-      } else if (lessonData.lessonType === 'TEXT') {
-
-        lessonPayload.textContent = lessonData.textContent || '';
-
+      if (normalizedLessonType === 'VIDEO') {
+        lessonPayload.videoUrl = lessonData.videoUrl || lessonData.contentUrl || '';
       } else {
-
-        lessonPayload.contentUrl = lessonData.contentUrl || lessonData.textContent || '';
+        // TEXT / ASSIGNMENT / QUIZ → lưu vào textContent
+        lessonPayload.textContent = lessonData.textContent || lessonData.contentUrl || '';
       }
 
       if (currentLesson.isNew) {
@@ -1150,12 +1109,44 @@ function CourseManagement() {
     try {
       setIsLoadingCourses(true);
       setCoursesError('');
-      const data = await getCourses();
-      const rawCoursesList = Array.isArray(data) ? data : data?.data ?? [];
+
+      // Lấy toàn bộ khóa học + danh sách khóa public trực tiếp từ backend
+      const [allCoursesRes, activeCoursesRes] = await Promise.all([
+        getCourses(),
+        getActiveCourses().catch(() => []),
+      ]);
+
+      const rawCoursesList = Array.isArray(allCoursesRes) ? allCoursesRes : allCoursesRes?.data ?? [];
+      const rawActiveList = Array.isArray(activeCoursesRes) ? activeCoursesRes : activeCoursesRes?.data ?? [];
+
+      const activeCourseIdSet = new Set(
+        rawActiveList
+          .map((course) => {
+            const cid =
+              course?.courseId ??
+              course?.id ??
+              course?.course_id ??
+              course?.CourseId ??
+              null;
+            return cid != null ? String(cid) : null;
+          })
+          .filter((id) => id !== null),
+      );
+
+      // Chuẩn hóa danh sách course, ép trạng thái public theo nguồn dữ liệu /courses/active (không cache sai)
       const coursesList = rawCoursesList.map((course) => {
         const courseId = getCourseId(course);
-        return { ...course, id: courseId || course.id };
+        const key = courseId != null ? String(courseId) : null;
+        const isPublicFromActiveList = key ? activeCourseIdSet.has(key) : false;
+        return {
+          ...course,
+          id: courseId || course.id,
+          isPublic: isPublicFromActiveList,
+          is_public: isPublicFromActiveList,
+          public: isPublicFromActiveList,
+        };
       });
+
       setCourses(coursesList);
 
       const statsPromises = coursesList.map(async (course) => {
@@ -1650,14 +1641,6 @@ function CourseManagement() {
       return;
     }
     const teacherId = payload?.teacherId ?? null;
-    const teacherForPublicCheck = payload?.teacherId ?? getCourseTeacherId(selectedCourse);
-    if (
-      (payload?.isPublic ?? true)
-      && (teacherForPublicCheck == null || (typeof teacherForPublicCheck === 'string' && teacherForPublicCheck.trim() === ''))
-    ) {
-      toast.warning(PUBLIC_REQUIRES_TEACHER_MESSAGE);
-      return;
-    }
     const updatePayload = {
       title: trimmedTitle,
       description: (payload?.description ?? '').trim(),
@@ -1723,10 +1706,6 @@ function CourseManagement() {
     const nextFromEvent =
       typeof event?.target?.checked === 'boolean' ? event.target.checked : null;
     const newActiveState = nextFromEvent !== null ? nextFromEvent : !currentState;
-    if (newActiveState && !hasAssignedTeacher(course)) {
-      toast.warning(PUBLIC_REQUIRES_TEACHER_MESSAGE);
-      return;
-    }
     setCourseActiveStates((prev) => ({ ...prev, [courseId]: newActiveState }));
     setCourses((prev) =>
       prev.map((item) =>

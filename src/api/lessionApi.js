@@ -19,10 +19,25 @@ export const deleteLesson = async (lessonId) => {
 };
 
 export const getLessons = async (params = {}) => {
-  const response = await apiClient.get("/lessons/", {
-    params,
-  });
-  return response.data;
+  try {
+    const response = await apiClient.get("/lessons/", {
+      params,
+      // 404 "Không có lesson nào" không phải lỗi nghiệp vụ cho màn quản lý
+      // → tránh toast lỗi chung, FE sẽ xử lý danh sách rỗng.
+      skipErrorToast: true,
+    });
+    return response.data;
+  } catch (err) {
+    const status = err?.response?.status;
+    const message = (err?.response?.data?.message || "").toLowerCase();
+    const isNoLessons =
+      status === 404 &&
+      (message.includes("không có lesson") || message.includes("khong co lesson") || message.includes("no lesson"));
+    if (isNoLessons) {
+      return [];
+    }
+    throw err;
+  }
 };
 
 export const getLessonView = async () => {
