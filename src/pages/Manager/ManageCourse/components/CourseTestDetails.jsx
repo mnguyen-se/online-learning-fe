@@ -1,4 +1,6 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+
+const QUESTIONS_PER_PAGE = 5;
 
 const QUESTION_TYPES = [
   { value: 'FILL_BLANK', label: 'Điền vào chỗ trống' },
@@ -114,6 +116,13 @@ const CourseTestDetails = ({
   const [quizFile, setQuizFile] = useState(null);
   const [writingQuestions, setWritingQuestions] = useState(() => initialTest.writingQuestions);
   const [formError, setFormError] = useState('');
+  const [questionPage, setQuestionPage] = useState(1);
+  const [formQuestionPage, setFormQuestionPage] = useState(1);
+
+  useEffect(() => {
+    setQuestionPage(1);
+    setFormQuestionPage(1);
+  }, [selectedTest?.id]);
 
   const handleTitleChange = (value) => {
     setTitle(value);
@@ -383,61 +392,144 @@ const CourseTestDetails = ({
             <div className="lesson-details-view-value">{toReadableDate(selectedTest.dueDate)}</div>
           </div>
 
-          {selectedTest.testType === 'QUIZ' && (
-            <div className="lesson-quiz-section">
-              <div className="lesson-quiz-header">
-                <h3 className="lesson-quiz-title">Danh sách câu hỏi (từ file Excel)</h3>
-                <span className="lesson-quiz-badge">{selectedTest.questions?.length ?? 0} CÂU HỎI</span>
-              </div>
-
-              {(selectedTest.questions || []).map((question, qIndex) => (
-                <div key={question.id || qIndex} className="lesson-quiz-question lesson-quiz-question-view">
-                  <div className="lesson-quiz-question-number">
-                    <span>{qIndex + 1}</span>
-                  </div>
-                  <div className="lesson-quiz-question-content">
-                    <label className="lesson-details-label">NỘI DUNG CÂU HỎI</label>
-                    <div className="lesson-details-view-value">{question.question || 'Chưa có nội dung'}</div>
-                  </div>
-                  <div className="lesson-quiz-answers">
-                    <label className="lesson-details-label">CÁC LỰA CHỌN TRẢ LỜI</label>
-                    {question.answers.map((answer, aIndex) => {
-                      const isCorrect = question.correctIndex === aIndex;
-                      return (
-                        <div key={aIndex} className={`lesson-quiz-answer-view ${isCorrect ? 'is-correct' : ''}`}>
-                          <span className="lesson-quiz-answer-number">{aIndex + 1}.</span>
-                          <span className="lesson-quiz-answer-text">{answer || 'Chưa có nội dung'}</span>
-                          {isCorrect && <span className="lesson-quiz-answer-label">ĐÚNG</span>}
+          {selectedTest.testType === 'QUIZ' && (() => {
+            const allQuestions = selectedTest.questions || [];
+            const totalCount = allQuestions.length;
+            const totalPages = Math.max(1, Math.ceil(totalCount / QUESTIONS_PER_PAGE));
+            const safePage = Math.min(Math.max(1, questionPage), totalPages);
+            const startIdx = (safePage - 1) * QUESTIONS_PER_PAGE;
+            const pageQuestions = allQuestions.slice(startIdx, startIdx + QUESTIONS_PER_PAGE);
+            return (
+              <div className="lesson-quiz-section">
+                <div className="lesson-quiz-header">
+                  <h3 className="lesson-quiz-title">Danh sách câu hỏi ({totalCount} câu)</h3>
+                </div>
+                <div className="quiz-pagination-pages">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      className={`quiz-pagination-page-btn ${p === safePage ? 'active' : ''}`}
+                      onClick={() => setQuestionPage(p)}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+                <div className="lesson-quiz-questions-list">
+                  {pageQuestions.map((question, qIndex) => {
+                    const globalIndex = startIdx + qIndex;
+                    return (
+                      <div key={question.id || globalIndex} className="lesson-quiz-question lesson-quiz-question-view">
+                        <div className="lesson-quiz-question-number">
+                          <span>Câu {globalIndex + 1}</span>
                         </div>
-                      );
-                    })}
-                  </div>
+                        <div className="lesson-quiz-question-content">
+                          <label className="lesson-details-label">NỘI DUNG CÂU HỎI</label>
+                          <div className="lesson-details-view-value">{question.question || 'Chưa có nội dung'}</div>
+                        </div>
+                        <div className="lesson-quiz-answers">
+                          <label className="lesson-details-label">CÁC LỰA CHỌN TRẢ LỜI</label>
+                          {question.answers.map((answer, aIndex) => {
+                            const isCorrect = question.correctIndex === aIndex;
+                            return (
+                              <div key={aIndex} className={`lesson-quiz-answer-view ${isCorrect ? 'is-correct' : ''}`}>
+                                <span className="lesson-quiz-answer-number">{aIndex + 1}.</span>
+                                <span className="lesson-quiz-answer-text">{answer || 'Chưa có nội dung'}</span>
+                                {isCorrect && <span className="lesson-quiz-answer-label">ĐÚNG</span>}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-              ))}
-            </div>
-          )}
-
-          {selectedTest.testType === 'WRITING' && Array.isArray(selectedTest.questions) && selectedTest.questions.length > 0 && (
-            <div className="lesson-quiz-section">
-              <div className="lesson-quiz-header">
-                <h3 className="lesson-quiz-title">Câu hỏi WRITING</h3>
-                <span className="lesson-quiz-badge">{selectedTest.questions.length} CÂU HỎI</span>
+                <div className="quiz-pagination-nav">
+                  <button
+                    type="button"
+                    className="quiz-pagination-prev"
+                    disabled={safePage <= 1}
+                    onClick={() => setQuestionPage((p) => Math.max(1, p - 1))}
+                  >
+                    &lt; Prev
+                  </button>
+                  <button
+                    type="button"
+                    className="quiz-pagination-next"
+                    disabled={safePage >= totalPages}
+                    onClick={() => setQuestionPage((p) => Math.min(totalPages, p + 1))}
+                  >
+                    Next &gt;
+                  </button>
+                </div>
               </div>
-              {selectedTest.questions.map((question, qIndex) => (
-                <div key={question.id || qIndex} className="lesson-quiz-question lesson-quiz-question-view">
-                  <div className="lesson-quiz-question-number">
-                    <span>{qIndex + 1}</span>
-                  </div>
-                  <div className="lesson-quiz-question-content">
-                    <label className="lesson-details-label">LOẠI CÂU HỎI</label>
-                    <div className="lesson-details-view-value">{question.questionType}</div>
-                    <label className="lesson-details-label">NỘI DUNG</label>
-                    <div className="lesson-details-view-value">{question.questionText || 'Chưa có nội dung'}</div>
-                  </div>
+            );
+          })()}
+
+          {selectedTest.testType === 'WRITING' && Array.isArray(selectedTest.questions) && selectedTest.questions.length > 0 && (() => {
+            const allQuestions = selectedTest.questions;
+            const totalCount = allQuestions.length;
+            const totalPages = Math.max(1, Math.ceil(totalCount / QUESTIONS_PER_PAGE));
+            const safePage = Math.min(Math.max(1, questionPage), totalPages);
+            const startIdx = (safePage - 1) * QUESTIONS_PER_PAGE;
+            const pageQuestions = allQuestions.slice(startIdx, startIdx + QUESTIONS_PER_PAGE);
+            return (
+              <div className="lesson-quiz-section">
+                <div className="lesson-quiz-header">
+                  <h3 className="lesson-quiz-title">Danh sách câu hỏi ({totalCount} câu)</h3>
                 </div>
-              ))}
-            </div>
-          )}
+                <div className="quiz-pagination-pages">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                    <button
+                      key={p}
+                      type="button"
+                      className={`quiz-pagination-page-btn ${p === safePage ? 'active' : ''}`}
+                      onClick={() => setQuestionPage(p)}
+                    >
+                      {p}
+                    </button>
+                  ))}
+                </div>
+                <div className="lesson-quiz-questions-list">
+                  {pageQuestions.map((question, qIndex) => {
+                    const globalIndex = startIdx + qIndex;
+                    return (
+                      <div key={question.id || globalIndex} className="lesson-quiz-question lesson-quiz-question-view">
+                        <div className="lesson-quiz-question-number">
+                          <span>Câu {globalIndex + 1}</span>
+                        </div>
+                        <div className="lesson-quiz-question-content">
+                          <label className="lesson-details-label">LOẠI CÂU HỎI</label>
+                          <div className="lesson-details-view-value">{question.questionType}</div>
+                          <label className="lesson-details-label">NỘI DUNG</label>
+                          <div className="lesson-details-view-value">{question.questionText || 'Chưa có nội dung'}</div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="quiz-pagination-nav">
+                  <button
+                    type="button"
+                    className="quiz-pagination-prev"
+                    disabled={safePage <= 1}
+                    onClick={() => setQuestionPage((p) => Math.max(1, p - 1))}
+                  >
+                    &lt; Prev
+                  </button>
+                  <button
+                    type="button"
+                    className="quiz-pagination-next"
+                    disabled={safePage >= totalPages}
+                    onClick={() => setQuestionPage((p) => Math.min(totalPages, p + 1))}
+                  >
+                    Next &gt;
+                  </button>
+                </div>
+              </div>
+            );
+          })()}
         </div>
       </div>
     );
@@ -542,18 +634,37 @@ const CourseTestDetails = ({
           </div>
         )}
 
-        {testType === 'WRITING' && (
+        {testType === 'WRITING' && (() => {
+          const totalCount = writingQuestions.length;
+          const totalPages = Math.max(1, Math.ceil(totalCount / QUESTIONS_PER_PAGE));
+          const safePage = Math.min(Math.max(1, formQuestionPage), totalPages);
+          const startIdx = (safePage - 1) * QUESTIONS_PER_PAGE;
+          const pageQuestions = writingQuestions.slice(startIdx, startIdx + QUESTIONS_PER_PAGE);
+          return (
           <div className="lesson-quiz-section">
             <div className="lesson-quiz-header">
-              <h3 className="lesson-quiz-title">Tạo câu hỏi dạng tự luận (WRITING)</h3>
-              <span className="lesson-quiz-badge">{writingQuestions.length} CÂU HỎI</span>
+              <h3 className="lesson-quiz-title">Danh sách câu hỏi ({totalCount} câu)</h3>
+            </div>
+            <div className="quiz-pagination-pages">
+              {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+                <button
+                  key={p}
+                  type="button"
+                  className={`quiz-pagination-page-btn ${p === safePage ? 'active' : ''}`}
+                  onClick={() => setFormQuestionPage(p)}
+                >
+                  {p}
+                </button>
+              ))}
             </div>
 
-            {writingQuestions.map((question, index) => (
+            {pageQuestions.map((question, index) => {
+              const globalIndex = startIdx + index;
+              return (
               <div key={question.id} className="lesson-quiz-question">
                 <div className="lesson-quiz-question-header">
                   <div className="lesson-quiz-question-number">
-                    <span>{index + 1}</span>
+                    <span>Câu {globalIndex + 1}</span>
                   </div>
                   <button
                     type="button"
@@ -817,7 +928,27 @@ const CourseTestDetails = ({
                   </>
                 )}
               </div>
-            ))}
+            );
+            })}
+
+            <div className="quiz-pagination-nav">
+              <button
+                type="button"
+                className="quiz-pagination-prev"
+                disabled={safePage <= 1}
+                onClick={() => setFormQuestionPage((p) => Math.max(1, p - 1))}
+              >
+                &lt; Prev
+              </button>
+              <button
+                type="button"
+                className="quiz-pagination-next"
+                disabled={safePage >= totalPages}
+                onClick={() => setFormQuestionPage((p) => Math.min(totalPages, p + 1))}
+              >
+                Next &gt;
+              </button>
+            </div>
 
             <button
               type="button"
@@ -828,7 +959,8 @@ const CourseTestDetails = ({
               <span>+ THÊM CÂU WRITING</span>
             </button>
           </div>
-        )}
+          );
+        })()}
 
         {(formError || testError) && <p className="course-error">{formError || testError}</p>}
 

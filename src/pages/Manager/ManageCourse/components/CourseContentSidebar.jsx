@@ -248,8 +248,8 @@ const CourseContentSidebar = ({
           <ul className="course-program-list">
             {tests.map((testItem, index) => {
               const orderIndex = testItem.orderIndex ?? index + 1;
-              const title = testItem.title?.trim() || '';
-              const label = `Bài kiểm tra ${orderIndex || 1}: ${title || 'Chưa đặt tên'}`;
+              const title = (testItem.title ?? testItem.assignmentName ?? testItem.name ?? '').toString().trim();
+              const label = title || `Bài kiểm tra ${orderIndex || 1} (Chưa đặt tên)`;
               const isSelected = selectedTestId === testItem.id;
               return (
                 <li key={testItem.id}>

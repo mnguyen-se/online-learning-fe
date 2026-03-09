@@ -1,17 +1,17 @@
-import React, { Suspense, lazy, useEffect, useMemo, useRef, useState, useCallback } from 'react';
-import { useNavigate, useParams, Link } from 'react-router-dom';
-import { toast } from 'react-toastify';
-import Header from '../../components/Header/header';
-import { useAuth } from '../../hooks/useAuth';
-import { getLearningProcess } from '../../api/learningProcessApi';
+import React, { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import { toast } from "react-toastify";
+import Header from "../../components/Header/header";
+import { useAuth } from "../../hooks/useAuth";
+import { getLearningProcess } from "../../api/learningProcessApi";
 import {
   getAssignmentQuestions,
   getAssignmentsByCourse,
   getMyAssignments,
   submitQuizAssignment,
   submitWritingAssignment,
-} from '../../api/assignmentApi';
-import { getModulesByCourse } from '../../api/module';
+} from "../../api/assignmentApi";
+import { getModulesByCourse } from "../../api/module";
 import {
   getCachedCourseDetail,
   getCachedCourseStructure,
@@ -22,18 +22,15 @@ import {
   setCachedCourseStructure,
   setCachedLearningProcess,
   setCachedLessonView,
-} from '../../api/learningCache';
-import { runWithRetry } from '../../api/requestRetry';
+} from "../../api/learningCache";
+import { runWithRetry } from "../../api/requestRetry";
 import {
   completeLessonById,
   getAiLessonHint,
   getAiLessonQuiz,
   getLessonView,
-  getLessons,
-} from '../../api/lessionApi';
-import { getMyWritingStatus, getQuizResult } from '../../api/assignmentApi';
-import { getMyCourses } from '../../api/enrollmentApi';
-import './LessonsView.css';
+} from "../../api/lessionApi";
+import "./LessonsView.css";
 
 const LessonVideoContent = lazy(() => import("./LessonVideoContent"));
 const LessonQuizContent = lazy(() => import("./LessonQuizContent"));
@@ -41,6 +38,7 @@ const MatchingQuestion = lazy(() => import("./MatchingQuestion"));
 const ReorderQuestion = lazy(() => import("./ReorderQuestion"));
 
 const idToKey = (value) => String(value ?? "");
+const QUESTIONS_PER_PAGE = 5;
 
 const normalizeArrayResponse = (response) => {
   if (Array.isArray(response)) return response;
@@ -153,8 +151,6 @@ const getOrderedLessonsByCourse = (modules, allLessons) => {
     return String(resolveModuleId(a)).localeCompare(String(resolveModuleId(b)));
   });
   const result = [];
-  const addedLessonKeys = new Set();
-
   for (const module of sortedModules) {
     const moduleId = resolveModuleId(module);
     if (!moduleId) continue;
@@ -169,22 +165,7 @@ const getOrderedLessonsByCourse = (modules, allLessons) => {
           String(resolveLessonId(b))
         );
       });
-    moduleLessons.forEach((l) => addedLessonKeys.add(idToKey(resolveLessonId(l))));
     result.push(...moduleLessons);
-  }
-
-  const orphans = allLessons.filter(
-    (lesson) =>
-      !addedLessonKeys.has(idToKey(resolveLessonId(lesson))) &&
-      resolveLessonModuleId(lesson)
-  );
-  if (orphans.length > 0) {
-    orphans.sort((a, b) => {
-      const orderDiff = getLessonOrder(a) - getLessonOrder(b);
-      if (orderDiff !== 0) return orderDiff;
-      return String(resolveLessonId(a)).localeCompare(String(resolveLessonId(b)));
-    });
-    result.push(...orphans);
   }
   return result;
 };
@@ -239,23 +220,14 @@ const getCourseStructureWithCache = async (courseId) => {
   const cached = getCachedCourseStructure(courseId);
   if (cached?.modules && cached?.lessons) return cached;
 
-  const modulesRes = await runWithRetry(() => getModulesByCourse(courseId), {
-    retries: 1,
-    baseDelayMs: 500,
-  }).catch(() => []);
+  const [modulesRes, allLessons] = await Promise.all([
+    runWithRetry(() => getModulesByCourse(courseId), {
+      retries: 1,
+      baseDelayMs: 500,
+    }).catch(() => []),
+    getLessonViewWithCache().catch(() => []),
+  ]);
   const modules = normalizeArrayResponse(modulesRes);
-
-  let allLessons = [];
-  try {
-    const byCourse = await getLessons({ courseId });
-    allLessons = normalizeArrayResponse(byCourse);
-  } catch {
-    allLessons = [];
-  }
-  if (!Array.isArray(allLessons) || allLessons.length === 0) {
-    allLessons = await getLessonViewWithCache().catch(() => []);
-  }
-
   const orderedLessons = getOrderedLessonsByCourse(modules, allLessons);
   const structure = { modules, lessons: orderedLessons };
   setCachedCourseStructure(courseId, structure);
@@ -362,22 +334,23 @@ function LessonsView() {
   const [expandedModules, setExpandedModules] = useState(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
-  const [accessDenied, setAccessDenied] = useState(false);
   const [selectedLesson, setSelectedLesson] = useState(null);
   const [learningProcess, setLearningProcess] = useState(null);
   const [courseDetail, setCourseDetail] = useState(null);
-  const [courseAssignments, setCourseAssignments] = useState([]);
-  const [assignmentStatuses, setAssignmentStatuses] = useState({});
   const [isCompleting, setIsCompleting] = useState(false);
   const [isSubmittingAssignment, setIsSubmittingAssignment] = useState(false);
   const [assignmentDrafts, setAssignmentDrafts] = useState({});
+  const [assignmentStatuses, setAssignmentStatuses] = useState({});
   const [aiHintByLesson, setAiHintByLesson] = useState({});
   const [hintErrorByLesson, setHintErrorByLesson] = useState({});
   const [hintLoadingLessonKey, setHintLoadingLessonKey] = useState("");
   const [quizHtml, setQuizHtml] = useState("");
   const [quizLoading, setQuizLoading] = useState(false);
   const [quizError, setQuizError] = useState("");
-  const loadedAssignmentsRef = useRef(new Set());
+  const [assignmentQuestionPage, setAssignmentQuestionPage] = useState(1);
+  const [contentTab, setContentTab] = useState('content');
+  const [aiHintExpanded, setAiHintExpanded] = useState(false);
+  const [quizCurrentQuestion, setQuizCurrentQuestion] = useState(1);
 
   const selectedLessonKey = idToKey(resolveLessonId(selectedLesson));
   const selectedLessonHint = aiHintByLesson[selectedLessonKey] || "";
@@ -439,18 +412,26 @@ function LessonsView() {
     };
   }, [completedLessonSet, learningProcess, lessons.length]);
 
-  const nextLesson = useMemo(() => {
-    if (!selectedLesson) return null;
-    const selectedId = idToKey(resolveLessonId(selectedLesson));
+  const { nextLesson, prevLesson, currentLessonIndex, totalLessons } = useMemo(() => {
     const allItems = [...lessons, ...assignments];
+    if (!selectedLesson || allItems.length === 0) {
+      return { nextLesson: null, prevLesson: null, currentLessonIndex: 0, totalLessons: allItems.length };
+    }
+    const selectedId = idToKey(resolveLessonId(selectedLesson));
     const currentIndex = allItems.findIndex(
       (lesson) => idToKey(resolveLessonId(lesson)) === selectedId,
     );
-    if (currentIndex < 0 || currentIndex + 1 >= allItems.length) return null;
-    return allItems[currentIndex + 1];
+    const next = currentIndex >= 0 && currentIndex + 1 < allItems.length ? allItems[currentIndex + 1] : null;
+    const prev = currentIndex > 0 ? allItems[currentIndex - 1] : null;
+    return {
+      nextLesson: next,
+      prevLesson: prev,
+      currentLessonIndex: currentIndex >= 0 ? currentIndex + 1 : 0,
+      totalLessons: allItems.length,
+    };
   }, [lessons, assignments, selectedLesson]);
 
-  const patchAssignmentItem = useCallback((assignmentId, updater) => {
+  const patchAssignmentItem = (assignmentId, updater) => {
     if (!assignmentId) return;
     setLessons((prev) =>
       prev.map((item) => {
@@ -466,58 +447,49 @@ function LessonsView() {
       }
       return updater(prev);
     });
-  }, []);
+  };
 
-  const ensureAssignmentQuestionsLoaded = useCallback(
-    async (assignmentItem, options = {}) => {
-      const { force = false } = options;
-      if (!assignmentItem || !isAssignmentItem(assignmentItem) || !assignmentItem.assignmentId) {
-        return;
-      }
-      const key = idToKey(assignmentItem.assignmentId);
-      if (force) {
-        loadedAssignmentsRef.current.delete(key);
-      } else if (loadedAssignmentsRef.current.has(key)) {
-        return;
-      }
-      if (assignmentItem.questionsLoaded || assignmentItem.questionsLoading) return;
+  const ensureAssignmentQuestionsLoaded = async (assignmentItem) => {
+    if (!assignmentItem || !isAssignmentItem(assignmentItem) || !assignmentItem.assignmentId) {
+      return;
+    }
+    if (assignmentItem.questionsLoaded || assignmentItem.questionsLoading) return;
 
-      patchAssignmentItem(assignmentItem.assignmentId, (current) => ({
-        ...current,
-        questionsLoading: true,
-        questionsError: '',
-      }));
+    patchAssignmentItem(assignmentItem.assignmentId, (current) => ({
+      ...current,
+      questionsLoading: true,
+      questionsError: '',
+    }));
 
-      try {
-        const questionsRes = await runWithRetry(() => getAssignmentQuestions(assignmentItem.assignmentId), {
+    try {
+      const questionsRes = await runWithRetry(
+        () => getAssignmentQuestions(assignmentItem.assignmentId),
+        {
           retries: 1,
           baseDelayMs: 500,
-        });
-        const rawQuestions = normalizeArrayResponse(questionsRes);
-        const mappedQuestions = rawQuestions.map((question, index) =>
-          mapAssignmentQuestion(question, index, assignmentItem.assignmentId),
-        );
-        patchAssignmentItem(assignmentItem.assignmentId, (current) => ({
-          ...current,
-          questions: mappedQuestions,
-          questionsLoaded: true,
-          questionsLoading: false,
-          questionsError: '',
-        }));
-        loadedAssignmentsRef.current.add(key);
-      } catch (err) {
-        const message =
-          err?.response?.data?.message || err?.message || 'Không thể tải câu hỏi bài tập.';
-        patchAssignmentItem(assignmentItem.assignmentId, (current) => ({
-          ...current,
-          questionsLoading: false,
-          questionsError: message,
-        }));
-        loadedAssignmentsRef.current.add(key);
-      }
-    },
-    [patchAssignmentItem],
-  );
+        },
+      );
+      const rawQuestions = normalizeArrayResponse(questionsRes);
+      const mappedQuestions = rawQuestions.map((question, index) =>
+        mapAssignmentQuestion(question, index, assignmentItem.assignmentId),
+      );
+      patchAssignmentItem(assignmentItem.assignmentId, (current) => ({
+        ...current,
+        questions: mappedQuestions,
+        questionsLoaded: true,
+        questionsLoading: false,
+        questionsError: '',
+      }));
+    } catch (err) {
+      const message =
+        err?.response?.data?.message || err?.message || 'Không thể tải câu hỏi bài tập.';
+      patchAssignmentItem(assignmentItem.assignmentId, (current) => ({
+        ...current,
+        questionsLoading: false,
+        questionsError: message,
+      }));
+    }
+  };
 
   const getAssignmentStatus = (assignmentId) => assignmentStatuses[idToKey(assignmentId)] ?? null;
 
@@ -563,27 +535,6 @@ function LessonsView() {
       setError("");
 
       if (isCourseLearningMode) {
-        setAccessDenied(false);
-        let myCourses = [];
-        try {
-          const res = await getMyCourses();
-          myCourses = normalizeArrayResponse(res?.data ?? res) || [];
-        } catch {
-          myCourses = [];
-        }
-        const isEnrolled = myCourses.some(
-          (c) => idToKey(c?.courseId ?? c?.id ?? c?.course_id) === idToKey(courseId)
-        );
-        if (!isEnrolled) {
-          setAccessDenied(true);
-          setLessons([]);
-          setModules([]);
-          setAssignments([]);
-          setSelectedLesson(null);
-          setIsLoading(false);
-          return;
-        }
-
         const [structure, process, assignmentItems] = await Promise.all([
           getCourseStructureWithCache(courseId),
           getLearningProcessWithCache(courseId),
@@ -596,51 +547,6 @@ function LessonsView() {
         setLessons(orderedLessons);
         setAssignments(assignmentItems);
         setCourseDetail(getCachedCourseDetail(courseId));
-        getAssignmentsByCourse(courseId)
-          .then((data) => {
-            const list = Array.isArray(data) ? data : [];
-            setCourseAssignments(list);
-            const writingIds = list
-              .filter((a) => ((a.assignmentType ?? a.assignment_type ?? '').toUpperCase() === 'WRITING'))
-              .map((a) => a.assignmentId ?? a.id)
-              .filter(Boolean);
-            const quizIds = list
-              .filter((a) => ((a.assignmentType ?? a.assignment_type ?? '').toUpperCase() === 'QUIZ'))
-              .map((a) => a.assignmentId ?? a.id)
-              .filter(Boolean);
-            if (writingIds.length > 0) {
-              Promise.all(
-                writingIds.map((id) =>
-                  getMyWritingStatus(id).then((s) => ({ id: String(id), status: s })),
-                )
-              ).then((results) => {
-                const next = {};
-                results.forEach(({ id, status }) => { next[id] = status; });
-                setAssignmentStatuses((prev) => ({ ...prev, ...next }));
-              }).catch(() => {});
-            }
-            if (quizIds.length > 0) {
-              Promise.all(
-                quizIds.map((id) =>
-                  getQuizResult(id)
-                    .then((data) => {
-                      const raw = data?.data ?? data;
-                      const score = raw?.score;
-                      if (score != null && Number(score) === Number(score)) {
-                        return { id: String(id), status: { state: 'graded', data: raw } };
-                      }
-                      return { id: String(id), status: { state: 'pending', data: raw } };
-                    })
-                    .catch(() => ({ id: String(id), status: { state: 'not_submitted', data: null } })),
-                )
-              ).then((results) => {
-                const next = {};
-                results.forEach(({ id, status }) => { next[id] = status; });
-                setAssignmentStatuses((prev) => ({ ...prev, ...next }));
-              }).catch(() => {});
-            }
-          })
-          .catch(() => setCourseAssignments([]));
 
         const allItems = [...orderedLessons, ...assignmentItems];
         const routeLesson = allItems.find(
@@ -709,21 +615,14 @@ function LessonsView() {
   }, [courseId]);
 
   useEffect(() => {
-    if (!lessonId) return;
-    const allItems = [...lessons, ...assignments];
-    if (allItems.length === 0) return;
-    const lessonFromRoute = allItems.find(
+    if (!lessonId || lessons.length === 0) return;
+    const lessonFromRoute = lessons.find(
       (lesson) => idToKey(resolveLessonId(lesson)) === idToKey(lessonId)
     );
     if (lessonFromRoute) {
       setSelectedLesson(lessonFromRoute);
     }
-  }, [lessonId, lessons, assignments]);
-
-  useEffect(() => {
-    if (!selectedLesson || !isAssignmentItem(selectedLesson)) return;
-    ensureAssignmentQuestionsLoaded(selectedLesson);
-  }, [selectedLesson, ensureAssignmentQuestionsLoaded]);
+  }, [lessonId, lessons]);
 
   const parseQuizContent = (content) => {
     if (!content) return [];
@@ -737,6 +636,9 @@ function LessonsView() {
 
   const handleSelectLesson = (lesson) => {
     setSelectedLesson(lesson);
+    if (isAssignmentItem(lesson)) {
+      ensureAssignmentQuestionsLoaded(lesson);
+    }
     if (!isCourseLearningMode || !courseId) return;
     const selectedId = resolveLessonId(lesson);
     if (selectedId) {
@@ -763,6 +665,54 @@ function LessonsView() {
       return newSet;
     });
   };
+
+  useEffect(() => {
+    if (!isAssignmentItem(selectedLesson)) return;
+    ensureAssignmentQuestionsLoaded(selectedLesson);
+  }, [selectedLesson]);
+
+  useEffect(() => {
+    setAssignmentQuestionPage(1);
+    setContentTab('content');
+    setAiHintExpanded(false);
+    setQuizCurrentQuestion(1);
+  }, [selectedLesson]);
+
+  /* Keyboard support cho quiz: 1=A, 2=B, 3=C, 4=D, ←=prev, →=next */
+  useEffect(() => {
+    const isQuiz =
+      selectedLesson &&
+      isAssignmentItem(selectedLesson) &&
+      selectedLesson.assignmentType === 'QUIZ' &&
+      getAssignmentStatus(selectedLesson.assignmentId) !== 'SUBMITTED';
+    if (!isQuiz || !Array.isArray(selectedLesson?.questions) || selectedLesson.questions.length === 0) return;
+
+    const questions = selectedLesson.questions;
+    const totalCount = questions.length;
+    const currentQ = questions[Math.min(Math.max(0, quizCurrentQuestion - 1), totalCount - 1)];
+
+    const handleKeyDown = (e) => {
+      if (['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement?.tagName)) return;
+      if (e.key === 'ArrowRight') {
+        e.preventDefault();
+        setQuizCurrentQuestion((p) => Math.min(totalCount, p + 1));
+        return;
+      }
+      if (e.key === 'ArrowLeft') {
+        e.preventDefault();
+        setQuizCurrentQuestion((p) => Math.max(1, p - 1));
+        return;
+      }
+      if (['1', '2', '3', '4'].includes(e.key) && currentQ?.answers?.length >= Number(e.key)) {
+        e.preventDefault();
+        const letter = String.fromCharCode(64 + Number(e.key));
+        handleQuizAnswerChange(selectedLesson.assignmentId, currentQ.questionId, letter);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [selectedLesson, quizCurrentQuestion]);
 
   const handleCompleteLesson = async () => {
     if (!isCourseLearningMode || !selectedLesson || !courseId) return;
@@ -949,7 +899,7 @@ function LessonsView() {
           <button
             type="button"
             className="retry-button"
-            onClick={() => ensureAssignmentQuestionsLoaded(assignmentItem, { force: true })}
+            onClick={() => ensureAssignmentQuestionsLoaded(assignmentItem)}
           >
             Tải lại câu hỏi
           </button>
@@ -963,58 +913,113 @@ function LessonsView() {
     }
 
     const submissionStatus = getAssignmentStatus(assignmentItem.assignmentId);
+    const totalCount = questions.length;
+    const answeredCount = questions.filter((q) => {
+      const val = getQuizAnswerValue(assignmentItem.assignmentId, q.questionId);
+      return val && String(val).trim() !== '';
+    }).length;
+    const unansweredCount = totalCount - answeredCount;
+    const safeCurrent = Math.min(Math.max(1, quizCurrentQuestion), totalCount);
+    const currentQuestion = questions[safeCurrent - 1];
+
+    if (submissionStatus === 'SUBMITTED') {
+      return (
+        <div className="quiz-submitted-state">
+          <div className="quiz-submitted-icon">✓</div>
+          <h4 className="quiz-submitted-title">Đã nộp bài</h4>
+          <p className="quiz-submitted-desc">Sau khi nộp bài bạn có thể sang bài tiếp theo.</p>
+          {nextLesson && (
+            <button
+              type="button"
+              className="quiz-submitted-next-btn"
+              onClick={() => handleSelectLesson(nextLesson)}
+            >
+              Bài tiếp theo →
+            </button>
+          )}
+        </div>
+      );
+    }
 
     return (
-      <div className="lesson-content-quiz">
-        <h3 className="quiz-title">Câu hỏi trắc nghiệm</h3>
-        {assignmentItem.textContent ? (
-          <p className="assignment-question-hint">{assignmentItem.textContent}</p>
-        ) : null}
-        {submissionStatus === 'SUBMITTED' ? (
-          <div className="assignment-status-badge">Trạng thái: SUBMITTED</div>
-        ) : null}
-        <div className="quiz-questions">
-          {questions.map((question, index) => (
-            <div key={question.id || index} className="quiz-question-item">
-              <div className="quiz-question-number">Câu {index + 1}</div>
-              <div className="quiz-question-text">{question.question || 'Chưa có câu hỏi'}</div>
-              <div className="quiz-answers">
-                {(question.answers || []).map((answer, answerIndex) => {
-                  const answerLetter = String.fromCharCode(65 + answerIndex);
-                  const selectedValue = getQuizAnswerValue(
-                    assignmentItem.assignmentId,
-                    question.questionId,
-                  );
-                  const isSelected = selectedValue === answerLetter;
-                  return (
-                    <button
-                      type="button"
-                      key={answerLetter}
-                      className={`quiz-answer quiz-answer-option ${isSelected ? 'selected' : ''}`}
-                      onClick={() =>
-                        handleQuizAnswerChange(
-                          assignmentItem.assignmentId,
-                          question.questionId,
-                          answerLetter,
-                        )}
-                    >
-                      <span className="quiz-answer-label">{answerLetter}.</span>
-                      <span className="quiz-answer-text">{answer || 'Chưa có đáp án'}</span>
-                    </button>
-                  );
-                })}
-              </div>
-            </div>
-          ))}
+      <div className="quiz-compact">
+        {/* Progress: Đã trả lời X/Y câu */}
+        <div className="quiz-progress-block">
+          <span className="quiz-progress-label">Tiến độ bài kiểm tra</span>
+          <span className="quiz-progress-count">Đã trả lời: {answeredCount} / {totalCount} câu</span>
+          <div className="quiz-progress-bar">
+            <div
+              className="quiz-progress-fill"
+              style={{ width: `${totalCount > 0 ? (answeredCount / totalCount) * 100 : 0}%` }}
+            />
+          </div>
         </div>
-        <div className="assignment-submit-row">
+
+        {/* Question + Answers - Navigator đã chuyển sang sidebar phải */}
+        <div className="quiz-question-block">
+          <div className="quiz-current-label">Câu {safeCurrent} / {totalCount}</div>
+          <div className="quiz-question-text">{currentQuestion?.question || 'Chưa có câu hỏi'}</div>
+          <div className="quiz-answers quiz-answers-card">
+            {(currentQuestion?.answers || []).map((answer, answerIndex) => {
+              const answerLetter = String.fromCharCode(65 + answerIndex);
+              const selectedValue = getQuizAnswerValue(
+                assignmentItem.assignmentId,
+                currentQuestion.questionId,
+              );
+              const isSelected = selectedValue === answerLetter;
+              return (
+                <button
+                  type="button"
+                  key={answerLetter}
+                  className={`quiz-answer-card ${isSelected ? 'selected' : ''}`}
+                  onClick={() =>
+                    handleQuizAnswerChange(
+                      assignmentItem.assignmentId,
+                      currentQuestion.questionId,
+                      answerLetter,
+                    )}
+                >
+                  <span className="quiz-answer-option">{isSelected ? '●' : '○'}</span>
+                  <span className="quiz-answer-letter">({answerLetter})</span>
+                  <span className="quiz-answer-text">{answer || 'Chưa có đáp án'}</span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Sticky bottom bar: Prev | Next | Submit */}
+        <div className="quiz-action-row quiz-action-row-sticky">
+          <div className="quiz-nav-buttons">
+            <button
+              type="button"
+              className="quiz-prev-btn"
+              disabled={safeCurrent <= 1}
+              onClick={() => setQuizCurrentQuestion((p) => Math.max(1, p - 1))}
+            >
+              ← Prev
+            </button>
+            <button
+              type="button"
+              className="quiz-next-btn"
+              disabled={safeCurrent >= totalCount}
+              onClick={() => setQuizCurrentQuestion((p) => Math.min(totalCount, p + 1))}
+            >
+              Next →
+            </button>
+          </div>
+          {unansweredCount > 0 && (
+            <div className="quiz-unanswered-warning">
+              ⚠ Bạn còn {unansweredCount} câu chưa trả lời
+            </div>
+          )}
           <button
             type="button"
-            className="assignment-submit-btn"
+            className="quiz-submit-btn"
             disabled={isSubmittingAssignment}
             onClick={() => handleSubmitQuizAssignment(assignmentItem)}
           >
-            {isSubmittingAssignment ? 'Đang nộp...' : 'Nộp bài trắc nghiệm'}
+            {isSubmittingAssignment ? 'Đang nộp...' : 'Nộp bài'}
           </button>
         </div>
       </div>
@@ -1032,7 +1037,7 @@ function LessonsView() {
           <button
             type="button"
             className="retry-button"
-            onClick={() => ensureAssignmentQuestionsLoaded(assignmentItem, { force: true })}
+            onClick={() => ensureAssignmentQuestionsLoaded(assignmentItem)}
           >
             Tải lại câu hỏi
           </button>
@@ -1046,23 +1051,41 @@ function LessonsView() {
     }
 
     const submissionStatus = getAssignmentStatus(assignmentItem.assignmentId);
+    const totalCount = questions.length;
+    const totalPages = Math.max(1, Math.ceil(totalCount / QUESTIONS_PER_PAGE));
+    const safePage = Math.min(Math.max(1, assignmentQuestionPage), totalPages);
+    const startIdx = (safePage - 1) * QUESTIONS_PER_PAGE;
+    const pageQuestions = questions.slice(startIdx, startIdx + QUESTIONS_PER_PAGE);
 
     return (
       <div className="lesson-content-text">
-        <h3 className="quiz-title">Bài tập tự luận</h3>
+        <h3 className="quiz-title">Danh sách câu hỏi ({totalCount} câu)</h3>
         {assignmentItem.textContent ? (
           <p className="assignment-question-hint">{assignmentItem.textContent}</p>
         ) : null}
         {submissionStatus === 'SUBMITTED' ? (
           <div className="assignment-status-badge">Trạng thái: SUBMITTED</div>
         ) : null}
+        <div className="quiz-pagination-pages">
+          {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (
+            <button
+              key={p}
+              type="button"
+              className={`quiz-pagination-page-btn ${p === safePage ? 'active' : ''}`}
+              onClick={() => setAssignmentQuestionPage(p)}
+            >
+              {p}
+            </button>
+          ))}
+        </div>
         <div className="quiz-questions">
-          {questions.map((question, index) => {
+          {pageQuestions.map((question, index) => {
+            const globalIndex = startIdx + index;
             const questionType = normalizeQuestionType(question.questionType);
             const answerValue = getWritingAnswerValue(assignmentItem.assignmentId, question.questionId);
             return (
-              <div key={question.id || index} className="quiz-question-item">
-                <div className="quiz-question-number">Câu {index + 1}</div>
+              <div key={question.id || globalIndex} className="quiz-question-item">
+                <div className="quiz-question-number">Câu {globalIndex + 1}</div>
                 <div className="quiz-question-text">{question.question || 'Chưa có câu hỏi'}</div>
                 <div className="assignment-question-type">{questionType}</div>
                 {questionType === 'REORDER' ? (
@@ -1112,6 +1135,24 @@ function LessonsView() {
             );
           })}
         </div>
+        <div className="quiz-pagination-nav">
+          <button
+            type="button"
+            className="quiz-pagination-prev"
+            disabled={safePage <= 1}
+            onClick={() => setAssignmentQuestionPage((p) => Math.max(1, p - 1))}
+          >
+            &lt; Prev
+          </button>
+          <button
+            type="button"
+            className="quiz-pagination-next"
+            disabled={safePage >= totalPages}
+            onClick={() => setAssignmentQuestionPage((p) => Math.min(totalPages, p + 1))}
+          >
+            Next &gt;
+          </button>
+        </div>
         <div className="assignment-submit-row">
           <button
             type="button"
@@ -1132,6 +1173,7 @@ function LessonsView() {
     const selectedId = resolveLessonId(selectedLesson);
     const lessonKey = idToKey(selectedId);
     if (!selectedId || !lessonKey) return;
+    setAiHintExpanded(true);
     if (!force && aiHintByLesson[lessonKey]) return;
 
     try {
@@ -1223,9 +1265,22 @@ function LessonsView() {
                 }}
               />
             ) : (
-              <p className="lesson-content-placeholder">
-                Chưa có nội dung văn bản
-              </p>
+              <div className="lesson-empty-state">
+                <div className="lesson-empty-icon">📄</div>
+                <h4 className="lesson-empty-title">Bài học chưa có nội dung</h4>
+                <p className="lesson-empty-desc">Tài liệu sẽ được cập nhật sau.</p>
+                <p className="lesson-empty-hint">Bạn có thể xem tài liệu đọc trong tab bên cạnh.</p>
+                {lesson.contentUrl ? (
+                  <a
+                    href={lesson.contentUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="lesson-empty-download-btn"
+                  >
+                    Tải tài liệu đọc
+                  </a>
+                ) : null}
+              </div>
             )}
           </div>
         </div>
@@ -1247,22 +1302,6 @@ function LessonsView() {
       </div>
     );
   };
-
-  if (accessDenied && isCourseLearningMode) {
-    return (
-      <div className="lessons-page">
-        <Header />
-        <div className="lessons-view-container">
-          <div className="lessons-access-denied">
-            <p>Bạn chưa đăng ký khóa học này. Vui lòng đăng ký để xem nội dung.</p>
-            <Link to="/my-courses" className="lessons-access-denied-link">
-              Về khóa học của tôi
-            </Link>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   if (isLoading) {
     return (
@@ -1316,44 +1355,39 @@ function LessonsView() {
     <div className="lessons-page">
       <Header />
       <div className="lessons-view-container">
-        <div className="lessons-header">
-          {isCourseLearningMode ? (
+        {/* Breadcrumb cho course mode */}
+        {isCourseLearningMode ? (
+          <nav className="lessons-breadcrumb" aria-label="Breadcrumb">
             <button
-              className="back-to-courses-btn"
               type="button"
+              className="breadcrumb-link"
               onClick={() => navigate("/my-courses")}
             >
-              ← Quay lại Khóa học của tôi
+              Khóa học của tôi
             </button>
-          ) : null}
-          <h1 className="lessons-title">
-            {isCourseLearningMode
-              ? courseDetail?.title || "Học khóa học"
-              : "Danh sách Bài học"}
-          </h1>
-          <p className="lessons-subtitle">
-            {isCourseLearningMode
-              ? courseDetail?.description ||
-                "Tiếp tục từ vị trí đang học của bạn"
-              : "Xem và học các bài học đã được công bố"}
-          </p>
-          {isCourseLearningMode ? (
-            <div className="learning-process-summary">
-              <span>Tiến độ: {progressSnapshot.percent}%</span>
-              <span>
-                {progressSnapshot.completed}/{progressSnapshot.total} bài học
-              </span>
-              <span>
-                Trạng thái: {learningProcess?.status || "IN_PROGRESS"}
-              </span>
-              {progressSnapshot.rebuilt ? (
-                <span>Tiến độ đã được hiệu chỉnh</span>
-              ) : null}
-            </div>
-          ) : null}
-        </div>
+            <span className="breadcrumb-sep"> &gt; </span>
+            <span className="breadcrumb-current">
+              {courseDetail?.title || "Khóa học"}
+            </span>
+            {selectedLesson && (
+              <>
+                <span className="breadcrumb-sep"> &gt; </span>
+                <span className="breadcrumb-current">
+                  {selectedLesson.title || "Bài học"}
+                </span>
+              </>
+            )}
+          </nav>
+        ) : (
+          <div className="lessons-header">
+            <h1 className="lessons-title">Danh sách Bài học</h1>
+            <p className="lessons-subtitle">
+              Xem và học các bài học đã được công bố
+            </p>
+          </div>
+        )}
 
-        <div className="lessons-layout">
+        <div className={`lessons-layout ${selectedLesson && isAssignmentItem(selectedLesson) && selectedLesson.assignmentType === 'QUIZ' && Array.isArray(selectedLesson.questions) && selectedLesson.questions.length > 0 ? 'lessons-layout-with-quiz-map' : ''}`}>
           <div className="lessons-sidebar">
             <h2 className="lessons-sidebar-title">
               Bài học ({lessons.length})
@@ -1399,26 +1433,30 @@ function LessonsView() {
                                 {moduleLessons.length === 0 ? (
                                   <div className="module-empty">Chưa có bài học trong chương này</div>
                                 ) : (
-                                  moduleLessons.map((lesson, lessonIndex) => {
+                                    moduleLessons.map((lesson, lessonIndex) => {
                                     const lessonKey = idToKey(resolveLessonId(lesson)) || String(lessonIndex);
                                     const isCompleted = completedLessonSet.has(lessonKey);
+                                    const isActive = selectedLessonKey === lessonKey;
+                                    const statusIcon = isCompleted ? '✓' : isActive ? '●' : '○';
+                                    const statusLabel = isCompleted ? 'Hoàn thành' : isActive ? 'Đang học' : 'Chưa học';
                                     return (
                                       <div
                                         key={lessonKey}
-                                        className={`lesson-item lesson-item-nested ${selectedLessonKey === lessonKey ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
+                                        className={`lesson-item lesson-item-nested ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
                                         onClick={(e) => {
                                           e.stopPropagation();
                                           handleSelectLesson(lesson);
                                         }}
                                       >
-                                        <div className="lesson-item-number">{lessonIndex + 1}</div>
+                                        <span className={`lesson-item-status lesson-status-${isCompleted ? 'done' : isActive ? 'current' : 'pending'}`} title={statusLabel}>
+                                          {statusIcon}
+                                        </span>
                                         <div className="lesson-item-content">
                                           <div className="lesson-item-title">{lesson.title || 'Chưa có tiêu đề'}</div>
                                           <div className="lesson-item-type">
                                             {lesson.lessonType === 'VIDEO' && '📹 Video'}
                                             {lesson.lessonType === 'TEXT' && '📄 Văn bản'}
                                             {lesson.lessonType === 'QUIZ' && '❓ Trắc nghiệm'}
-                                            {isCompleted ? ' • ✅ Đã hoàn thành' : ''}
                                           </div>
                                         </div>
                                       </div>
@@ -1436,20 +1474,24 @@ function LessonsView() {
                   lessons.map((lesson, index) => {
                     const lessonKey = idToKey(resolveLessonId(lesson)) || String(index);
                     const isCompleted = completedLessonSet.has(lessonKey);
+                    const isActive = selectedLessonKey === lessonKey;
+                    const statusIcon = isCompleted ? '✓' : isActive ? '●' : '○';
+                    const statusLabel = isCompleted ? 'Hoàn thành' : isActive ? 'Đang học' : 'Chưa học';
                     return (
                       <div
                         key={lessonKey}
-                        className={`lesson-item ${selectedLessonKey === lessonKey ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
+                        className={`lesson-item ${isActive ? 'active' : ''} ${isCompleted ? 'completed' : ''}`}
                         onClick={() => handleSelectLesson(lesson)}
                       >
-                        <div className="lesson-item-number">{index + 1}</div>
+                        <span className={`lesson-item-status lesson-status-${isCompleted ? 'done' : isActive ? 'current' : 'pending'}`} title={statusLabel}>
+                          {statusIcon}
+                        </span>
                         <div className="lesson-item-content">
                           <div className="lesson-item-title">{lesson.title || 'Chưa có tiêu đề'}</div>
                           <div className="lesson-item-type">
                             {lesson.lessonType === 'VIDEO' && '📹 Video'}
                             {lesson.lessonType === 'TEXT' && '📄 Văn bản'}
                             {lesson.lessonType === 'QUIZ' && '❓ Trắc nghiệm'}
-                            {isCompleted ? ' • ✅ Đã hoàn thành' : ''}
                           </div>
                         </div>
                       </div>
@@ -1457,208 +1499,213 @@ function LessonsView() {
                   })
                 )}
 
+                {/* Hiển thị assignments ở dưới cùng */}
+                {isCourseLearningMode && assignments.length > 0 && (
+                  <>
+                    <div className="assignments-separator">
+                      <h3 className="assignments-title">Bài tập ({assignments.length})</h3>
+                    </div>
+                    {assignments.map((assignment, index) => {
+                      const assignmentKey = idToKey(resolveLessonId(assignment)) || `assignment-${index}`;
+                      const assignmentStatus = getAssignmentStatus(assignment.assignmentId);
+                      const isActive = selectedLessonKey === assignmentKey;
+                      const isSubmitted = assignmentStatus === 'SUBMITTED';
+                      const statusIcon = isSubmitted ? '✓' : isActive ? '●' : '○';
+                      const statusLabel = isSubmitted ? 'Đã nộp' : isActive ? 'Đang làm' : 'Chưa làm';
+                      return (
+                        <div
+                          key={assignmentKey}
+                          className={`lesson-item assignment-item ${isActive ? 'active' : ''} ${isSubmitted ? 'completed' : ''}`}
+                          onClick={() => handleSelectLesson(assignment)}
+                        >
+                          <span className={`lesson-item-status lesson-status-${isSubmitted ? 'done' : isActive ? 'current' : 'pending'}`} title={statusLabel}>
+                            {statusIcon}
+                          </span>
+                          <div className="lesson-item-content">
+                            <div className="lesson-item-title">{assignment.title || 'Chưa có tiêu đề'}</div>
+                            <div className="lesson-item-type">
+                              {assignment.assignmentType === 'QUIZ' ? '❓ Trắc nghiệm' : '📝 Tự luận'}
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </>
+                )}
               </div>
             )}
-            {isCourseLearningMode && courseAssignments.length > 0 ? (
-              <div className="lessons-sidebar-assignments">
-                <h3 className="lessons-sidebar-assignments-title">Bài kiểm tra trong khóa</h3>
-                <ul className="lessons-assignment-list">
-                  {courseAssignments.map((a) => {
-                    const aid = a.assignmentId ?? a.id;
-                    const title = a.title || a.name || `Bài tập #${aid}`;
-                    const type = (a.assignmentType || a.assignment_type || '').toUpperCase();
-                    const isWriting = type === 'WRITING';
-                    const status = assignmentStatuses[String(aid)];
-                    const state =
-                      (status && typeof status === 'object' && status.state)
-                        ? status.state
-                        : status === 'SUBMITTED'
-                          ? 'pending'
-                          : 'not_submitted';
-                    const score = status?.data?.score != null ? Number(status.data.score) : null;
-                    const maxScore = status?.data?.maxScore ?? status?.data?.max_score ?? a?.maxScore ?? 100;
-                    const dueDate = a?.dueDate ?? a?.due_date;
-                    const dueStr = dueDate
-                      ? new Date(dueDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
-                      : null;
-                    const doLink = courseId ? `/course/${courseId}/learn/assignment-${aid}` : `/student/assignments/${aid}/do`;
-                    const writingResultTo = courseId
-                      ? { pathname: `/writing-result/${aid}`, search: `?courseId=${courseId}${lessonId ? `&lessonId=${lessonId}` : ''}`, state: { courseId, lessonId } }
-                      : `/writing-result/${aid}`;
-                    const quizResultTo = courseId
-                      ? { pathname: `/quiz-result/${aid}`, search: `?courseId=${courseId}${lessonId ? `&lessonId=${lessonId}` : ''}`, state: { courseId, lessonId } }
-                      : `/quiz-result/${aid}`;
-                    return (
-                      <li key={aid} className={`lessons-assignment-item lessons-assignment-item--${state}`}>
-                        <span className="lessons-assignment-item-title">{title}</span>
-                        {dueStr && <span className="lessons-assignment-item-due">Hạn nộp: {dueStr}</span>}
-                        <span className="lessons-assignment-item-type">{isWriting ? 'Writing' : 'Quiz'}</span>
-                        {state === 'not_submitted' && (
-                          <>
-                            <span className="lessons-assignment-status lessons-assignment-status--not-done">Chưa làm bài</span>
-                            <Link to={doLink} className="lessons-assignment-link lessons-assignment-link--do">
-                              Làm bài
-                            </Link>
-                          </>
-                        )}
-                        {state === 'pending' && (
-                          <>
-                            <span className="lessons-assignment-status lessons-assignment-status--pending">Đã nộp</span>
-                            <p className="lessons-assignment-pending-msg">Bạn đã nộp bài thành công – chờ giáo viên chấm</p>
-                            <Link
-                              to={isWriting ? writingResultTo : quizResultTo}
-                              className="lessons-assignment-link lessons-assignment-link--view"
-                            >
-                              Xem kết quả
-                            </Link>
-                          </>
-                        )}
-                        {state === 'graded' && (
-                          <>
-                            <span className="lessons-assignment-status lessons-assignment-status--graded">Đã chấm</span>
-                            {score != null && <p className="lessons-assignment-score">Điểm: <strong>{score}</strong> / {maxScore}</p>}
-                            <Link
-                              to={isWriting ? writingResultTo : quizResultTo}
-                              className="lessons-assignment-link lessons-assignment-link--result"
-                            >
-                              Xem kết quả
-                            </Link>
-                          </>
-                        )}
-                      </li>
-                    );
-                  })}
-                </ul>
-              </div>
-            ) : null}
           </div>
 
           <div className="lessons-main">
             {selectedLesson ? (
-              <div className="lesson-detail">
-                <div className="lesson-detail-header">
-                  <h2 className="lesson-detail-title">
-                    {selectedLesson.title || "Chưa có tiêu đề"}
-                  </h2>
-                  <div className="lesson-detail-meta">
-                    <span className="lesson-type-badge">
-                      {isAssignmentItem(selectedLesson)
-                        ? selectedLesson.assignmentType === 'QUIZ'
-                          ? 'Bài tập trắc nghiệm'
-                          : 'Bài tập tự luận'
-                        : null}
-                      {!isAssignmentItem(selectedLesson) &&
-                        selectedLesson.lessonType === 'VIDEO' &&
-                        'Video Bài giảng'}
-                      {!isAssignmentItem(selectedLesson) &&
-                        selectedLesson.lessonType === 'TEXT' &&
-                        'Tài liệu đọc'}
-                      {!isAssignmentItem(selectedLesson) &&
-                        selectedLesson.lessonType === 'QUIZ' &&
-                        'Trắc nghiệm'}
+              <div className="lesson-detail lesson-detail-flow">
+                <h2 className="lesson-detail-title">
+                  {selectedLesson.title || "Chưa có tiêu đề"}
+                </h2>
+
+                {/* Progress - nổi bật (ẩn khi đang làm quiz) */}
+                {isCourseLearningMode && !isAssignmentItem(selectedLesson) && (
+                  <div className="lesson-progress-block">
+                    <div className="lesson-progress-header">
+                      <span className="lesson-progress-title">Tiến độ khóa học</span>
+                      <span className="lesson-progress-percent">{progressSnapshot.percent}%</span>
+                    </div>
+                    <div className="lesson-progress-bar lesson-progress-bar-large">
+                      <div
+                        className="lesson-progress-fill"
+                        style={{ width: `${progressSnapshot.percent}%` }}
+                      />
+                    </div>
+                    <span className="lesson-progress-position">
+                      Bài {currentLessonIndex} / {totalLessons}
                     </span>
-                    {selectedLesson.sectionTitle ? (
-                      <span className="lesson-section-badge">
-                        {selectedLesson.sectionTitle}
-                      </span>
-                    ) : null}
                   </div>
-                  {isCourseLearningMode ? (
-                    <div className="lesson-actions">
-                      {!isAssignmentItem(selectedLesson) ? (
-                        <button
-                          className="lesson-complete-btn"
-                          type="button"
-                          disabled={isCompleting || selectedLessonCompleted}
-                          onClick={handleCompleteLesson}
+                )}
+
+                {/* Tabs */}
+                {!isAssignmentItem(selectedLesson) && (
+                  <div className="lesson-content-tabs">
+                    <button
+                      type="button"
+                      className={`lesson-tab-btn ${contentTab === 'content' ? 'active' : ''}`}
+                      onClick={() => setContentTab('content')}
+                    >
+                      📘 Nội dung bài học
+                    </button>
+                    <button
+                      type="button"
+                      className={`lesson-tab-btn ${contentTab === 'reading' ? 'active' : ''}`}
+                      onClick={() => setContentTab('reading')}
+                    >
+                      📄 Tài liệu đọc
+                    </button>
+                  </div>
+                )}
+
+                {/* Content - gom vào 1 khối (compact khi quiz) */}
+                <div className={`lesson-content-block ${isAssignmentItem(selectedLesson) ? 'lesson-content-block-quiz' : ''}`}>
+                  {!isAssignmentItem(selectedLesson) && contentTab === 'reading' ? (
+                    <div className="lesson-reading-tab">
+                      {selectedLesson.contentUrl ? (
+                        <a
+                          href={selectedLesson.contentUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="lesson-download-reading-btn"
                         >
-                          {selectedLessonCompleted
-                            ? 'Đã hoàn thành'
-                            : isCompleting
-                              ? 'Đang cập nhật...'
-                              : 'Đánh dấu hoàn thành'}
-                        </button>
-                      ) : null}
-                      <button
-                        className="lesson-next-btn"
+                          📎 Tải tài liệu đọc
+                        </a>
+                      ) : (
+                        <div className="lesson-empty-state lesson-reading-empty">
+                          <p>📄 Chưa có tài liệu đọc cho bài học này.</p>
+                          <p className="lesson-empty-desc">Tài liệu sẽ được cập nhật sau.</p>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    renderLessonContent(selectedLesson)
+                  )}
+                </div>
+
+                {/* Complete + Navigation - ẩn khi đang làm quiz (quiz có nút riêng sau khi nộp) */}
+                {isCourseLearningMode && !isAssignmentItem(selectedLesson) && (
+                  <div className="lesson-action-row">
+                    <button
+                        className="lesson-complete-btn"
                         type="button"
+                        disabled={isCompleting || selectedLessonCompleted}
+                        onClick={handleCompleteLesson}
+                      >
+                        ✓ {selectedLessonCompleted
+                          ? 'Đã hoàn thành'
+                          : isCompleting
+                            ? 'Đang cập nhật...'
+                            : 'Đánh dấu hoàn thành'}
+                      </button>
+                    <div className="lesson-nav-buttons">
+                      <button
+                        type="button"
+                        className="lesson-nav-prev"
+                        disabled={!prevLesson}
+                        onClick={() => prevLesson && handleSelectLesson(prevLesson)}
+                      >
+                        ← Bài trước
+                      </button>
+                      <button
+                        type="button"
+                        className="lesson-nav-next"
                         disabled={!nextLesson}
+                        onClick={() => nextLesson && handleSelectLesson(nextLesson)}
+                      >
+                        Bài tiếp theo →
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* AI Support - ẩn khi làm quiz/assignment */}
+                {canUseAiHint && !isAssignmentItem(selectedLesson) && (
+                  <div className="lesson-ai-section lesson-ai-section-prominent">
+                    <h4 className="lesson-ai-section-title">💡 AI hỗ trợ học</h4>
+                    <p className="lesson-ai-section-desc">Nhận gợi ý hoặc luyện tập thêm.</p>
+                    <div className="lesson-ai-buttons">
+                      <button
+                        className="lesson-ai-hint-btn"
+                        type="button"
+                        disabled={isHintLoading}
                         onClick={() =>
-                          nextLesson && handleSelectLesson(nextLesson)
+                          handleGenerateAiHint({
+                            force:
+                              Boolean(selectedLessonHint) ||
+                              Boolean(selectedLessonHintError),
+                          })
                         }
                       >
-                        Bài tiếp theo
+                        {isHintLoading
+                          ? "AI đang tạo gợi ý..."
+                          : selectedLessonHintError
+                          ? "Thử lại AI Hints"
+                          : selectedLessonHint
+                          ? "Tạo lại AI Hints"
+                          : "AI Hints"}
                       </button>
-                      {canUseAiHint ? (
-                        <>
-                          <button
-                            className="lesson-hint-btn"
-                            type="button"
-                            disabled={isHintLoading}
-                            onClick={() =>
-                              handleGenerateAiHint({
-                                force:
-                                  Boolean(selectedLessonHint) ||
-                                  Boolean(selectedLessonHintError),
-                              })
-                            }
-                          >
-                            {isHintLoading
-                              ? "AI đang tạo gợi ý..."
-                              : selectedLessonHintError
-                              ? "Thử lại AI Hints"
-                              : selectedLessonHint
-                              ? "Tạo lại AI Hints"
-                              : "AI Hints"}
-                          </button>
-                          <button
-                            className="lesson-quiz-practice-btn"
-                            type="button"
-                            disabled={quizLoading}
-                            onClick={handleOpenAiQuiz}
-                          >
-                            {quizLoading
-                              ? "Đang tải Quiz..."
-                              : "AI Quiz Practice"}
-                          </button>
-                        </>
-                      ) : null}
+                      <button
+                        className="lesson-ai-quiz-btn"
+                        type="button"
+                        disabled={quizLoading}
+                        onClick={handleOpenAiQuiz}
+                      >
+                        {quizLoading ? "Đang tải..." : "AI Quiz Practice"}
+                      </button>
                     </div>
-                  ) : null}
-                </div>
-                <div className="lesson-detail-content">
-                  {renderLessonContent(selectedLesson)}
-                  {canUseAiHint ? (
-                    <div className="lesson-ai-hint-panel">
-                      <h3 className="lesson-ai-hint-title">
-                        AI Hints cho bài học
-                      </h3>
-                      {isHintLoading ? (
-                        <p className="lesson-ai-hint-loading">
-                          AI đang phân tích nội dung bài học...
-                        </p>
-                      ) : null}
-                      {selectedLessonHintError ? (
-                        <p className="lesson-ai-hint-error">
-                          {selectedLessonHintError}
-                        </p>
-                      ) : null}
-                      {!isHintLoading && selectedLessonHint ? (
-                        <div className="lesson-ai-hint-content">
-                          {selectedLessonHint}
-                        </div>
-                      ) : null}
-                      {!isHintLoading &&
-                      !selectedLessonHint &&
-                      !selectedLessonHintError ? (
-                        <p className="lesson-ai-hint-placeholder">
-                          Nhấn "AI Hints" để nhận gợi ý giải thích bài học bằng
-                          tiếng Việt.
-                        </p>
-                      ) : null}
-                    </div>
-                  ) : null}
-                </div>
+                    {aiHintExpanded && (
+                      <div className="lesson-ai-hint-panel">
+                        {isHintLoading ? (
+                          <p className="lesson-ai-hint-loading">
+                            AI đang phân tích nội dung bài học...
+                          </p>
+                        ) : null}
+                        {selectedLessonHintError ? (
+                          <p className="lesson-ai-hint-error">
+                            {selectedLessonHintError}
+                          </p>
+                        ) : null}
+                        {!isHintLoading && selectedLessonHint ? (
+                          <div className="lesson-ai-hint-content">
+                            {selectedLessonHint}
+                          </div>
+                        ) : null}
+                        {!isHintLoading &&
+                        !selectedLessonHint &&
+                        !selectedLessonHintError ? (
+                          <p className="lesson-ai-hint-placeholder">
+                            Nhấn "AI Hints" để nhận gợi ý giải thích bài học bằng tiếng Việt.
+                          </p>
+                        ) : null}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
             ) : (
               <div className="lesson-placeholder">
@@ -1668,6 +1715,42 @@ function LessonsView() {
               </div>
             )}
           </div>
+
+          {/* Question Map sidebar - khi đang làm quiz */}
+          {selectedLesson &&
+            isAssignmentItem(selectedLesson) &&
+            selectedLesson.assignmentType === 'QUIZ' &&
+            Array.isArray(selectedLesson.questions) &&
+            selectedLesson.questions.length > 0 &&
+            getAssignmentStatus(selectedLesson.assignmentId) !== 'SUBMITTED' && (
+              <aside className="quiz-map-sidebar">
+                <h4 className="quiz-map-title">Câu hỏi</h4>
+                <div className="quiz-map-grid">
+                  {selectedLesson.questions.map((q, idx) => {
+                    const num = idx + 1;
+                    const isAnswered = Boolean(
+                      getQuizAnswerValue(selectedLesson.assignmentId, q.questionId)?.toString().trim()
+                    );
+                    const isCurrent = num === quizCurrentQuestion;
+                    return (
+                      <button
+                        key={q.questionId || idx}
+                        type="button"
+                        className={`quiz-map-btn ${isCurrent ? 'current' : ''} ${isAnswered ? 'answered' : ''}`}
+                        onClick={() => setQuizCurrentQuestion(num)}
+                      >
+                        {num}
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="quiz-map-legend">
+                  <span><span className="legend-dot answered" /> Đã trả lời</span>
+                  <span><span className="legend-dot unanswered" /> Chưa trả lời</span>
+                  <span><span className="legend-dot current" /> Câu hiện tại</span>
+                </div>
+              </aside>
+            )}
         </div>
 
         {/* Modal Quiz Practice (AI) */}
