@@ -78,12 +78,12 @@ function GradingPanel({
           <Button
             type="primary"
             size="large"
-            icon={<Save size={18} />}
+            icon={<Eye size={18} />}
             onClick={onSaveScore}
             loading={submitting}
             className="submission-detail-btn submission-detail-btn-save"
           >
-            Lưu điểm số
+            Hiển thị điểm cho học sinh
           </Button>
         )}
 

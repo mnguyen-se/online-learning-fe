@@ -10,6 +10,8 @@ import {
   getMyAssignments,
   submitQuizAssignment,
   submitWritingAssignment,
+  getMyQuizStatus,
+  getMyWritingStatus,
 } from "../../api/assignmentApi";
 import { getModulesByCourse } from "../../api/module";
 import {
@@ -320,6 +322,29 @@ const getLearningProcessWithCache = async (courseId, options = {}) => {
   }
 };
 
+const buildInitialAssignmentStatuses = async (items) => {
+  const result = {};
+  for (const item of items) {
+    if (!item?.assignmentId) continue;
+    try {
+      if (item.assignmentType === 'QUIZ') {
+        const status = await getMyQuizStatus(item.assignmentId);
+        if (status.state === 'graded' || status.state === 'pending') {
+          result[idToKey(item.assignmentId)] = 'SUBMITTED';
+        }
+      } else if (item.assignmentType === 'WRITING') {
+        const status = await getMyWritingStatus(item.assignmentId);
+        if (status.state === 'graded' || status.state === 'pending') {
+          result[idToKey(item.assignmentId)] = 'SUBMITTED';
+        }
+      }
+    } catch {
+      // Bỏ qua lỗi, coi như chưa nộp
+    }
+  }
+  return result;
+};
+
 function LessonsView() {
   const navigate = useNavigate();
   const { courseId, lessonId } = useParams();
@@ -546,6 +571,13 @@ function LessonsView() {
         setModules(courseModules);
         setLessons(orderedLessons);
         setAssignments(assignmentItems);
+        if (assignmentItems.length > 0) {
+          buildInitialAssignmentStatuses(assignmentItems).then((map) => {
+            if (map && Object.keys(map).length > 0) {
+              setAssignmentStatuses((prev) => ({ ...prev, ...map }));
+            }
+          });
+        }
         setCourseDetail(getCachedCourseDetail(courseId));
 
         const allItems = [...orderedLessons, ...assignmentItems];
@@ -807,6 +839,26 @@ function LessonsView() {
     }
   };
 
+  const handleOpenQuizResult = (assignmentItem) => {
+    if (!assignmentItem?.assignmentId) return;
+    const lessonKey = resolveLessonId(assignmentItem);
+    if (!courseId) {
+      navigate(`/quiz-result/${assignmentItem.assignmentId}`);
+      return;
+    }
+    const queryCourse = `courseId=${courseId}`;
+    const queryLesson = lessonKey ? `&lessonId=${lessonKey}` : '';
+    navigate(
+      `/quiz-result/${assignmentItem.assignmentId}?${queryCourse}${queryLesson}`,
+      {
+        state: {
+          courseId,
+          lessonId: lessonKey,
+        },
+      },
+    );
+  };
+
   const handleSubmitWritingAssignment = async (assignmentItem) => {
     if (!assignmentItem?.assignmentId) return;
     const questions = Array.isArray(assignmentItem.questions) ? assignmentItem.questions : [];
@@ -888,6 +940,26 @@ function LessonsView() {
     }
   };
 
+  const handleOpenWritingResult = (assignmentItem) => {
+    if (!assignmentItem?.assignmentId) return;
+    const lessonKey = resolveLessonId(assignmentItem);
+    if (!courseId) {
+      navigate(`/writing-result/${assignmentItem.assignmentId}?submitted=1`);
+      return;
+    }
+    const queryCourse = `courseId=${courseId}`;
+    const queryLesson = lessonKey ? `&lessonId=${lessonKey}` : '';
+    navigate(
+      `/writing-result/${assignmentItem.assignmentId}?submitted=1&${queryCourse}${queryLesson}`,
+      {
+        state: {
+          courseId,
+          lessonId: lessonKey,
+        },
+      },
+    );
+  };
+
   const renderAssignmentQuizContent = (assignmentItem) => {
     if (assignmentItem.questionsLoading) {
       return <div className="lesson-content-skeleton" />;
@@ -927,16 +999,28 @@ function LessonsView() {
         <div className="quiz-submitted-state">
           <div className="quiz-submitted-icon">✓</div>
           <h4 className="quiz-submitted-title">Đã nộp bài</h4>
-          <p className="quiz-submitted-desc">Sau khi nộp bài bạn có thể sang bài tiếp theo.</p>
-          {nextLesson && (
+          <p className="quiz-submitted-desc">
+            Bài làm của bạn đã được gửi thành công và đang chờ giáo viên chấm điểm.
+          </p>
+          <div className="quiz-submitted-actions">
             <button
               type="button"
-              className="quiz-submitted-next-btn"
-              onClick={() => handleSelectLesson(nextLesson)}
+              className="quiz-submitted-view-result-btn"
+              onClick={() => handleOpenQuizResult(assignmentItem)}
             >
-              Bài tiếp theo →
+              Xem kết quả bài làm
             </button>
-          )}
+            {nextLesson && (
+              <button
+                type="button"
+                className="quiz-submitted-next-btn"
+                onClick={() => handleSelectLesson(nextLesson)}
+              >
+                <span>Bài tiếp theo</span>
+                <span className="quiz-submitted-next-icon">→</span>
+              </button>
+            )}
+          </div>
         </div>
       );
     }
@@ -958,7 +1042,9 @@ function LessonsView() {
         {/* Question + Answers - Navigator đã chuyển sang sidebar phải */}
         <div className="quiz-question-block">
           <div className="quiz-current-label">Câu {safeCurrent} / {totalCount}</div>
-          <div className="quiz-question-text">{currentQuestion?.question || 'Chưa có câu hỏi'}</div>
+          <div className="quiz-question-text">
+            {currentQuestion?.question || 'Chưa có câu hỏi'}
+          </div>
           <div className="quiz-answers quiz-answers-card">
             {(currentQuestion?.answers || []).map((answer, answerIndex) => {
               const answerLetter = String.fromCharCode(65 + answerIndex);
@@ -968,21 +1054,26 @@ function LessonsView() {
               );
               const isSelected = selectedValue === answerLetter;
               return (
-                <button
-                  type="button"
+                <label
                   key={answerLetter}
                   className={`quiz-answer-card ${isSelected ? 'selected' : ''}`}
-                  onClick={() =>
-                    handleQuizAnswerChange(
-                      assignmentItem.assignmentId,
-                      currentQuestion.questionId,
-                      answerLetter,
-                    )}
                 >
-                  <span className="quiz-answer-option">{isSelected ? '●' : '○'}</span>
-                  <span className="quiz-answer-letter">({answerLetter})</span>
+                  <input
+                    type="radio"
+                    className="quiz-answer-radio"
+                    name={`quiz-${assignmentItem.assignmentId}-${currentQuestion.questionId}`}
+                    value={answerLetter}
+                    checked={isSelected}
+                    onChange={() =>
+                      handleQuizAnswerChange(
+                        assignmentItem.assignmentId,
+                        currentQuestion.questionId,
+                        answerLetter,
+                      )}
+                  />
+                  <span className="quiz-answer-letter">{answerLetter}</span>
                   <span className="quiz-answer-text">{answer || 'Chưa có đáp án'}</span>
-                </button>
+                </label>
               );
             })}
           </div>
@@ -1051,6 +1142,38 @@ function LessonsView() {
     }
 
     const submissionStatus = getAssignmentStatus(assignmentItem.assignmentId);
+
+    if (submissionStatus === 'SUBMITTED') {
+      return (
+        <div className="quiz-submitted-state">
+          <div className="quiz-submitted-icon">✓</div>
+          <h4 className="quiz-submitted-title">Đã nộp bài tự luận</h4>
+          <p className="quiz-submitted-desc">
+            Bài viết của bạn đã được gửi thành công và đang chờ giáo viên chấm điểm.
+          </p>
+          <div className="quiz-submitted-actions">
+            <button
+              type="button"
+              className="quiz-submitted-view-result-btn"
+              onClick={() => handleOpenWritingResult(assignmentItem)}
+            >
+              Xem kết quả bài làm
+            </button>
+            {nextLesson && (
+              <button
+                type="button"
+                className="quiz-submitted-next-btn"
+                onClick={() => handleSelectLesson(nextLesson)}
+              >
+                <span>Bài tiếp theo</span>
+                <span className="quiz-submitted-next-icon">→</span>
+              </button>
+            )}
+          </div>
+        </div>
+      );
+    }
+
     const totalCount = questions.length;
     const totalPages = Math.max(1, Math.ceil(totalCount / QUESTIONS_PER_PAGE));
     const safePage = Math.min(Math.max(1, assignmentQuestionPage), totalPages);
@@ -1062,9 +1185,6 @@ function LessonsView() {
         <h3 className="quiz-title">Danh sách câu hỏi ({totalCount} câu)</h3>
         {assignmentItem.textContent ? (
           <p className="assignment-question-hint">{assignmentItem.textContent}</p>
-        ) : null}
-        {submissionStatus === 'SUBMITTED' ? (
-          <div className="assignment-status-badge">Trạng thái: SUBMITTED</div>
         ) : null}
         <div className="quiz-pagination-pages">
           {Array.from({ length: totalPages }, (_, i) => i + 1).map((p) => (

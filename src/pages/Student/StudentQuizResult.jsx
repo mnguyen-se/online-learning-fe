@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Button, Spin } from 'antd';
-import { ArrowLeft, Calendar, Clock, FileText, CheckCircle2, MessageSquare } from 'lucide-react';
+import { ArrowLeft, Calendar, Clock, FileText, CheckCircle2, MessageSquare, Clock3 } from 'lucide-react';
 import { getQuizResult } from '../../api/assignmentApi';
 import Header from '../../components/Header/header';
 import Footer from '../../components/Footer/footer';
@@ -193,6 +193,41 @@ export default function StudentQuizResult() {
   }
 
   if (error) {
+    const lower = error.toString().toLowerCase();
+    const isPendingGradeError =
+      lower.includes('chưa được giáo viên chấm') ||
+      lower.includes('chờ giáo viên chấm') ||
+      lower.includes('chua duoc giao vien cham') ||
+      lower.includes('cho giao vien cham');
+
+    if (isPendingGradeError) {
+      return (
+        <div className="student-result-page student-result-page--pending">
+          <Header />
+          <main className="student-result-main student-result-main--center">
+            <div className="student-result-pending-card">
+              <div className="student-result-pending-icon-wrap">
+                <Clock3 size={56} className="student-result-pending-icon" />
+              </div>
+              <h2 className="student-result-pending-title">Chưa có kết quả bài làm</h2>
+              <p className="student-result-pending-desc">
+                Bài làm của bạn chưa được giáo viên chấm điểm. Vui lòng quay lại sau khi giáo viên hoàn thành việc chấm bài.
+              </p>
+              <button
+                type="button"
+                className="student-result-pending-back-btn"
+                onClick={() => navigate(backUrl)}
+              >
+                <ArrowLeft size={18} />
+                <span>Quay lại</span>
+              </button>
+            </div>
+          </main>
+          <Footer />
+        </div>
+      );
+    }
+
     return (
       <div className="student-result-page">
         <Header />

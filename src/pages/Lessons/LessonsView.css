@@ -9,6 +9,7 @@
   flex: 1;
   min-height: 0;
   padding: 1.5rem 2rem;
+  margin-left: 340px; /* chừa chỗ cho sidebar cố định bên trái */
 }
 
 /* Breadcrumb */
@@ -64,25 +65,26 @@
 }
 
 .lessons-layout {
-  display: grid;
-  grid-template-columns: 320px 1fr;
-  gap: 1.5rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 1.75rem;
   max-width: 1400px;
   margin: 0 auto;
-  align-items: start;
 }
 
 .lessons-layout-with-quiz-map {
-  grid-template-columns: 320px 1fr 280px;
+  gap: 1.5rem;
 }
 
 .quiz-map-sidebar {
   position: sticky;
   top: 1rem;
+  width: 260px;
+  flex-shrink: 0;
   background: white;
   border-radius: 12px;
   padding: 1rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 16px rgba(15, 23, 42, 0.06);
   max-height: calc(100vh - 2rem);
   overflow-y: auto;
 }
@@ -160,16 +162,20 @@
   padding: 0.5rem 0;
 }
 
-/* Sticky sidebar - Udemy/Coursera style */
 .lessons-sidebar {
-  position: sticky;
-  top: 1rem;
-  background: white;
+  position: fixed;
+  top: 80px; /* ngay dưới header, giữ khoảng cách tương tự hiện tại */
+  left: 0;
+  height: calc(100vh - 80px);
+  width: 340px;
+  flex-shrink: 0;
+  background: #ffffff;
   border-radius: 12px;
   padding: 1.25rem;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  max-height: calc(100vh - 2rem);
+  box-shadow: 0 6px 20px rgba(15, 23, 42, 0.06);
+  border-right: 1px solid #e5e7eb;
   overflow-y: auto;
+  overflow-x: hidden;
 }
 
 .lessons-sidebar-title {
@@ -191,7 +197,7 @@
   display: flex;
   align-items: flex-start;
   gap: 0.75rem;
-  padding: 0.875rem 1rem;
+  padding: 0.875rem 1.25rem;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s;
@@ -286,6 +292,8 @@
   padding: 1.5rem 2rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   min-height: 500px;
+  flex: 1;
+  min-width: 0;
 }
 
 /* Lesson detail - compact flow */
@@ -1070,7 +1078,7 @@
 .quiz-answer-card {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
+  gap: 0.5rem;
   width: 100%;
   padding: 0.5rem 1rem;
   border: 2px solid #e2e8f0;
@@ -1091,19 +1099,18 @@
   background: #eff6ff;
 }
 
-.quiz-answer-option {
-  font-size: 1.25rem;
-  color: #94a3b8;
-}
-
-.quiz-answer-card.selected .quiz-answer-option {
-  color: #2563eb;
-}
-
 .quiz-answer-letter {
   font-weight: 700;
   color: #475569;
   min-width: 28px;
+}
+
+.quiz-answer-radio {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  accent-color: #2563eb;
+  margin-right: 4px;
 }
 
 .quiz-action-row {
@@ -1192,6 +1199,14 @@
   padding: 2rem;
 }
 
+.quiz-submitted-actions {
+  margin-top: 0.75rem;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 16px;
+}
+
 .quiz-submitted-icon {
   font-size: 3rem;
   color: #22c55e;
@@ -1212,19 +1227,50 @@
   margin: 0 0 1.25rem 0;
 }
 
-.quiz-submitted-next-btn {
-  padding: 10px 24px;
-  border: none;
+.quiz-submitted-view-result-btn {
+  padding: 10px 20px;
   border-radius: 8px;
+  border-radius: 10px;
+  border: 1px solid #2563eb;
+  background: #ffffff;
+  color: #2563eb;
+  font-weight: 600;
+  font-size: 0.95rem;
+  cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease, box-shadow 0.2s ease,
+    transform 0.1s ease;
+}
+
+.quiz-submitted-view-result-btn:hover {
+  background: #eff6ff;
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.12);
+  transform: translateY(-1px);
+}
+
+.quiz-submitted-next-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 10px 20px;
+  border: none;
+  border-radius: 10px;
   background: #2563eb;
   color: white;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.2s;
+  font-size: 0.95rem;
+  transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
 }
 
 .quiz-submitted-next-btn:hover {
   background: #1d4ed8;
+  box-shadow: 0 4px 10px rgba(37, 99, 235, 0.18);
+  transform: translateY(-1px);
+}
+
+.quiz-submitted-next-icon {
+  font-size: 1rem;
 }
 
 .assignment-state-box {
@@ -1395,7 +1441,7 @@
 }
 
 .module-lessons {
-  padding: 0.5rem 0.5rem 0.5rem 2.5rem;
+  padding: 0.5rem 0.75rem 0.5rem 2.5rem;
   display: flex;
   flex-direction: column;
   gap: 0.5rem;
@@ -1597,11 +1643,24 @@
 }
 
 @media (max-width: 1024px) {
+  .lessons-view-container {
+    margin-left: 0;
+    padding: 1.5rem 1rem;
+  }
+
   .lessons-layout {
-    grid-template-columns: 1fr;
+    display: block;
   }
 
   .lessons-sidebar {
-    max-height: 400px;
+    position: relative;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: auto;
+    margin-left: 0;
+    margin-bottom: 1rem;
+    max-height: 420px;
+    border-right: none;
   }
 }

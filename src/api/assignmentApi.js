@@ -81,6 +81,46 @@ export const getQuizResult = async (assignmentId) => {
   return response.data;
 };
 
+/**
+ * Trạng thái bài nộp Quiz của học sinh: not_submitted | pending | graded
+ * Dựa trên API quiz-result:
+ * - graded: đã có điểm
+ * - pending: đã có bài nộp nhưng chưa có điểm / đang chờ giáo viên chấm
+ * - not_submitted: chưa nộp bài
+ */
+export const getMyQuizStatus = async (assignmentId) => {
+  try {
+    const data = await getQuizResult(assignmentId);
+    const raw = data?.data ?? data;
+    const score = raw?.score;
+    const hasSubmission =
+      raw != null &&
+      (raw.submittedAt != null ||
+        raw.submitted_at != null ||
+        raw.submissionId != null);
+    if (score != null && Number(score) === Number(score)) {
+      return { state: 'graded', data: raw };
+    }
+    if (hasSubmission) return { state: 'pending', data: raw };
+    return { state: 'not_submitted', data: raw };
+  } catch (err) {
+    const status = err?.response?.status;
+    const msg = (
+      err?.response?.data?.message ??
+      err?.response?.data?.error ??
+      ''
+    )
+      .toString()
+      .toLowerCase();
+    const isPendingGrade =
+      msg.includes('chưa được giáo viên chấm') ||
+      msg.includes('chờ giáo viên chấm');
+    if (isPendingGrade) return { state: 'pending' };
+    if (status === 404 || status === 403) return { state: 'not_submitted' };
+    throw err;
+  }
+};
+
 /** POST /assignments/quiz-submissions/{submissionId}/grade – Chấm điểm quiz (TEACHER) */
 export const gradeQuizSubmission = async (submissionId, payload) => {
   const response = await apiClient.post(`/assignments/quiz-submissions/${submissionId}/grade`, payload);

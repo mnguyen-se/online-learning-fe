@@ -114,3 +114,88 @@
 .student-result-score--neutral .student-result-score-message {
   color: #475569;
 }
+
+/* ----- Trang pending "Chưa có kết quả bài làm" ----- */
+.student-result-page--pending {
+  background: #f3f4f6;
+}
+
+.student-result-main--center {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+}
+
+.student-result-pending-card {
+  width: 100%;
+  max-width: 560px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  padding: 2rem 1.75rem;
+  text-align: center;
+}
+
+.student-result-pending-icon-wrap {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.student-result-pending-icon {
+  width: 56px;
+  height: 56px;
+  color: #facc15;
+}
+
+.student-result-pending-title {
+  margin: 0 0 8px 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.student-result-pending-desc {
+  margin: 0 0 20px 0;
+  font-size: 0.95rem;
+  line-height: 1.7;
+  color: #4b5563;
+}
+
+.student-result-pending-back-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 20px;
+  background: #2563eb;
+  color: #ffffff;
+  border-radius: 8px;
+  border: none;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.1s ease;
+}
+
+.student-result-pending-back-btn:hover {
+  background: #1d4ed8;
+  box-shadow: 0 6px 18px rgba(37, 99, 235, 0.3);
+  transform: translateY(-1px);
+}
+
+.student-result-pending-back-btn svg {
+  flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+  .student-result-main--center {
+    padding: 2rem 1rem;
+  }
+
+  .student-result-pending-card {
+    padding: 1.75rem 1.25rem;
+  }
+}
