@@ -1262,10 +1262,11 @@ function CourseManagement() {
       const rawTests = Array.isArray(data) ? data : data?.data ?? [];
       const normalizedTests = rawTests.map((assignment, index) => {
         const assignmentId = getAssignmentId(assignment);
+        const assignmentTitle = assignment?.title ?? assignment?.assignmentName ?? assignment?.name ?? '';
         return {
           ...assignment,
           id: assignmentId ?? assignment?.id ?? `assignment-${index}`,
-          title: assignment?.title ?? '',
+          title: assignmentTitle,
           description: assignment?.description ?? '',
           maxScore: assignment?.maxScore ?? 100,
           dueDate: assignment?.dueDate ?? '',

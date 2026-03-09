@@ -25,8 +25,10 @@ function LessonVideoContent({ title, videoSource }) {
           title={title}
         />
       ) : (
-        <div className="lesson-content-placeholder">
-          <p>Chưa có video được cung cấp</p>
+        <div className="lesson-empty-state">
+          <div className="lesson-empty-icon">📹</div>
+          <h4 className="lesson-empty-title">Bài học chưa có video</h4>
+          <p className="lesson-empty-desc">Video sẽ được cập nhật sau.</p>
         </div>
       )}
     </div>
