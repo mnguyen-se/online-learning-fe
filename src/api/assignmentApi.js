@@ -11,8 +11,13 @@ export const getAssignmentsByCourse = async (courseId) => {
   return response.data;
 };
 
-export const createAssignment = async (courseId, payload) => {
-  const response = await apiClient.post(`/assignments/courses/${courseId}/assignments`, payload);
+export const getMyAssignments = async () => {
+  const response = await apiClient.get('/assignments/my-assignments');
+  return response.data;
+};
+
+export const createAssignment = async (payload) => {
+  const response = await apiClient.post('/assignments/courses/assignments', payload);
   return response.data;
 };
 
@@ -21,15 +26,21 @@ export const getAssignmentQuestions = async (assignmentId) => {
   return response.data;
 };
 
+export const getWritingQuestions = async (assignmentId) => {
+  const response = await apiClient.get(`/assignments/${assignmentId}/writing-questions`);
+  return response.data;
+};
+
 export const uploadAssignmentQuestions = async (assignmentId, file) => {
   const formData = new FormData();
   formData.append('file', file);
+  // Không set Content-Type - để axios/browser tự set multipart/form-data với boundary đúng
   const response = await apiClient.post(
     `/assignments/${assignmentId}/questions/upload-excel`,
     formData,
     {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        'Content-Type': false,
       },
     }
   );

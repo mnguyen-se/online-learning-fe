@@ -1,16 +1,17 @@
 import React, { useEffect, useState } from 'react';
-import * as XLSX from 'xlsx';
 import { toast } from 'react-toastify';
-import { createCourse, getCourses, getTeachers, updateCourse } from '../../../api/coursesApi';
+import { createCourse, getCourses, getTeachers, updateCourse, getActiveCourses } from '../../../api/coursesApi';
 import { getEnrolledStudentsByCourse } from '../../../api/enrollmentApi';
-import { createLesson, updateLesson, getLessons, deleteLesson, uploadLessonVideo } from '../../../api/lessionApi';
+import { createLesson, updateLesson, getLessons, deleteLesson } from '../../../api/lessionApi';
 import {
   createAssignment,
+  createWritingQuestion,
   getAssignmentQuestions,
   getAssignmentsByCourse,
+  getWritingQuestions,
   uploadAssignmentQuestions,
 } from '../../../api/assignmentApi';
-import { createModule, deleteModule, getModulesByCourse } from '../../../api/module';
+import { createModule, deleteModule, getModulesByCourse, getPublicModulesByCourse, updateModule } from '../../../api/module';
 import DashboardLayout from '../../../components/DashboardLayout';
 import CourseCard from './components/CourseCard';
 import CourseContentLayout from './components/CourseContentLayout';
@@ -60,6 +61,8 @@ function CourseManagement() {
   const [deleteLessonModal, setDeleteLessonModal] = useState({ isOpen: false, lessonId: null });
   const [isReloadingLessons, setIsReloadingLessons] = useState(false);
   const [teachers, setTeachers] = useState([]);
+  const [publishingModuleIds, setPublishingModuleIds] = useState([]);
+  const [publishingLessonIds, setPublishingLessonIds] = useState([]);
 
   // Utility functions
   const getCourseId = (course) =>
@@ -98,13 +101,6 @@ function CourseManagement() {
     course?.teacher?.userId ??
     null;
 
-  const hasAssignedTeacher = (course) => {
-    const teacherId = getCourseTeacherId(course);
-    if (teacherId == null) return false;
-    if (typeof teacherId === 'string') return teacherId.trim() !== '';
-    return true;
-  };
-
   const resolveCourseActiveState = (course) => {
     const courseId = getCourseId(course);
     if (courseId && typeof courseActiveStates[courseId] === 'boolean') {
@@ -120,33 +116,51 @@ function CourseManagement() {
     assignment?.assignment_id ??
     null;
 
-  const mapCorrectIndexToLetter = (index) => {
-    const letters = ['A', 'B', 'C', 'D'];
-    return letters[index] ?? 'A';
+  const normalizeAssignmentType = (value) => {
+    const raw = (value ?? '').toString().trim().toUpperCase();
+    if (raw === 'QUIZ') return 'QUIZ';
+    if (raw === 'WRITING' || raw === 'ASSIGNMENT') return 'WRITING';
+    return 'WRITING';
   };
 
-  const buildQuizExcelFile = (questions) => {
-    const header = ['Question', 'Option A', 'Option B', 'Option C', 'Option D', 'Correct Answer'];
-    const rows = questions.map((q) => ([
-      q.question || '',
-      q.answers?.[0] || '',
-      q.answers?.[1] || '',
-      q.answers?.[2] || '',
-      q.answers?.[3] || '',
-      mapCorrectIndexToLetter(q.correctIndex ?? 0),
-    ]));
-
-    const worksheet = XLSX.utils.aoa_to_sheet([header, ...rows]);
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, 'Questions');
-    const buffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-
-    return new File(
-      [buffer],
-      `quiz-${Date.now()}.xlsx`,
-      { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' }
-    );
+  const resolvePublicModuleIdSet = async (courseId) => {
+    if (!courseId) return new Set();
+    try {
+      const publicModules = await getPublicModulesByCourse(courseId);
+      const rawPublicModules = Array.isArray(publicModules) ? publicModules : publicModules?.data ?? [];
+      const ids = rawPublicModules
+        .map((module) => module?.id ?? module?.moduleId ?? module?._id ?? null)
+        .filter((id) => id !== null && id !== undefined && String(id).trim() !== '');
+      return new Set(ids.map((id) => String(id)));
+    } catch (error) {
+      console.error('Fetch public modules error:', error);
+      return new Set();
+    }
   };
+
+  const mapModulesToLessonItems = (rawModules = [], publicModuleIds = new Set()) =>
+    rawModules
+      .map((module, index) => {
+        const moduleIdentifier = module?.id ?? module?.moduleId ?? module?._id ?? null;
+        const normalizedModuleId = moduleIdentifier ?? Date.now() + index;
+        return {
+          id: normalizedModuleId,
+          title: module?.title ?? 'Chương mới',
+          lessonType: 'VIDEO',
+          contentUrl: '',
+          contentFile: null,
+          duration: 0,
+          orderIndex: module?.orderIndex ?? index + 1,
+          sectionId: moduleIdentifier,
+          isOpen: false,
+          isServer: true,
+          isModule: true,
+          isPublic: moduleIdentifier !== null && moduleIdentifier !== undefined
+            ? publicModuleIds.has(String(moduleIdentifier))
+            : false,
+        };
+      })
+      .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
 
   const resetCourseForm = () => {
     setCourseTitle('');
@@ -176,20 +190,11 @@ function CourseManagement() {
   };
 
   const handleCreatePublicChange = (nextIsPublic) => {
+    // Theo backend, isPublic không bắt buộc phải có teacherId
+    setCourseIsPublic(Boolean(nextIsPublic));
     if (!nextIsPublic) {
-      setCourseIsPublic(false);
-      return;
+      setCourseError('');
     }
-
-    const hasTeacher = typeof courseTeacherId === 'string' ? courseTeacherId.trim() !== '' : !!courseTeacherId;
-    if (!hasTeacher) {
-      setCourseError(PUBLIC_REQUIRES_TEACHER_MESSAGE);
-      toast.warning(PUBLIC_REQUIRES_TEACHER_MESSAGE);
-      return;
-    }
-
-    setCourseError('');
-    setCourseIsPublic(true);
   };
 
   const handleCreateTeacherChange = (teacherId) => {
@@ -205,13 +210,6 @@ function CourseManagement() {
 
     if (!trimmedTitle || !trimmedDescription) {
       setCourseError('Vui lòng nhập tên khóa học và mô tả.');
-      return;
-    }
-
-    const hasTeacher = typeof courseTeacherId === 'string' ? courseTeacherId.trim() !== '' : !!courseTeacherId;
-    if (courseIsPublic && !hasTeacher) {
-      setCourseError(PUBLIC_REQUIRES_TEACHER_MESSAGE);
-      toast.warning(PUBLIC_REQUIRES_TEACHER_MESSAGE);
       return;
     }
 
@@ -295,6 +293,7 @@ function CourseManagement() {
       sectionId: null,
       isServer: false,
       isModule: true,
+      isPublic: false,
       isNew: true, // Đánh dấu là chương mới chưa lưu
     };
 
@@ -337,7 +336,7 @@ function CourseManagement() {
       } else if (existingModulesResponse?.data && Array.isArray(existingModulesResponse.data.data)) {
         rawModules = existingModulesResponse.data.data;
       }
-      
+
       // Tìm orderIndex lớn nhất từ các modules đã lưu (không tính chương mới chưa lưu)
       const validOrderIndexes = rawModules
         .map(m => {
@@ -345,11 +344,11 @@ function CourseManagement() {
           return idx > 0 ? idx : 0;
         })
         .filter(idx => idx > 0);
-      
+
       const maxOrderIndex = validOrderIndexes.length > 0
         ? Math.max(...validOrderIndexes)
         : 0;
-      
+
       // orderIndex tiếp theo = max + 1, đảm bảo >= 1
       const nextOrderIndex = Math.max(1, maxOrderIndex + 1);
 
@@ -362,51 +361,38 @@ function CourseManagement() {
       };
 
       const createdModule = await createModule(moduleData);
-      
+
       // Xử lý nhiều format response có thể có từ backend
       let moduleResponse = createdModule;
       if (createdModule?.data && typeof createdModule.data === 'object') {
         moduleResponse = createdModule.data;
       }
-      
+
       // Lấy moduleId từ response
       const moduleId = moduleResponse?.moduleId ?? moduleResponse?.id ?? moduleResponse?._id ?? null;
-      
+
       if (!moduleId) {
         throw new Error('Không thể lấy ID module sau khi tạo.');
       }
 
       // Load lại danh sách modules từ server để đảm bảo orderIndex chính xác
-      const modulesList = await getModulesByCourse(courseId);
+      const [modulesList, publicModuleIds] = await Promise.all([
+        getModulesByCourse(courseId),
+        resolvePublicModuleIdSet(courseId),
+      ]);
       const updatedRawModules = Array.isArray(modulesList) ? modulesList : modulesList?.data ?? [];
-      
-      // Chuyển đổi modules thành format lessons để hiển thị
-      const serverModules = updatedRawModules.map((module, index) => ({
-        id: module.id ?? module.moduleId ?? module._id ?? Date.now() + index,
-        title: module.title ?? 'Chương mới',
-        lessonType: 'VIDEO',
-        contentUrl: '',
-        contentFile: null,
-        duration: 0,
-        orderIndex: module.orderIndex ?? index + 1,
-        sectionId: module.id ?? module.moduleId ?? module._id ?? null,
-        isOpen: false,
-        isServer: true,
-        isModule: true,
-      }))
-      .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
-      
+      const serverModules = mapModulesToLessonItems(updatedRawModules, publicModuleIds);
       // Giữ lại các chương mới chưa lưu (trừ chương vừa lưu)
       const newChapters = lessons.filter(l => l.isNew && l.isModule && l.id !== selectedChapterId);
-      
+
       // Merge: server modules + new chapters (chưa lưu)
       setLessons([...serverModules, ...newChapters].sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0)));
-      
+
       setSelectedChapterId(moduleId);
-      
+
       // Load lessons của module mới tạo
       await loadModuleLessons(moduleId, courseId);
-      
+
       toast.success('Đã tạo chương thành công.');
       return true;
     } catch (e) {
@@ -452,16 +438,18 @@ function CourseManagement() {
       id: tempId, // ID tạm để phân biệt
       title: '', // Title rỗng, người dùng sẽ nhập
       lessonType: 'VIDEO',
+      videoUrl: '',
       contentUrl: '',
       textContent: '',
       orderIndex: nextOrderIndex,
       moduleId: selectedChapterId,
       isNew: true, // Đánh dấu là lesson mới chưa lưu
       isServer: false,
+      isPublic: false,
     };
 
     setModuleLessons([...moduleLessons, newLesson]);
-    
+
     // Tự động select lesson mới và mở form để điền nội dung
     setSelectedLessonId(tempId);
     setContentTab('lesson');
@@ -479,13 +467,11 @@ function CourseManagement() {
     try {
       const existingLessons = await getLessons({ courseId });
       const rawLessons = Array.isArray(existingLessons) ? existingLessons : existingLessons?.data ?? [];
-      
-      // Lọc lessons thuộc module (CHỈ LẤY CÁC LESSON CHƯA BỊ XÓA)
+      // Lọc lessons thuộc module
       const serverLessons = rawLessons
         .filter(l => {
           const lessonModuleId = l.moduleId ?? l.module?.moduleId ?? l.sectionId ?? l.section?.id;
-          const isPublic = l.isPublic ?? l.is_public ?? true; // Mặc định là true nếu không có field
-          return lessonModuleId === moduleId && isPublic === true;
+          return String(lessonModuleId) === String(moduleId);
         })
         .map(l => {
           const rawLessonType = l.lessonType ?? 'VIDEO';
@@ -493,40 +479,45 @@ function CourseManagement() {
             ? rawLessonType
             : 'TEXT';
           const contentUrl = l.contentUrl ?? '';
-          const textContent = lessonType === 'TEXT' ? contentUrl : '';
-          
+          const videoUrl = l.videoUrl ?? contentUrl ?? '';
+          const textContent = lessonType === 'TEXT'
+            ? (l.textContent ?? contentUrl ?? '')
+            : (l.textContent ?? '');
+
           // Lấy lessonId từ nhiều nguồn có thể
           const lessonId = l.lessonId ?? l.id ?? l._id;
-          
+
           return {
             id: lessonId ?? Date.now() + Math.random(),
             lessonId: lessonId, // Lưu thêm lessonId để dùng cho update/delete
             title: l.title ?? 'Bài học mới',
             lessonType: lessonType,
-            contentUrl: lessonType === 'VIDEO' ? contentUrl : '',
+            videoUrl: lessonType === 'VIDEO' ? videoUrl : '',
+            contentUrl: lessonType === 'VIDEO' ? (contentUrl || videoUrl) : '',
             textContent: textContent,
             orderIndex: l.orderIndex ?? 0,
             moduleId: moduleId,
             isServer: true,
+            isPublic: Boolean(l.isPublic ?? l.is_public ?? false),
           };
         })
         .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
-      
+
       // Giữ lại các lesson mới chưa lưu (có isNew: true) nhưng không trùng với server lessons
       // Kiểm tra trùng dựa vào orderIndex và moduleId
       const existingOrderIndexes = new Set(serverLessons.map(l => Number(l.orderIndex ?? 0)));
       const newLessons = moduleLessons.filter(l => 
         l.isNew 
-        && l.moduleId === moduleId
+        && String(l.moduleId) === String(moduleId)
         && !existingOrderIndexes.has(Number(l.orderIndex ?? 0)) // Không trùng orderIndex với server lessons
       );
-      
+
       // Merge: server lessons + new lessons (chưa lưu, không trùng)
       setModuleLessons([...serverLessons, ...newLessons].sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0)));
     } catch (error) {
       console.error('Load module lessons error:', error);
       // Giữ lại các lesson mới chưa lưu nếu có lỗi
-      const newLessons = moduleLessons.filter(l => l.isNew && l.moduleId === moduleId);
+      const newLessons = moduleLessons.filter(l => l.isNew && String(l.moduleId) === String(moduleId));
       setModuleLessons(newLessons);
     }
   };
@@ -563,7 +554,7 @@ function CourseManagement() {
           // Fetch fresh data từ server (không dùng cache)
           const existingLessons = await getLessons({ courseId });
           const rawLessons = Array.isArray(existingLessons) ? existingLessons : existingLessons?.data ?? [];
-          
+
           // Lọc lessons thuộc module hiện tại (chỉ lấy server-side lessons)
           // QUAN TRỌNG: KHÔNG filter isPublic. Unique constraint (module_id, order_index) áp dụng cho
           // MỌI row trong DB (kể cả lesson đã xóa). Phải tính orderIndex từ TẤT CẢ lessons trong module.
@@ -571,17 +562,17 @@ function CourseManagement() {
             const lessonModuleId = l.moduleId ?? l.module?.moduleId ?? l.sectionId ?? l.section?.id;
             return String(lessonModuleId) === String(selectedChapterId) || Number(lessonModuleId) === Number(selectedChapterId);
           });
-          
+
           // Tính maxOrderIndex từ TẤT CẢ lessons trong module (kể cả đã xóa)
           const orderIndexes = serverLessons
             .map(l => Number(l.orderIndex ?? 0))
             .filter(idx => idx > 0 && !isNaN(idx));
-          
+
           const maxOrderIndex = orderIndexes.length > 0 ? Math.max(...orderIndexes) : 0;
-          
+
           // Tính orderIndex mới: maxOrderIndex + 1
           orderIndex = maxOrderIndex + 1;
-          
+
           // Double check: đảm bảo orderIndex không trùng với bất kỳ orderIndex nào đã có
           const existingIndexes = new Set(orderIndexes);
           let attempts = 0;
@@ -589,7 +580,7 @@ function CourseManagement() {
             orderIndex++;
             attempts++;
           }
-          
+
           // Log để debug
           console.log('Calculated orderIndex:', orderIndex, 'for module:', selectedChapterId, 'existing indexes:', Array.from(existingIndexes));
         } catch (err) {
@@ -603,30 +594,22 @@ function CourseManagement() {
         }
       }
 
-      // Chuẩn bị payload theo LessonDtoReq
+      // Chuẩn bị payload theo LessonDtoReq backend (title, lessonType, textContent, videoUrl, moduleId, isPublic)
+      const normalizedLessonType = lessonData.lessonType || 'VIDEO';
       const lessonPayload = {
         title: lessonData.title,
-        lessonType: lessonData.lessonType || 'VIDEO',
-        orderIndex: orderIndex,
+        lessonType: normalizedLessonType,
         moduleId: selectedChapterId,
+        videoUrl: '',
+        textContent: '',
+        // isPublic sẽ để mặc định false khi tạo; publish dùng handlePublishLesson
       };
 
-      // Xử lý contentUrl và textContent theo lessonType
-      if (lessonData.lessonType === 'VIDEO') {
-        if (lessonData.contentFile) {
-          const uploadResult = await uploadLessonVideo(lessonData.contentFile);
-          const uploadedUrl = uploadResult?.url ?? uploadResult?.data?.url ?? '';
-          if (!uploadedUrl) {
-            throw new Error('Không thể tải video lên. Vui lòng thử lại.');
-          }
-          lessonPayload.contentUrl = uploadedUrl;
-        } else {
-          lessonPayload.contentUrl = lessonData.contentUrl || '';
-        }
-      } else if (lessonData.lessonType === 'TEXT') {
-        lessonPayload.contentUrl = lessonData.textContent || '';
+      if (normalizedLessonType === 'VIDEO') {
+        lessonPayload.videoUrl = lessonData.videoUrl || lessonData.contentUrl || '';
       } else {
-        lessonPayload.contentUrl = lessonData.contentUrl || lessonData.textContent || '';
+        // TEXT / ASSIGNMENT / QUIZ → lưu vào textContent
+        lessonPayload.textContent = lessonData.textContent || lessonData.contentUrl || '';
       }
 
       if (currentLesson.isNew) {
@@ -636,7 +619,7 @@ function CourseManagement() {
         let retryCount = 0;
         const maxRetries = 3;
         const requestId = `create-${selectedLessonId}-${Date.now()}`;
-        
+
         while (!createSuccess && retryCount < maxRetries) {
           try {
             console.log(`[${requestId}] Attempting to create lesson with orderIndex:`, orderIndex);
@@ -646,15 +629,15 @@ function CourseManagement() {
           } catch (createError) {
             // Kiểm tra nếu là duplicate error
             const errorMessage = createError?.response?.data?.error || createError?.message || '';
-            const isDuplicateError = errorMessage.includes('Duplicate entry') || 
-                                   errorMessage.includes('UK5b8va6i6s2lts98iubi6kl9v6') ||
-                                   createError?.response?.status === 500;
-            
+            const isDuplicateError = errorMessage.includes('Duplicate entry') ||
+              errorMessage.includes('UK5b8va6i6s2lts98iubi6kl9v6') ||
+              createError?.response?.status === 500;
+
             if (isDuplicateError && retryCount < maxRetries - 1) {
               // Nếu là duplicate, fetch lại và tính orderIndex mới
               retryCount++;
               console.warn(`Duplicate orderIndex detected, retrying (attempt ${retryCount}/${maxRetries})...`);
-              
+
               try {
                 const existingLessons = await getLessons({ courseId });
                 const rawLessons = Array.isArray(existingLessons) ? existingLessons : existingLessons?.data ?? [];
@@ -663,20 +646,20 @@ function CourseManagement() {
                   const lessonModuleId = l.moduleId ?? l.module?.moduleId ?? l.sectionId ?? l.section?.id;
                   return String(lessonModuleId) === String(selectedChapterId) || Number(lessonModuleId) === Number(selectedChapterId);
                 });
-                
+
                 const orderIndexes = serverLessons
                   .map(l => Number(l.orderIndex ?? 0))
                   .filter(idx => idx > 0 && !isNaN(idx));
-                
+
                 const maxOrderIndex = orderIndexes.length > 0 ? Math.max(...orderIndexes) : 0;
                 orderIndex = maxOrderIndex + 1;
-                
+
                 // Đảm bảo không trùng
                 const existingIndexes = new Set(orderIndexes);
                 while (existingIndexes.has(orderIndex)) {
                   orderIndex++;
                 }
-                
+
                 // Cập nhật payload với orderIndex mới
                 lessonPayload.orderIndex = orderIndex;
                 console.log('Retrying with new orderIndex:', orderIndex);
@@ -692,36 +675,36 @@ function CourseManagement() {
             }
           }
         }
-        
+
         if (!createSuccess) {
           throw new Error('Không thể tạo bài học sau nhiều lần thử. Vui lòng thử lại.');
         }
-        
+
         // Set loading state
         setIsReloadingLessons(true);
-        
+
         try {
           // Xóa lesson tạm (isNew) khỏi danh sách trước khi reload
-          setModuleLessons(prev => prev.filter(l => 
+          setModuleLessons(prev => prev.filter(l =>
             !(l.isNew && l.moduleId === selectedChapterId && l.id === selectedLessonId)
           ));
-          
+
           // Reload danh sách lessons từ server để lấy lessonId và cập nhật UI
           await loadModuleLessons(selectedChapterId, courseId);
-          
+
           // Đợi một chút để đảm bảo state đã được cập nhật
           await new Promise(resolve => setTimeout(resolve, 300));
-          
+
           // Tìm lesson vừa tạo trong moduleLessons (đã được reload)
           // Tìm dựa vào title, orderIndex, và moduleId
-          const createdLesson = moduleLessons.find(l => 
+          const createdLesson = moduleLessons.find(l =>
             l.moduleId === selectedChapterId
             && l.title === lessonData.title
             && Number(l.orderIndex) === orderIndex
             && l.lessonType === (lessonData.lessonType || 'VIDEO')
             && l.isServer === true // Chỉ lấy lesson từ server
           );
-          
+
           if (createdLesson && createdLesson.id) {
             // Select lesson vừa tạo để hiển thị ở view mode
             setSelectedLessonId(createdLesson.id);
@@ -739,20 +722,20 @@ function CourseManagement() {
                 && Number(l.orderIndex) === orderIndex
                 && l.lessonType === (lessonData.lessonType || 'VIDEO');
             });
-            
+
             if (serverLesson) {
               const lessonId = serverLesson.lessonId ?? serverLesson.id ?? serverLesson._id;
               if (lessonId) {
                 // Reload lại để đảm bảo lesson có trong moduleLessons
                 await loadModuleLessons(selectedChapterId, courseId);
                 await new Promise(resolve => setTimeout(resolve, 200));
-                
+
                 // Tìm lại trong moduleLessons sau khi reload
-                const foundLesson = moduleLessons.find(l => 
+                const foundLesson = moduleLessons.find(l =>
                   (l.lessonId ?? l.id) === lessonId ||
                   (l.title === lessonData.title && Number(l.orderIndex) === orderIndex && l.moduleId === selectedChapterId)
                 );
-                
+
                 if (foundLesson && foundLesson.id) {
                   setSelectedLessonId(foundLesson.id);
                   setContentTab('lesson');
@@ -768,20 +751,20 @@ function CourseManagement() {
         } finally {
           setIsReloadingLessons(false);
         }
-        
+
         toast.success('Đã tạo bài học thành công.');
         return true;
       } else {
         // Lesson đã có → gọi API cập nhật
         await updateLesson(selectedLessonId, lessonPayload);
-        
+
         // Reload danh sách lessons để đảm bảo sync với server
         await loadModuleLessons(selectedChapterId, courseId);
-        
+
         // Giữ nguyên selectedLessonId và quay về view mode sau khi cập nhật
         setContentTab('lesson');
         setIsEditingLesson(false); // Quay về view mode sau khi lưu
-        
+
         toast.success('Đã cập nhật bài học thành công.');
         return true;
       }
@@ -818,7 +801,7 @@ function CourseManagement() {
       toast.error('Không tìm thấy ID chương để xóa.');
       return;
     }
-    
+
     // Nếu là chương mới chưa lưu, xóa trực tiếp khỏi danh sách local
     const chapter = lessons.find(l => l.id === chapterId);
     if (chapter?.isNew) {
@@ -829,7 +812,7 @@ function CourseManagement() {
       }
       return;
     }
-    
+
     // Chương đã lưu → mở modal xác nhận
     setDeleteConfirmModal({ isOpen: true, chapterId });
   };
@@ -850,41 +833,28 @@ function CourseManagement() {
     try {
       setIsSavingLesson(true);
       setLessonError('');
-      
+
       // Gọi API DELETE /api/v1/modules/{moduleId}
       await deleteModule(chapterId);
-      
+
       // Load lại danh sách modules sau khi xóa
-      const modulesList = await getModulesByCourse(courseId);
+      const [modulesList, publicModuleIds] = await Promise.all([
+        getModulesByCourse(courseId),
+        resolvePublicModuleIdSet(courseId),
+      ]);
       const rawModules = Array.isArray(modulesList) ? modulesList : modulesList?.data ?? [];
-      
-      // Chuyển đổi modules thành format lessons để hiển thị
-      const serverModules = rawModules.map((module, index) => ({
-        id: module.id ?? module.moduleId ?? module._id ?? Date.now() + index,
-        title: module.title ?? 'Chương mới',
-        lessonType: 'VIDEO',
-        contentUrl: '',
-        contentFile: null,
-        duration: 0,
-        orderIndex: module.orderIndex ?? index + 1,
-        sectionId: module.id ?? module.moduleId ?? module._id ?? null,
-        isOpen: false,
-        isServer: true,
-        isModule: true,
-      }))
-      .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
-      
+      const serverModules = mapModulesToLessonItems(rawModules, publicModuleIds);
       // Giữ lại các chương mới chưa lưu (có isNew: true)
       const newChapters = lessons.filter(l => l.isNew && l.isModule);
-      
+
       // Merge: server modules + new chapters (chưa lưu)
       setLessons([...serverModules, ...newChapters].sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0)));
-      
+
       // Nếu chương đang được chọn bị xóa, clear selection
       if (selectedChapterId === chapterId) {
         setSelectedChapterId(null);
       }
-      
+
       toast.success('Đã xóa chương thành công.');
       setDeleteConfirmModal({ isOpen: false, chapterId: null });
     } catch (e) {
@@ -906,7 +876,7 @@ function CourseManagement() {
       toast.error('Không tìm thấy ID bài học để xóa.');
       return;
     }
-    
+
     // Nếu là lesson mới chưa lưu, xóa trực tiếp khỏi danh sách local
     const lesson = moduleLessons.find(l => l.id === lessonId);
     if (lesson?.isNew) {
@@ -919,7 +889,7 @@ function CourseManagement() {
       }
       return;
     }
-    
+
     // Lesson đã lưu → mở modal xác nhận
     setDeleteLessonModal({ isOpen: true, lessonId });
   };
@@ -940,19 +910,19 @@ function CourseManagement() {
     try {
       setIsSavingLesson(true);
       setLessonError('');
-      
+
       // Lấy lessonId thực từ lesson object (có thể là id tạm hoặc lessonId)
       const lesson = moduleLessons.find(l => l.id === lessonId);
       const realLessonId = lesson?.lessonId ?? lessonId;
-      
+
       // Gọi API DELETE /api/v1/lessons/delete/{lessonId}
       await deleteLesson(realLessonId);
-      
+
       // Reload danh sách lessons của module sau khi xóa
       if (selectedChapterId) {
         await loadModuleLessons(selectedChapterId, courseId);
       }
-      
+
       // Nếu lesson đang được chọn bị xóa, clear selection
       if (selectedLessonId === lessonId) {
         setSelectedLessonId(null);
@@ -960,7 +930,7 @@ function CourseManagement() {
         setIsEditingLesson(false);
         setContentTab('program');
       }
-      
+
       toast.success('Đã xóa bài học thành công.');
       setDeleteLessonModal({ isOpen: false, lessonId: null });
     } catch (e) {
@@ -975,6 +945,99 @@ function CourseManagement() {
 
   const cancelDeleteLesson = () => {
     setDeleteLessonModal({ isOpen: false, lessonId: null });
+  };
+
+  const handlePublishChapter = async (chapterId) => {
+    const chapter = lessons.find((item) => item.id === chapterId);
+    if (!chapter) {
+      toast.error('Không tìm thấy chương để public.');
+      return;
+    }
+    if (chapter.isNew) {
+      toast.warning('Vui lòng lưu chương trước khi public.');
+      return;
+    }
+    if (chapter.isPublic) {
+      toast.info('Chương này đã ở trạng thái public.');
+      return;
+    }
+
+    const courseId = getCourseId(selectedCourse);
+    const moduleId = chapter.sectionId ?? chapter.id;
+    if (!courseId || !moduleId) {
+      toast.error('Không tìm thấy mã khóa học hoặc chương.');
+      return;
+    }
+
+    const normalizedCourseId = Number.isNaN(Number(courseId)) ? courseId : Number(courseId);
+    const moduleKey = String(moduleId);
+    setPublishingModuleIds((prev) => (prev.includes(moduleKey) ? prev : [...prev, moduleKey]));
+
+    try {
+      await updateModule(moduleId, {
+        courseId: normalizedCourseId,
+        title: chapter.title ?? '',
+        isPublic: true,
+      });
+
+      setLessons((prev) =>
+        prev.map((item) =>
+          String(item.sectionId ?? item.id) === moduleKey
+            ? { ...item, isPublic: true }
+            : item
+        )
+      );
+      toast.success('Đã public chương thành công.');
+    } catch (error) {
+      const msg = error?.response?.data?.message || error?.message || 'Public chương thất bại. Vui lòng thử lại.';
+      toast.error(msg);
+      console.error('Publish module error:', error);
+    } finally {
+      setPublishingModuleIds((prev) => prev.filter((id) => id !== moduleKey));
+    }
+  };
+
+  const handlePublishLesson = async (lessonId) => {
+    const lesson = moduleLessons.find((item) => item.id === lessonId);
+    if (!lesson) {
+      toast.error('Không tìm thấy bài học để public.');
+      return;
+    }
+    if (lesson.isNew) {
+      toast.warning('Vui lòng lưu bài học trước khi public.');
+      return;
+    }
+    if (lesson.isPublic) {
+      toast.info('Bài học này đã ở trạng thái public.');
+      return;
+    }
+
+    const realLessonId = lesson.lessonId ?? lesson.id;
+    if (!realLessonId) {
+      toast.error('Không tìm thấy mã bài học.');
+      return;
+    }
+
+    const lessonKey = String(realLessonId);
+    setPublishingLessonIds((prev) => (prev.includes(lessonKey) ? prev : [...prev, lessonKey]));
+
+    try {
+      await updateLesson(realLessonId, { isPublic: true });
+      setModuleLessons((prev) =>
+        prev.map((item) =>
+          String(item.lessonId ?? item.id) === lessonKey
+            ? { ...item, isPublic: true }
+            : item
+        )
+      );
+      toast.success('Đã public bài học thành công.');
+    } catch (error) {
+      const msg = error?.response?.data?.message || error?.message || 'Public bài học thất bại. Vui lòng thử lại.';
+      toast.error(msg);
+      console.error('Publish lesson error:', error);
+    } finally {
+      setPublishingLessonIds((prev) => prev.filter((id) => id !== lessonKey));
+    }
   };
 
   const loadCourseStats = async (courseId) => {
@@ -1046,12 +1109,44 @@ function CourseManagement() {
     try {
       setIsLoadingCourses(true);
       setCoursesError('');
-      const data = await getCourses();
-      const rawCoursesList = Array.isArray(data) ? data : data?.data ?? [];
+
+      // Lấy toàn bộ khóa học + danh sách khóa public trực tiếp từ backend
+      const [allCoursesRes, activeCoursesRes] = await Promise.all([
+        getCourses(),
+        getActiveCourses().catch(() => []),
+      ]);
+
+      const rawCoursesList = Array.isArray(allCoursesRes) ? allCoursesRes : allCoursesRes?.data ?? [];
+      const rawActiveList = Array.isArray(activeCoursesRes) ? activeCoursesRes : activeCoursesRes?.data ?? [];
+
+      const activeCourseIdSet = new Set(
+        rawActiveList
+          .map((course) => {
+            const cid =
+              course?.courseId ??
+              course?.id ??
+              course?.course_id ??
+              course?.CourseId ??
+              null;
+            return cid != null ? String(cid) : null;
+          })
+          .filter((id) => id !== null),
+      );
+
+      // Chuẩn hóa danh sách course, ép trạng thái public theo nguồn dữ liệu /courses/active (không cache sai)
       const coursesList = rawCoursesList.map((course) => {
         const courseId = getCourseId(course);
-        return { ...course, id: courseId || course.id };
+        const key = courseId != null ? String(courseId) : null;
+        const isPublicFromActiveList = key ? activeCourseIdSet.has(key) : false;
+        return {
+          ...course,
+          id: courseId || course.id,
+          isPublic: isPublicFromActiveList,
+          is_public: isPublicFromActiveList,
+          public: isPublicFromActiveList,
+        };
       });
+
       setCourses(coursesList);
 
       const statsPromises = coursesList.map(async (course) => {
@@ -1100,30 +1195,17 @@ function CourseManagement() {
     try {
       setIsLoadingLessons(true);
       setLessonsError('');
-      
+
       // Load modules từ API
-      const modulesList = await getModulesByCourse(courseId);
+      const [modulesList, publicModuleIds] = await Promise.all([
+        getModulesByCourse(courseId),
+        resolvePublicModuleIdSet(courseId),
+      ]);
       const rawModules = Array.isArray(modulesList) ? modulesList : modulesList?.data ?? [];
-      
-      // Chuyển đổi modules thành format lessons để hiển thị
-      const serverModules = rawModules.map((module, index) => ({
-        id: module.id ?? module.moduleId ?? module._id ?? Date.now() + index,
-        title: module.title ?? 'Chương mới',
-        lessonType: 'VIDEO',
-        contentUrl: '',
-        contentFile: null,
-        duration: 0,
-        orderIndex: module.orderIndex ?? index + 1,
-        sectionId: module.id ?? module.moduleId ?? module._id ?? null,
-        isOpen: false,
-        isServer: true,
-        isModule: true,
-      }))
-      .sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0));
-      
+      const serverModules = mapModulesToLessonItems(rawModules, publicModuleIds);
       // Giữ lại các chương mới chưa lưu (có isNew: true)
       const newChapters = lessons.filter(l => l.isNew && l.isModule);
-      
+
       // Merge: server modules + new chapters (chưa lưu)
       setLessons([...serverModules, ...newChapters].sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0)));
     } catch (error) {
@@ -1144,6 +1226,30 @@ function CourseManagement() {
     return found >= 0 ? found : 0;
   };
 
+  const normalizeQuestionType = (value) => {
+    const raw = (value ?? '').toString().trim().toUpperCase();
+    if (raw === 'REORDER') return 'REORDER';
+    if (raw === 'MATCHING') return 'MATCHING';
+    if (raw === 'ESSAY_WRITING') return 'ESSAY_WRITING';
+    return 'FILL_BLANK';
+  };
+
+  const mapWritingQuestionFromApi = (question) => ({
+    id: question?.questionId ?? `${question?.questionText}-${question?.orderIndex}`,
+    questionId: question?.questionId ?? null,
+    questionType: normalizeQuestionType(question?.questionType),
+    questionText: question?.questionText ?? '',
+    sampleAnswer: question?.correctAnswer ?? '',
+    points: Number(question?.points ?? 1),
+    items: Array.isArray(question?.items) ? question.items : [],
+    columnA: Array.isArray(question?.columnA) ? question.columnA : [],
+    columnB: Array.isArray(question?.columnB) ? question.columnB : [],
+    topic: question?.topic ?? '',
+    instructions: question?.instructions ?? '',
+    minWords: question?.minWords ?? '',
+    maxWords: question?.maxWords ?? '',
+  });
+
   const loadTestsForCourse = async (courseId) => {
     if (!courseId) {
       setTests([]);
@@ -1161,10 +1267,13 @@ function CourseManagement() {
           id: assignmentId ?? assignment?.id ?? `assignment-${index}`,
           title: assignment?.title ?? '',
           description: assignment?.description ?? '',
+          maxScore: assignment?.maxScore ?? 100,
+          dueDate: assignment?.dueDate ?? '',
           orderIndex: assignment?.orderIndex ?? index + 1,
           isNew: false,
-          testType: assignment?.testType,
-          questions: assignment?.questions,
+          testType: normalizeAssignmentType(assignment?.assignmentType ?? assignment?.testType),
+          questions: null,
+          questionsLoaded: false,
         };
       });
       setTests((prev) => {
@@ -1197,10 +1306,13 @@ function CourseManagement() {
       id: tempId,
       title: '',
       description: '',
+      maxScore: 100,
+      dueDate: '',
       orderIndex: nextOrderIndex,
       isNew: true,
       testType: 'QUIZ',
       questions: [],
+      questionsLoaded: true,
     };
 
     setTests((prev) => [...prev, newTest]);
@@ -1222,16 +1334,18 @@ function CourseManagement() {
     setTestError('');
 
     const currentTest = tests.find((t) => t.id === testId);
-    if (!currentTest || currentTest.isNew || currentTest.questions) return;
+    if (!currentTest || currentTest.isNew || currentTest.questionsLoaded) return;
 
     try {
-      const questionsResponse = await getAssignmentQuestions(testId);
-      const rawQuestions = Array.isArray(questionsResponse)
-        ? questionsResponse
-        : questionsResponse?.data ?? [];
-      if (rawQuestions.length > 0) {
+      const currentType = normalizeAssignmentType(currentTest?.testType ?? currentTest?.assignmentType);
+      if (currentType === 'QUIZ') {
+        const questionsResponse = await getAssignmentQuestions(testId);
+        const rawQuestions = Array.isArray(questionsResponse)
+          ? questionsResponse
+          : questionsResponse?.data ?? [];
         const mappedQuestions = rawQuestions.map((question) => ({
           id: question.questionId ?? `${question.questionText}-${question.orderIndex}`,
+          questionId: question.questionId ?? null,
           question: question.questionText ?? '',
           answers: [
             question.optionA ?? '',
@@ -1243,16 +1357,22 @@ function CourseManagement() {
         }));
         setTests((prev) => prev.map((t) => (
           t.id === testId
-            ? { ...t, questions: mappedQuestions, testType: 'QUIZ' }
+            ? { ...t, questions: mappedQuestions, questionsLoaded: true, testType: 'QUIZ' }
             : t
         )));
-      } else {
-        setTests((prev) => prev.map((t) => (
-          t.id === testId
-            ? { ...t, questions: [], testType: 'ASSIGNMENT' }
-            : t
-        )));
+        return;
       }
+
+      const writingResponse = await getWritingQuestions(testId);
+      const rawWritingQuestions = Array.isArray(writingResponse)
+        ? writingResponse
+        : writingResponse?.data ?? [];
+      const mappedWritingQuestions = rawWritingQuestions.map(mapWritingQuestionFromApi);
+      setTests((prev) => prev.map((t) => (
+        t.id === testId
+          ? { ...t, questions: mappedWritingQuestions, questionsLoaded: true, testType: 'WRITING' }
+          : t
+      )));
     } catch (error) {
       console.error('Load test questions error:', error);
     }
@@ -1285,10 +1405,24 @@ function CourseManagement() {
       setTestError('Vui lòng nhập tiêu đề bài kiểm tra.');
       return false;
     }
+    if (!testData?.dueDate) {
+      setTestError('Vui lòng chọn hạn nộp.');
+      return false;
+    }
+    const parsedMaxScore = Number(testData?.maxScore);
+    if (!Number.isFinite(parsedMaxScore) || parsedMaxScore <= 0) {
+      setTestError('Điểm tối đa phải lớn hơn 0.');
+      return false;
+    }
 
     try {
       setIsSavingTest(true);
       setTestError('');
+
+      const numericCourseId = Number(courseId);
+      if (Number.isNaN(numericCourseId)) {
+        throw new Error('Mã khóa học không hợp lệ.');
+      }
 
       const validOrderIndexes = tests
         .filter((t) => !t.isNew)
@@ -1299,39 +1433,96 @@ function CourseManagement() {
         : 1;
 
       const assignmentPayload = {
+        courseId: numericCourseId,
         title: testData.title.trim(),
         description: testData.description?.trim() || null,
-        orderIndex: nextOrderIndex,
+        maxScore: parsedMaxScore,
+        dueDate: testData.dueDate,
+        assignmentType: normalizeAssignmentType(testData.testType),
       };
 
-      const createdAssignment = await createAssignment(courseId, assignmentPayload);
+      const createdAssignment = await createAssignment(assignmentPayload);
       const assignmentId = getAssignmentId(createdAssignment);
       if (!assignmentId) {
         throw new Error('Không thể lấy mã bài kiểm tra sau khi tạo.');
       }
+
+      const resolvedTestType = normalizeAssignmentType(
+        createdAssignment?.assignmentType ?? assignmentPayload.assignmentType
+      );
 
       let updatedTest = {
         ...createdAssignment,
         id: assignmentId,
         title: createdAssignment?.title ?? assignmentPayload.title,
         description: createdAssignment?.description ?? assignmentPayload.description,
+        maxScore: createdAssignment?.maxScore ?? assignmentPayload.maxScore,
+        dueDate: createdAssignment?.dueDate ?? assignmentPayload.dueDate,
         orderIndex: createdAssignment?.orderIndex ?? nextOrderIndex,
-        testType: testData.testType ?? 'ASSIGNMENT',
+        assignmentType: resolvedTestType,
+        testType: resolvedTestType,
         isNew: false,
-        questions: [],
+        questions: null,
+        questionsLoaded: false,
       };
 
-      if (testData.testType === 'QUIZ') {
-        const questions = Array.isArray(testData.quizQuestions) ? testData.quizQuestions : [];
-        if (questions.length < 25) {
-          throw new Error('Cần tối thiểu 25 câu hỏi để tạo bài trắc nghiệm.');
+      if (resolvedTestType === 'QUIZ') {
+        // Tạo bài kiểm tra trước, sau đó nếu có file Excel thì mới upload câu hỏi
+        if (testData.quizFile instanceof File) {
+          await uploadAssignmentQuestions(assignmentId, testData.quizFile);
+          const uploadedQuestionsResponse = await getAssignmentQuestions(assignmentId);
+          const uploadedRawQuestions = Array.isArray(uploadedQuestionsResponse)
+            ? uploadedQuestionsResponse
+            : uploadedQuestionsResponse?.data ?? [];
+          const uploadedQuestions = uploadedRawQuestions.map((question) => ({
+            id: question.questionId ?? `${question.questionText}-${question.orderIndex}`,
+            questionId: question.questionId ?? null,
+            question: question.questionText ?? '',
+            answers: [
+              question.optionA ?? '',
+              question.optionB ?? '',
+              question.optionC ?? '',
+              question.optionD ?? '',
+            ],
+            correctIndex: mapCorrectAnswerToIndex(question.correctAnswer),
+          }));
+          updatedTest = {
+            ...updatedTest,
+            testType: 'QUIZ',
+            questions: uploadedQuestions,
+            questionsLoaded: true,
+          };
+        } else {
+          // Không có file Excel: chỉ tạo assignment, để trống danh sách câu hỏi (có thể upload sau)
+          updatedTest = {
+            ...updatedTest,
+            testType: 'QUIZ',
+            questions: null,
+            questionsLoaded: false,
+          };
         }
-        if (questions.length > 100) {
-          throw new Error('Tối đa 100 câu hỏi cho một bài trắc nghiệm.');
+      } else {
+        const writingQuestions = Array.isArray(testData?.writingQuestions)
+          ? testData.writingQuestions
+          : [];
+        if (writingQuestions.length === 0) {
+          throw new Error('Vui lòng thêm ít nhất một câu hỏi WRITING.');
         }
-        const fileToUpload = buildQuizExcelFile(questions);
-        await uploadAssignmentQuestions(assignmentId, fileToUpload);
-        updatedTest = { ...updatedTest, testType: 'QUIZ', questions };
+        const createdWritingQuestions = [];
+        for (let index = 0; index < writingQuestions.length; index += 1) {
+          const questionPayload = {
+            ...writingQuestions[index],
+            orderIndex: index + 1,
+          };
+          const createdQuestion = await createWritingQuestion(assignmentId, questionPayload);
+          createdWritingQuestions.push(mapWritingQuestionFromApi(createdQuestion));
+        }
+        updatedTest = {
+          ...updatedTest,
+          testType: 'WRITING',
+          questions: createdWritingQuestions,
+          questionsLoaded: true,
+        };
       }
 
       setTests((prev) => {
@@ -1450,14 +1641,6 @@ function CourseManagement() {
       return;
     }
     const teacherId = payload?.teacherId ?? null;
-    const teacherForPublicCheck = payload?.teacherId ?? getCourseTeacherId(selectedCourse);
-    if (
-      (payload?.isPublic ?? true)
-      && (teacherForPublicCheck == null || (typeof teacherForPublicCheck === 'string' && teacherForPublicCheck.trim() === ''))
-    ) {
-      toast.warning(PUBLIC_REQUIRES_TEACHER_MESSAGE);
-      return;
-    }
     const updatePayload = {
       title: trimmedTitle,
       description: (payload?.description ?? '').trim(),
@@ -1474,28 +1657,28 @@ function CourseManagement() {
         prev.map((item) =>
           getCourseId(item) === courseId
             ? {
-                ...item,
-                title: trimmedTitle,
-                description: (payload?.description ?? '').trim(),
-                isPublic: payload?.isPublic ?? true,
-                is_public: payload?.isPublic ?? true,
-                teacherId: teacherId ?? item.teacherId,
-                teacher_id: teacherId ?? item.teacher_id,
-              }
+              ...item,
+              title: trimmedTitle,
+              description: (payload?.description ?? '').trim(),
+              isPublic: payload?.isPublic ?? true,
+              is_public: payload?.isPublic ?? true,
+              teacherId: teacherId ?? item.teacherId,
+              teacher_id: teacherId ?? item.teacher_id,
+            }
             : item
         )
       );
       setSelectedCourse((prev) =>
         prev && getCourseId(prev) === courseId
           ? {
-              ...prev,
-              title: trimmedTitle,
-              description: (payload?.description ?? '').trim(),
-              isPublic: payload?.isPublic ?? true,
-              is_public: payload?.isPublic ?? true,
-              teacherId: teacherId ?? prev.teacherId,
-              teacher_id: teacherId ?? prev.teacher_id,
-            }
+            ...prev,
+            title: trimmedTitle,
+            description: (payload?.description ?? '').trim(),
+            isPublic: payload?.isPublic ?? true,
+            is_public: payload?.isPublic ?? true,
+            teacherId: teacherId ?? prev.teacherId,
+            teacher_id: teacherId ?? prev.teacher_id,
+          }
           : prev
       );
       await loadCourses();
@@ -1523,21 +1706,17 @@ function CourseManagement() {
     const nextFromEvent =
       typeof event?.target?.checked === 'boolean' ? event.target.checked : null;
     const newActiveState = nextFromEvent !== null ? nextFromEvent : !currentState;
-    if (newActiveState && !hasAssignedTeacher(course)) {
-      toast.warning(PUBLIC_REQUIRES_TEACHER_MESSAGE);
-      return;
-    }
     setCourseActiveStates((prev) => ({ ...prev, [courseId]: newActiveState }));
     setCourses((prev) =>
       prev.map((item) =>
         getCourseId(item) === courseId
           ? {
-              ...item,
-              isPublic: newActiveState,
-              is_public: newActiveState,
-              isActive: newActiveState,
-              is_active: newActiveState,
-            }
+            ...item,
+            isPublic: newActiveState,
+            is_public: newActiveState,
+            isActive: newActiveState,
+            is_active: newActiveState,
+          }
           : item
       )
     );
@@ -1573,7 +1752,7 @@ function CourseManagement() {
     setSelectedTestId(null);
     setIsCreatingLesson(false);
     setContentTab('program');
-    
+
     // Kiểm tra xem có phải chương mới chưa lưu không
     const chapter = lessons.find(l => l.id === chapterId);
     if (chapter?.isNew) {
@@ -1581,7 +1760,7 @@ function CourseManagement() {
       setModuleLessons([]);
       return;
     }
-    
+
     // Chương đã lưu → load lessons
     const courseId = getCourseId(selectedCourse);
     if (courseId && chapterId) {
@@ -1617,6 +1796,8 @@ function CourseManagement() {
     setTests([]);
     setTestError('');
     setTestsError('');
+    setPublishingModuleIds([]);
+    setPublishingLessonIds([]);
     loadLessonsForCourse(courseId);
     loadTestsForCourse(courseId);
     setViewMode('content');
@@ -1713,442 +1894,448 @@ function CourseManagement() {
       onManagerSidebarTabChange={setActiveNavTab}
     >
       <div className="teacher-area">
-      <section className="manager-dashboard-content">
-        {activeNavTab === 'dashboard' && (
-          <div className="manager-overview">
-            <div className="manager-overview-header">
-              <div>
-                <h2>Tổng quan</h2>
-                <p>Báo cáo thống kê nhanh về tình hình hoạt động khóa học.</p>
-              </div>
-              <div className="manager-overview-actions">
-                <div className="manager-search">
-                  <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-                    <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2" />
-                    <path d="M20 20L17 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                  </svg>
-                  <input
-                    type="text"
-                    placeholder="Tìm kiếm khóa học..."
-                    value={courseSearch}
-                    onChange={(event) => setCourseSearch(event.target.value)}
-                  />
-                </div>
-                <div className="manager-profile-chip">
-                  <div className="manager-profile-avatar">QL</div>
-                  <div>
-                    <div className="manager-profile-name">Course Manager</div>
-                    <div className="manager-profile-role">Quản lý hệ thống</div>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="manager-overview-grid">
-              <div className="manager-chart-card">
-                <div className="manager-chart-header">
-                  <h3>Trạng thái khóa học</h3>
-                  <span className="manager-chart-subtitle">{totalCourses} khóa học</span>
-                </div>
-                <div className="pie-chart">
-                  <div
-                    className="pie-chart-visual"
-                    style={{
-                      background: `conic-gradient(#22c55e 0 ${activePercent}%, #e5e7eb ${activePercent}% 100%)`,
-                    }}
-                  >
-                    <div className="pie-chart-center">
-                      <strong>{activePercent}%</strong>
-                      <span>Đang mở</span>
-                    </div>
-                  </div>
-                  <div className="pie-chart-legend">
-                    <div className="pie-chart-legend-item">
-                      <span className="legend-dot legend-dot-active" />
-                      <span>Đang mở</span>
-                      <strong>{dashboardActiveCourses.length}</strong>
-                    </div>
-                    <div className="pie-chart-legend-item">
-                      <span className="legend-dot legend-dot-inactive" />
-                      <span>Đang đóng</span>
-                      <strong>{dashboardInactiveCourses.length}</strong>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="manager-chart-card">
-                <div className="manager-chart-header">
-                  <h3>Thống kê học viên</h3>
-                  <span className="manager-chart-subtitle">Theo từng khóa học</span>
-                </div>
-                {courseBars.length ? (
-                  <div className="bar-chart">
-                    {courseBars.map((item) => (
-                      <div key={item.id} className="bar-chart-item">
-                        <div
-                          className="bar-chart-bar"
-                          style={{ height: `${Math.max(8, (item.value / maxBarValue) * 100)}%` }}
-                        >
-                          <span className="bar-chart-value">{item.value}</span>
-                        </div>
-                        <span className="bar-chart-label">{item.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="course-status">Chưa có dữ liệu khóa học.</div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {activeNavTab === 'management' && (
-          viewMode === 'content' && selectedCourse ? (
-            <div className="course-create is-content">
-              <CourseContentLayout
-                selectedCourse={selectedCourse}
-                contentTab={contentTab}
-                courseCoverImageUrl={courseCoverImageUrl}
-                lessons={lessons}
-                tests={tests}
-                isLoadingLessons={isLoadingLessons}
-                lessonsError={lessonsError}
-                lessonError={lessonError}
-                isSavingLesson={isSavingLesson}
-                selectedChapterId={selectedChapterId}
-                selectedLessonId={selectedLessonId}
-                selectedTestId={selectedTestId}
-                isCreatingLesson={isCreatingLesson}
-                moduleLessons={moduleLessons}
-                isReloadingLessons={isReloadingLessons}
-                onTabChange={setContentTab}
-                onCoverImageUrlChange={setCourseCoverImageUrl}
-                onAddChapter={handleAddChapter}
-                onAddLessonItem={handleAddLessonItem}
-                onAddTest={handleAddTest}
-                onSelectChapter={handleSelectChapter}
-                onSelectLesson={handleSelectLesson}
-                onSelectTest={handleSelectTest}
-                onDeleteChapter={handleDeleteChapter}
-                onDeleteLesson={handleDeleteLesson}
-                onSaveChapter={handleSaveChapter}
-                onCancelChapter={handleCancelChapter}
-                onSaveLesson={handleSaveLesson}
-                onCancelLesson={handleCancelLesson}
-                onUpdateLesson={handleUpdateLesson}
-                onUpdateModuleLesson={handleUpdateModuleLesson}
-                onEditLesson={handleEditLesson}
-                onCancelEditLesson={handleCancelEditLesson}
-                isEditingLesson={isEditingLesson}
-                onSaveTest={handleSaveTest}
-                onCancelTest={handleCancelTest}
-                onUpdateTest={handleUpdateTest}
-                isSavingTest={isSavingTest}
-                testError={testError}
-                isLoadingTests={isLoadingTests}
-                testsError={testsError}
-                onSaveAndFinish={() => {
-                  setViewMode('list');
-                  setSelectedCourse(null);
-                  setSelectedChapterId(null);
-                  setSelectedTestId(null);
-                  setSelectedLessonId(null);
-                  setLessons([]);
-                  setModuleLessons([]);
-                  setTests([]);
-                  setContentTab('general');
-                  setActiveNavTab('management');
-                }}
-                getCourseId={getCourseId}
-                getCourseIsActive={getCourseIsActive}
-                onSaveGeneralConfig={handleSaveGeneralConfig}
-                isSavingGeneralConfig={isSavingGeneralConfig}
-                teachers={teachers}
-              />
-            </div>
-          ) : viewMode === 'create' ? (
-            <div className="course-create">
-              <div className="course-create-header">
+        <section className="manager-dashboard-content">
+          {activeNavTab === 'dashboard' && (
+            <div className="manager-overview">
+              <div className="manager-overview-header">
                 <div>
-                  <h1>Tạo khóa học mới</h1>
-                  <p>Nhập thông tin cơ bản trước khi xây dựng nội dung.</p>
+                  <h2>Tổng quan</h2>
+                  <p>Báo cáo thống kê nhanh về tình hình hoạt động khóa học.</p>
                 </div>
-                <div className="course-create-actions">
-                  <button
-                    type="button"
-                    className="course-action-link"
-                    onClick={handleCancelCreateCourse}
-                  >
-                    Quay lại danh sách
-                  </button>
-                </div>
-              </div>
-              <CourseInitForm
-                courseTitle={courseTitle}
-                courseDescription={courseDescription}
-                courseIsPublic={courseIsPublic}
-                courseTeacherId={courseTeacherId}
-                teachers={teachers}
-                courseError={courseError}
-                courseSuccess={courseSuccess}
-                isSavingCourse={isSavingCourse}
-                onTitleChange={setCourseTitle}
-                onDescriptionChange={setCourseDescription}
-                onPublicChange={handleCreatePublicChange}
-                onTeacherChange={handleCreateTeacherChange}
-                onCancel={handleCancelCreateCourse}
-                onContinue={handleCreateCourse}
-              />
-            </div>
-          ) : (
-            <div className="course-management-view">
-              <div className="course-management-header">
-                <div className="course-management-header-text">
-                  <h2>Quản lý khóa học</h2>
-                  <p>Danh sách khóa học theo trạng thái hoạt động.</p>
-                </div>
-                <div className="course-management-header-actions">
-                  <div className="manager-search course-management-search">
+                <div className="manager-overview-actions">
+                  <div className="manager-search">
                     <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
                       <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2" />
                       <path d="M20 20L17 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
                     </svg>
                     <input
                       type="text"
-                      placeholder="Tìm kiếm khóa học, học viên..."
+                      placeholder="Tìm kiếm khóa học..."
                       value={courseSearch}
-                      onChange={(e) => setCourseSearch(e.target.value)}
-                      aria-label="Tìm kiếm khóa học"
+                      onChange={(event) => setCourseSearch(event.target.value)}
                     />
                   </div>
-                  <button
-                    type="button"
-                    className="course-action-btn primary course-management-cta"
-                    onClick={openCreateCourse}
-                  >
-                    Tạo khóa học
-                  </button>
+                  <div className="manager-profile-chip">
+                    <div className="manager-profile-avatar">QL</div>
+                    <div>
+                      <div className="manager-profile-name">Course Manager</div>
+                      <div className="manager-profile-role">Quản lý hệ thống</div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {isLoadingCourses ? (
-                <div className="course-status">Đang tải khóa học...</div>
-              ) : coursesError ? (
-                <div className="course-status course-status-error">{coursesError}</div>
-              ) : (
-                <div className="course-management-sections">
-                  <div className="course-section">
-                    <div className="course-section-header">
-                      <h3>Công khai</h3>
-                      <span className="course-section-count">{managementActiveCourses.length} khóa học</span>
-                    </div>
-                    <div className="course-section-grid">
-                      {managementActiveCourses.length ? (
-                        managementActiveCourses.map((course, index) => {
-                          const courseId = getCourseId(course);
-                          return (
-                            <CourseCard
-                              key={courseId || course.title || index}
-                              course={course}
-                              courseStats={courseStats}
-                              courseActiveStates={courseActiveStates}
-                              onSelect={() => {
-                                const nextCourseId = getCourseId(course);
-                                handleSelectCourse({ ...course, id: nextCourseId ?? course.id }, nextCourseId);
-                              }}
-                              onToggleActive={handleToggleActive}
-                              onEdit={(courseItem) => {
-                                const nextCourseId = getCourseId(courseItem);
-                                handleEditCourse({ ...courseItem, id: nextCourseId ?? courseItem.id }, nextCourseId);
-                              }}
-                              getCourseId={getCourseId}
-                              getCourseIsActive={getCourseIsActive}
-                            />
-                          );
-                        })
-                      ) : (
-                        <div className="course-status">Chưa có khóa học đang mở.</div>
-                      )}
-                    </div>
+              <div className="manager-overview-grid">
+                <div className="manager-chart-card">
+                  <div className="manager-chart-header">
+                    <h3>Trạng thái khóa học</h3>
+                    <span className="manager-chart-subtitle">{totalCourses} khóa học</span>
                   </div>
-
-                  <div className="course-section is-closed">
-                    <div className="course-section-header">
-                      <h3>Đang đóng</h3>
-                      <span className="course-section-count">{managementInactiveCourses.length} khóa học</span>
+                  <div className="pie-chart">
+                    <div
+                      className="pie-chart-visual"
+                      style={{
+                        background: `conic-gradient(#22c55e 0 ${activePercent}%, #e5e7eb ${activePercent}% 100%)`,
+                      }}
+                    >
+                      <div className="pie-chart-center">
+                        <strong>{activePercent}%</strong>
+                        <span>Đang mở</span>
+                      </div>
                     </div>
-                    <div className="course-section-grid">
-                      {managementInactiveCourses.length ? (
-                        managementInactiveCourses.map((course, index) => {
-                          const courseId = getCourseId(course);
-                          return (
-                            <CourseCard
-                              key={courseId || course.title || index}
-                              course={course}
-                              courseStats={courseStats}
-                              courseActiveStates={courseActiveStates}
-                              onSelect={() => {
-                                const nextCourseId = getCourseId(course);
-                                handleSelectCourse({ ...course, id: nextCourseId ?? course.id }, nextCourseId);
-                              }}
-                              onToggleActive={handleToggleActive}
-                              onEdit={(courseItem) => {
-                                const nextCourseId = getCourseId(courseItem);
-                                handleEditCourse({ ...courseItem, id: nextCourseId ?? courseItem.id }, nextCourseId);
-                              }}
-                              getCourseId={getCourseId}
-                              getCourseIsActive={getCourseIsActive}
-                            />
-                          );
-                        })
-                      ) : (
-                        <div className="course-status">Chưa có khóa học đang đóng.</div>
-                      )}
+                    <div className="pie-chart-legend">
+                      <div className="pie-chart-legend-item">
+                        <span className="legend-dot legend-dot-active" />
+                        <span>Đang mở</span>
+                        <strong>{dashboardActiveCourses.length}</strong>
+                      </div>
+                      <div className="pie-chart-legend-item">
+                        <span className="legend-dot legend-dot-inactive" />
+                        <span>Đang đóng</span>
+                        <strong>{dashboardInactiveCourses.length}</strong>
+                      </div>
                     </div>
                   </div>
                 </div>
-              )}
+
+                <div className="manager-chart-card">
+                  <div className="manager-chart-header">
+                    <h3>Thống kê học viên</h3>
+                    <span className="manager-chart-subtitle">Theo từng khóa học</span>
+                  </div>
+                  {courseBars.length ? (
+                    <div className="bar-chart">
+                      {courseBars.map((item) => (
+                        <div key={item.id} className="bar-chart-item">
+                          <div
+                            className="bar-chart-bar"
+                            style={{ height: `${Math.max(8, (item.value / maxBarValue) * 100)}%` }}
+                          >
+                            <span className="bar-chart-value">{item.value}</span>
+                          </div>
+                          <span className="bar-chart-label">{item.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="course-status">Chưa có dữ liệu khóa học.</div>
+                  )}
+                </div>
+              </div>
             </div>
-          )
+          )}
+
+          {activeNavTab === 'management' && (
+            viewMode === 'content' && selectedCourse ? (
+              <div className="course-create is-content">
+                <CourseContentLayout
+                  selectedCourse={selectedCourse}
+                  contentTab={contentTab}
+                  courseCoverImageUrl={courseCoverImageUrl}
+                  lessons={lessons}
+                  tests={tests}
+                  isLoadingLessons={isLoadingLessons}
+                  lessonsError={lessonsError}
+                  lessonError={lessonError}
+                  isSavingLesson={isSavingLesson}
+                  selectedChapterId={selectedChapterId}
+                  selectedLessonId={selectedLessonId}
+                  selectedTestId={selectedTestId}
+                  isCreatingLesson={isCreatingLesson}
+                  moduleLessons={moduleLessons}
+                  isReloadingLessons={isReloadingLessons}
+                  onTabChange={setContentTab}
+                  onCoverImageUrlChange={setCourseCoverImageUrl}
+                  onAddChapter={handleAddChapter}
+                  onAddLessonItem={handleAddLessonItem}
+                  onAddTest={handleAddTest}
+                  onSelectChapter={handleSelectChapter}
+                  onSelectLesson={handleSelectLesson}
+                  onSelectTest={handleSelectTest}
+                  onDeleteChapter={handleDeleteChapter}
+                  onDeleteLesson={handleDeleteLesson}
+                  onPublishChapter={handlePublishChapter}
+                  onPublishLesson={handlePublishLesson}
+                  onSaveChapter={handleSaveChapter}
+                  onCancelChapter={handleCancelChapter}
+                  onSaveLesson={handleSaveLesson}
+                  onCancelLesson={handleCancelLesson}
+                  onUpdateLesson={handleUpdateLesson}
+                  onUpdateModuleLesson={handleUpdateModuleLesson}
+                  onEditLesson={handleEditLesson}
+                  onCancelEditLesson={handleCancelEditLesson}
+                  isEditingLesson={isEditingLesson}
+                  onSaveTest={handleSaveTest}
+                  onCancelTest={handleCancelTest}
+                  onUpdateTest={handleUpdateTest}
+                  isSavingTest={isSavingTest}
+                  testError={testError}
+                  isLoadingTests={isLoadingTests}
+                  testsError={testsError}
+                  onSaveAndFinish={() => {
+                    setViewMode('list');
+                    setSelectedCourse(null);
+                    setSelectedChapterId(null);
+                    setSelectedTestId(null);
+                    setSelectedLessonId(null);
+                    setLessons([]);
+                    setModuleLessons([]);
+                    setTests([]);
+                    setPublishingModuleIds([]);
+                    setPublishingLessonIds([]);
+                    setContentTab('general');
+                    setActiveNavTab('management');
+                  }}
+                  getCourseId={getCourseId}
+                  getCourseIsActive={getCourseIsActive}
+                  onSaveGeneralConfig={handleSaveGeneralConfig}
+                  isSavingGeneralConfig={isSavingGeneralConfig}
+                  teachers={teachers}
+                  publishingModuleIds={publishingModuleIds}
+                  publishingLessonIds={publishingLessonIds}
+                />
+              </div>
+            ) : viewMode === 'create' ? (
+              <div className="course-create">
+                <div className="course-create-header">
+                  <div>
+                    <h1>Tạo khóa học mới</h1>
+                    <p>Nhập thông tin cơ bản trước khi xây dựng nội dung.</p>
+                  </div>
+                  <div className="course-create-actions">
+                    <button
+                      type="button"
+                      className="course-action-link"
+                      onClick={handleCancelCreateCourse}
+                    >
+                      Quay lại danh sách
+                    </button>
+                  </div>
+                </div>
+                <CourseInitForm
+                  courseTitle={courseTitle}
+                  courseDescription={courseDescription}
+                  courseIsPublic={courseIsPublic}
+                  courseTeacherId={courseTeacherId}
+                  teachers={teachers}
+                  courseError={courseError}
+                  courseSuccess={courseSuccess}
+                  isSavingCourse={isSavingCourse}
+                  onTitleChange={setCourseTitle}
+                  onDescriptionChange={setCourseDescription}
+                  onPublicChange={handleCreatePublicChange}
+                  onTeacherChange={handleCreateTeacherChange}
+                  onCancel={handleCancelCreateCourse}
+                  onContinue={handleCreateCourse}
+                />
+              </div>
+            ) : (
+              <div className="course-management-view">
+                <div className="course-management-header">
+                  <div className="course-management-header-text">
+                    <h2>Quản lý khóa học</h2>
+                    <p>Danh sách khóa học theo trạng thái hoạt động.</p>
+                  </div>
+                  <div className="course-management-header-actions">
+                    <div className="manager-search course-management-search">
+                      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+                        <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2" />
+                        <path d="M20 20L17 17" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+                      </svg>
+                      <input
+                        type="text"
+                        placeholder="Tìm kiếm khóa học, học viên..."
+                        value={courseSearch}
+                        onChange={(e) => setCourseSearch(e.target.value)}
+                        aria-label="Tìm kiếm khóa học"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      className="course-action-btn primary course-management-cta"
+                      onClick={openCreateCourse}
+                    >
+                      Tạo khóa học
+                    </button>
+                  </div>
+                </div>
+
+                {isLoadingCourses ? (
+                  <div className="course-status">Đang tải khóa học...</div>
+                ) : coursesError ? (
+                  <div className="course-status course-status-error">{coursesError}</div>
+                ) : (
+                  <div className="course-management-sections">
+                    <div className="course-section">
+                      <div className="course-section-header">
+                        <h3>Công khai</h3>
+                        <span className="course-section-count">{managementActiveCourses.length} khóa học</span>
+                      </div>
+                      <div className="course-section-grid">
+                        {managementActiveCourses.length ? (
+                          managementActiveCourses.map((course, index) => {
+                            const courseId = getCourseId(course);
+                            return (
+                              <CourseCard
+                                key={courseId || course.title || index}
+                                course={course}
+                                courseStats={courseStats}
+                                courseActiveStates={courseActiveStates}
+                                onSelect={() => {
+                                  const nextCourseId = getCourseId(course);
+                                  handleSelectCourse({ ...course, id: nextCourseId ?? course.id }, nextCourseId);
+                                }}
+                                onToggleActive={handleToggleActive}
+                                onEdit={(courseItem) => {
+                                  const nextCourseId = getCourseId(courseItem);
+                                  handleEditCourse({ ...courseItem, id: nextCourseId ?? courseItem.id }, nextCourseId);
+                                }}
+                                getCourseId={getCourseId}
+                                getCourseIsActive={getCourseIsActive}
+                              />
+                            );
+                          })
+                        ) : (
+                          <div className="course-status">Chưa có khóa học đang mở.</div>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="course-section is-closed">
+                      <div className="course-section-header">
+                        <h3>Đang đóng</h3>
+                        <span className="course-section-count">{managementInactiveCourses.length} khóa học</span>
+                      </div>
+                      <div className="course-section-grid">
+                        {managementInactiveCourses.length ? (
+                          managementInactiveCourses.map((course, index) => {
+                            const courseId = getCourseId(course);
+                            return (
+                              <CourseCard
+                                key={courseId || course.title || index}
+                                course={course}
+                                courseStats={courseStats}
+                                courseActiveStates={courseActiveStates}
+                                onSelect={() => {
+                                  const nextCourseId = getCourseId(course);
+                                  handleSelectCourse({ ...course, id: nextCourseId ?? course.id }, nextCourseId);
+                                }}
+                                onToggleActive={handleToggleActive}
+                                onEdit={(courseItem) => {
+                                  const nextCourseId = getCourseId(courseItem);
+                                  handleEditCourse({ ...courseItem, id: nextCourseId ?? courseItem.id }, nextCourseId);
+                                }}
+                                getCourseId={getCourseId}
+                                getCourseIsActive={getCourseIsActive}
+                              />
+                            );
+                          })
+                        ) : (
+                          <div className="course-status">Chưa có khóa học đang đóng.</div>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )
+          )}
+
+        </section>
+
+        {/* Modal xác nhận xóa chương */}
+        {deleteConfirmModal.isOpen && (
+          <div className="delete-confirm-modal-overlay" onClick={cancelDeleteChapter}>
+            <div className="delete-confirm-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="delete-confirm-modal-header">
+                <h3 className="delete-confirm-modal-title">Xác nhận xóa chương</h3>
+              </div>
+              <div className="delete-confirm-modal-body">
+                <p className="delete-confirm-modal-message">
+                  Bạn có chắc chắn muốn xóa chương này? Hành động này không thể hoàn tác.
+                </p>
+              </div>
+              <div className="delete-confirm-modal-footer">
+                <button
+                  type="button"
+                  className="delete-confirm-modal-btn delete-confirm-modal-btn-cancel"
+                  onClick={cancelDeleteChapter}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  className="delete-confirm-modal-btn delete-confirm-modal-btn-confirm"
+                  onClick={confirmDeleteChapter}
+                  disabled={isSavingLesson}
+                >
+                  {isSavingLesson ? 'Đang xóa...' : 'Xóa'}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
-      </section>
-
-      {/* Modal xác nhận xóa chương */}
-      {deleteConfirmModal.isOpen && (
-        <div className="delete-confirm-modal-overlay" onClick={cancelDeleteChapter}>
-          <div className="delete-confirm-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="delete-confirm-modal-header">
-              <h3 className="delete-confirm-modal-title">Xác nhận xóa chương</h3>
-            </div>
-            <div className="delete-confirm-modal-body">
-              <p className="delete-confirm-modal-message">
-                Bạn có chắc chắn muốn xóa chương này? Hành động này không thể hoàn tác.
-              </p>
-            </div>
-            <div className="delete-confirm-modal-footer">
-              <button
-                type="button"
-                className="delete-confirm-modal-btn delete-confirm-modal-btn-cancel"
-                onClick={cancelDeleteChapter}
-              >
-                Hủy
-              </button>
-              <button
-                type="button"
-                className="delete-confirm-modal-btn delete-confirm-modal-btn-confirm"
-                onClick={confirmDeleteChapter}
-                disabled={isSavingLesson}
-              >
-                {isSavingLesson ? 'Đang xóa...' : 'Xóa'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Modal xác nhận xóa bài học */}
-      {deleteLessonModal.isOpen && (
-        <div className="delete-confirm-modal-overlay" onClick={cancelDeleteLesson}>
-          <div className="delete-confirm-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="delete-confirm-modal-header">
-              <h3 className="delete-confirm-modal-title">Xác nhận xóa bài học</h3>
-            </div>
-            <div className="delete-confirm-modal-body">
-              <p className="delete-confirm-modal-message">
-                Bạn có chắc chắn muốn xóa bài học này? Hành động này không thể hoàn tác.
-              </p>
-            </div>
-            <div className="delete-confirm-modal-footer">
-              <button
-                type="button"
-                className="delete-confirm-modal-btn delete-confirm-modal-btn-cancel"
-                onClick={cancelDeleteLesson}
-              >
-                Hủy
-              </button>
-              <button
-                type="button"
-                className="delete-confirm-modal-btn delete-confirm-modal-btn-confirm"
-                onClick={confirmDeleteLesson}
-                disabled={isSavingLesson}
-              >
-                {isSavingLesson ? 'Đang xóa...' : 'Xóa'}
-              </button>
+        {/* Modal xác nhận xóa bài học */}
+        {deleteLessonModal.isOpen && (
+          <div className="delete-confirm-modal-overlay" onClick={cancelDeleteLesson}>
+            <div className="delete-confirm-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="delete-confirm-modal-header">
+                <h3 className="delete-confirm-modal-title">Xác nhận xóa bài học</h3>
+              </div>
+              <div className="delete-confirm-modal-body">
+                <p className="delete-confirm-modal-message">
+                  Bạn có chắc chắn muốn xóa bài học này? Hành động này không thể hoàn tác.
+                </p>
+              </div>
+              <div className="delete-confirm-modal-footer">
+                <button
+                  type="button"
+                  className="delete-confirm-modal-btn delete-confirm-modal-btn-cancel"
+                  onClick={cancelDeleteLesson}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  className="delete-confirm-modal-btn delete-confirm-modal-btn-confirm"
+                  onClick={confirmDeleteLesson}
+                  disabled={isSavingLesson}
+                >
+                  {isSavingLesson ? 'Đang xóa...' : 'Xóa'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {editCourseModal.isOpen && (
-        <div className="course-edit-modal-overlay" onClick={closeEditCourseModal}>
-          <div className="course-edit-modal" onClick={(e) => e.stopPropagation()}>
-            <div className="course-edit-modal-header">
-              <h3>Cập nhật khóa học</h3>
-              <button
-                type="button"
-                className="course-edit-modal-close"
-                onClick={closeEditCourseModal}
-                aria-label="Đóng"
-              >
-                x
-              </button>
-            </div>
-            <div className="course-edit-modal-body">
-              <label className="course-edit-modal-label">Tên khóa học</label>
-              <input
-                className="course-edit-modal-input"
-                type="text"
-                value={editCourseForm.title}
-                onChange={(event) => setEditCourseForm((prev) => ({ ...prev, title: event.target.value }))}
-              />
-              <label className="course-edit-modal-label">Giáo viên phụ trách</label>
-              <select
-                className="course-edit-modal-input course-edit-modal-select"
-                value={editCourseForm.teacherId}
-                onChange={(e) => setEditCourseForm((prev) => ({ ...prev, teacherId: e.target.value }))}
-              >
-                <option value="">Chọn giáo viên (tùy chọn)</option>
-                {teachers.map((t) => (
-                  <option key={t.id ?? t.userId} value={String(t.id ?? t.userId ?? '')}>
-                    {t.name ?? t.username ?? `Giáo viên ${t.id ?? t.userId ?? ''}`}
-                  </option>
-                ))}
-              </select>
-              <label className="course-edit-modal-label">Mô tả tổng quan</label>
-              <textarea
-                className="course-edit-modal-textarea"
-                rows={4}
-                value={editCourseForm.description}
-                onChange={(event) => setEditCourseForm((prev) => ({ ...prev, description: event.target.value }))}
-              />
-              <p className="course-edit-modal-note">
-                Trạng thái mở/đóng được cập nhật trực tiếp trên thẻ khóa học.
-              </p>
-            </div>
-            <div className="course-edit-modal-footer">
-              <button
-                type="button"
-                className="course-edit-modal-btn"
-                onClick={closeEditCourseModal}
-                disabled={isUpdatingCourse}
-              >
-                Hủy
-              </button>
-              <button
-                type="button"
-                className="course-edit-modal-btn primary"
-                onClick={handleQuickUpdateCourse}
-                disabled={isUpdatingCourse}
-              >
-                {isUpdatingCourse ? 'Đang lưu...' : 'Cập nhật'}
-              </button>
+        {editCourseModal.isOpen && (
+          <div className="course-edit-modal-overlay" onClick={closeEditCourseModal}>
+            <div className="course-edit-modal" onClick={(e) => e.stopPropagation()}>
+              <div className="course-edit-modal-header">
+                <h3>Cập nhật khóa học</h3>
+                <button
+                  type="button"
+                  className="course-edit-modal-close"
+                  onClick={closeEditCourseModal}
+                  aria-label="Đóng"
+                >
+                  x
+                </button>
+              </div>
+              <div className="course-edit-modal-body">
+                <label className="course-edit-modal-label">Tên khóa học</label>
+                <input
+                  className="course-edit-modal-input"
+                  type="text"
+                  value={editCourseForm.title}
+                  onChange={(event) => setEditCourseForm((prev) => ({ ...prev, title: event.target.value }))}
+                />
+                <label className="course-edit-modal-label">Giáo viên phụ trách</label>
+                <select
+                  className="course-edit-modal-input course-edit-modal-select"
+                  value={editCourseForm.teacherId}
+                  onChange={(e) => setEditCourseForm((prev) => ({ ...prev, teacherId: e.target.value }))}
+                >
+                  <option value="">Chọn giáo viên (tùy chọn)</option>
+                  {teachers.map((t) => (
+                    <option key={t.id ?? t.userId} value={String(t.id ?? t.userId ?? '')}>
+                      {t.name ?? t.username ?? `Giáo viên ${t.id ?? t.userId ?? ''}`}
+                    </option>
+                  ))}
+                </select>
+                <label className="course-edit-modal-label">Mô tả tổng quan</label>
+                <textarea
+                  className="course-edit-modal-textarea"
+                  rows={4}
+                  value={editCourseForm.description}
+                  onChange={(event) => setEditCourseForm((prev) => ({ ...prev, description: event.target.value }))}
+                />
+                <p className="course-edit-modal-note">
+                  Trạng thái mở/đóng được cập nhật trực tiếp trên thẻ khóa học.
+                </p>
+              </div>
+              <div className="course-edit-modal-footer">
+                <button
+                  type="button"
+                  className="course-edit-modal-btn"
+                  onClick={closeEditCourseModal}
+                  disabled={isUpdatingCourse}
+                >
+                  Hủy
+                </button>
+                <button
+                  type="button"
+                  className="course-edit-modal-btn primary"
+                  onClick={handleQuickUpdateCourse}
+                  disabled={isUpdatingCourse}
+                >
+                  {isUpdatingCourse ? 'Đang lưu...' : 'Cập nhật'}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )}
       </div>
     </DashboardLayout>
   );

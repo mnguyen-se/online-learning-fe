@@ -1,14 +1,25 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { uploadVideoToCloudinary }
+  from "../../../../api/cloudinaryApi";
+
+const toEmbedVideoUrl = (videoSource) => {
+  if (!videoSource) return '';
+  if (videoSource.includes('youtube.com/watch') || videoSource.includes('youtu.be/')) {
+    const videoId = videoSource.match(/(?:youtube\.com\/watch\?v=|youtu\.be\/)([^&\n?#]+)/)?.[1];
+    if (videoId) return `https://www.youtube.com/embed/${videoId}`;
+  }
+  return videoSource;
+};
 
 function getInitialFromLesson(lesson) {
   if (!lesson) {
-    return { title: '', lessonType: 'VIDEO', contentUrl: '', textContent: '', quizQuestions: [] };
+    return { title: '', lessonType: 'VIDEO', videoUrl: '', contentUrl: '', textContent: '', quizQuestions: [] };
   }
   const lt = lesson.lessonType || 'VIDEO';
   let contentUrl = '';
   let textContent = '';
   if (lt === 'VIDEO') {
-    contentUrl = lesson.contentUrl || '';
+    contentUrl = lesson.contentUrl || lesson.videoUrl || '';
   } else if (lt === 'TEXT' || lt === 'QUIZ' || lt === 'ASSIGNMENT') {
     textContent = lesson.textContent || lesson.contentUrl || '';
   } else {
@@ -38,15 +49,16 @@ function getInitialFromLesson(lesson) {
     title: lesson.title || '',
     lessonType: lt,
     contentUrl,
+    videoUrl: lesson.videoUrl || lesson.contentUrl || '',
     textContent,
     quizQuestions,
   };
 }
 
-const LessonDetails = ({ 
-  selectedLesson, 
+const LessonDetails = ({
+  selectedLesson,
   selectedChapterId,
-  onSave, 
+  onSave,
   onCancel,
   onEdit,
   onCancelEdit,
@@ -69,11 +81,16 @@ const LessonDetails = ({
     : availableLessonTypes[0];
   const [title, setTitle] = useState(() => initialLesson.title);
   const [lessonType, setLessonType] = useState(() => normalizedLessonType);
-  const [contentUrl] = useState(() => initialLesson.contentUrl); //tui xoá setContentUrl khỏi initialLesson vì nó ko cần thiết lắm
-  const [textContent, setTextContent] = useState(() => initialLesson.textContent);
+  const [contentUrl, setContentUrl] = useState(() => initialLesson.contentUrl); const [textContent, setTextContent] = useState(() => initialLesson.textContent);
   const [quizQuestions, setQuizQuestions] = useState(() => initialLesson.quizQuestions);
   const [contentFile, setContentFile] = useState(null);
-
+  const [videoUrl, setVideoUrl] = useState(() => initialLesson.videoUrl); // Chỉ dùng cho VIDEO, để preview khi đổi file mới nhưng chưa save
+  const [uploadedVideoUrl, setUploadedVideoUrl] = useState(null); // URL sau khi upload ngay lúc chọn file → bấm Lưu không cần upload lại
+  const [uploadProgress, setUploadProgress] = useState(null); // 0-100 khi đang upload, null khi không upload
+  const [uploadError, setUploadError] = useState(null);
+  useEffect(() => {
+    setVideoUrl(initialLesson.videoUrl || '');
+  }, [initialLesson.videoUrl]);
   const generateQuestionId = () => `${Date.now()}-${Math.random()}`;
 
   const handleLessonTypeChange = (e) => {
@@ -86,13 +103,41 @@ const LessonDetails = ({
     }
     if (next !== 'VIDEO') {
       setContentFile(null);
+      setUploadedVideoUrl(null);
+      setUploadProgress(null);
+      setUploadError(null);
     }
   };
 
+  // Upload ngay khi chọn file video → khi bấm Lưu chỉ cần gửi URL (nhanh hơn)
+  const startUploadOnFileSelect = (file) => {
+    if (!file || lessonType !== 'VIDEO') return;
+    setUploadedVideoUrl(null);
+    setUploadError(null);
+    setUploadProgress(0);
+    uploadVideoToCloudinary(file, {
+      onProgress: (percent) => setUploadProgress(percent),
+    })
+      .then((url) => {
+        setUploadedVideoUrl(url);
+        setVideoUrl(url);
+        setUploadProgress(null);
+      })
+      .catch((err) => {
+        console.error('Upload video thất bại:', err);
+        setUploadError(err?.message || 'Upload video thất bại. Bạn có thể thử lại khi bấm Lưu.');
+        setUploadProgress(null);
+      });
+  };
+
+
   const previewUrl = useMemo(() => {
-    if (!contentFile) return contentUrl || '';
-      return URL.createObjectURL(contentFile);
-  }, [contentFile, contentUrl]);
+    if (contentFile && uploadedVideoUrl) return uploadedVideoUrl; // Sau khi upload xong, xem URL thật
+    if (contentFile) return URL.createObjectURL(contentFile);
+    return videoUrl || contentUrl || '';
+  }, [contentFile, videoUrl, contentUrl, uploadedVideoUrl]);
+
+  const embedPreviewUrl = useMemo(() => toEmbedVideoUrl(previewUrl), [previewUrl]);
 
   useEffect(() => {
     return () => {
@@ -118,7 +163,7 @@ const LessonDetails = ({
   };
 
   const handleUpdateQuestion = (questionId, field, value) => {
-    setQuizQuestions(quizQuestions.map(q => 
+    setQuizQuestions(quizQuestions.map(q =>
       q.id === questionId ? { ...q, [field]: value } : q
     ));
   };
@@ -135,33 +180,61 @@ const LessonDetails = ({
   };
 
   const handleSetCorrectAnswer = (questionId, answerIndex) => {
-    setQuizQuestions(quizQuestions.map(q => 
+    setQuizQuestions(quizQuestions.map(q =>
       q.id === questionId ? { ...q, correctIndex: answerIndex } : q
     ));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+
     if (!selectedChapterId) {
-      alert('Vui lòng chọn chương trước khi thêm bài học.');
+      alert("Vui lòng chọn chương trước khi thêm bài học.");
       return;
     }
-    
-    const saveData = {
-      title,
-      lessonType,
-      contentUrl,
-      textContent,
-      contentFile,
-      moduleId: selectedChapterId,
-    };
 
-    // Nếu là QUIZ, lưu questions vào textContent dưới dạng JSON
-    if (lessonType === 'QUIZ') {
-      saveData.textContent = JSON.stringify(quizQuestions);
+    try {
+      let finalVideoUrl = videoUrl || contentUrl || "";
+      let finalContentUrl = "";
+
+      // ✅ VIDEO: dùng URL đã upload sẵn (upload-on-select) hoặc upload bây giờ
+      if (lessonType === "VIDEO" && contentFile) {
+        if (uploadedVideoUrl) {
+          finalVideoUrl = uploadedVideoUrl; // Đã upload lúc chọn file → không cần upload lại
+        } else {
+          finalVideoUrl = await uploadVideoToCloudinary(contentFile, {
+            onProgress: (p) => setUploadProgress(p),
+          });
+          setUploadProgress(null);
+        }
+      }
+
+      // ✅ TEXT thì dùng contentUrl
+      if (lessonType === "TEXT") {
+        finalContentUrl = contentUrl;
+      }
+
+      const saveData = {
+        title,
+        lessonType,
+        moduleId: selectedChapterId,
+        videoUrl: finalVideoUrl,      // 👈 THÊM DÒNG NÀY
+        contentUrl: finalContentUrl,
+        textContent:
+          lessonType === "QUIZ"
+            ? JSON.stringify(quizQuestions)
+            : textContent || "",
+      };
+
+      console.log("Payload gửi BE:", saveData);
+
+      await onSave(saveData);
+
+    } catch (err) {
+      console.error(err);
+      setUploadProgress(null);
+      alert("Upload thất bại");
     }
-
-    onSave(saveData);
   };
 
   // Xác định có đang ở edit mode không
@@ -174,7 +247,7 @@ const LessonDetails = ({
     }
     try {
       const contentToParse = selectedLesson.textContent || selectedLesson.contentUrl || '';
-      const questions = contentToParse 
+      const questions = contentToParse
         ? JSON.parse(contentToParse || '[]')
         : [];
       if (Array.isArray(questions) && questions.length > 0) {
@@ -217,11 +290,24 @@ const LessonDetails = ({
           {lessonType === 'VIDEO' && (
             <div className="lesson-details-field">
               <label className="lesson-details-label">VIDEO BÀI GIẢNG</label>
-              {contentUrl ? (
-                <video className="lesson-details-video" controls src={contentUrl} />
+
+              {(videoUrl || contentUrl) ? (
+                <iframe
+                  width="100%"
+                  height="500"
+                  src={toEmbedVideoUrl(videoUrl || contentUrl)}
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  loading="lazy"
+                  title={title || 'Video bài giảng'}
+                />
               ) : (
-                <div className="lesson-details-view-value">Chưa có video.</div>
+                <div className="lesson-details-view-value">
+                  Chưa có video.
+                </div>
               )}
+
             </div>
           )}
 
@@ -280,7 +366,7 @@ const LessonDetails = ({
               onClick={onEdit}
             >
               <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M11.3333 2.00001C11.5084 1.82489 11.7163 1.68601 11.9444 1.59123C12.1726 1.49645 12.4164 1.44763 12.6625 1.44763C12.9086 1.44763 13.1524 1.49645 13.3806 1.59123C13.6087 1.68601 13.8166 1.82489 13.9917 2.00001C14.1668 2.17513 14.3057 2.38303 14.4005 2.61115C14.4952 2.83927 14.5441 3.08308 14.5441 3.32918C14.5441 3.57528 14.4952 3.81909 14.4005 4.04721C14.3057 4.27533 14.1668 4.48323 13.9917 4.65835L5.32498 13.325L1.33331 14.6667L2.67498 10.675L11.3333 2.00001Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                <path d="M11.3333 2.00001C11.5084 1.82489 11.7163 1.68601 11.9444 1.59123C12.1726 1.49645 12.4164 1.44763 12.6625 1.44763C12.9086 1.44763 13.1524 1.49645 13.3806 1.59123C13.6087 1.68601 13.8166 1.82489 13.9917 2.00001C14.1668 2.17513 14.3057 2.38303 14.4005 2.61115C14.4952 2.83927 14.5441 3.08308 14.5441 3.32918C14.5441 3.57528 14.4952 3.81909 14.4005 4.04721C14.3057 4.27533 14.1668 4.48323 13.9917 4.65835L5.32498 13.325L1.33331 14.6667L2.67498 10.675L11.3333 2.00001Z" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
               Chỉnh sửa
             </button>
@@ -349,17 +435,44 @@ const LessonDetails = ({
               onChange={(e) => {
                 const file = e.target.files?.[0] || null;
                 setContentFile(file);
+                setUploadError(null);
+                if (file) startUploadOnFileSelect(file);
               }}
               disabled={isLoading}
             />
             {contentFile?.name && (
-              <div className="lesson-details-file-name">Đã chọn: {contentFile.name}</div>
+              <div className="lesson-details-file-name">
+                Đã chọn: {contentFile.name}
+                {uploadedVideoUrl && <span className="lesson-details-upload-done"> • Đã tải lên, bấm Lưu để lưu bài học</span>}
+              </div>
+            )}
+            {uploadProgress !== null && (
+              <div className="lesson-details-upload-progress-wrap">
+                <div className="lesson-details-upload-progress-bar" style={{ width: `${uploadProgress}%` }} />
+                <span className="lesson-details-upload-progress-text">Đang tải video lên... {uploadProgress}%</span>
+              </div>
+            )}
+            {uploadError && (
+              <div className="lesson-details-upload-error">{uploadError}</div>
             )}
             {!contentFile && contentUrl && (
               <div className="lesson-details-file-name">Đang dùng video hiện tại.</div>
             )}
             {previewUrl && (
-              <video className="lesson-details-video" controls src={previewUrl} />
+              contentFile ? (
+                <video className="lesson-details-video" controls src={previewUrl} />
+              ) : (
+                <iframe
+                  width="100%"
+                  height="500"
+                  src={embedPreviewUrl}
+                  frameBorder="0"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                  loading="lazy"
+                  title={title || 'Preview video bài giảng'}
+                />
+              )
             )}
           </div>
         )}
@@ -414,7 +527,7 @@ const LessonDetails = ({
                     aria-label="Xóa câu hỏi"
                   >
                     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                      <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                      <path d="M4 4L12 12M12 4L4 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                     </svg>
                   </button>
                 </div>
@@ -446,7 +559,7 @@ const LessonDetails = ({
                         >
                           {isCorrect && (
                             <svg width="16" height="16" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg">
-                              <path d="M13 4L6 11L3 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                              <path d="M13 4L6 11L3 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                             </svg>
                           )}
                         </button>
@@ -475,7 +588,7 @@ const LessonDetails = ({
               disabled={isLoading}
             >
               <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round"/>
+                <path d="M12 5V19M5 12H19" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
               </svg>
               <span>THÊM CÂU HỎI MỚI (QUIZLET STYLE)</span>
             </button>
@@ -494,9 +607,13 @@ const LessonDetails = ({
           <button
             type="submit"
             className="lesson-details-btn lesson-details-btn-save"
-            disabled={isLoading || !title.trim() || (lessonType === 'VIDEO' && !contentFile && !contentUrl)}
+            disabled={isLoading || !title.trim() || (lessonType === 'VIDEO' && !contentFile && !videoUrl && !contentUrl) || (lessonType === 'VIDEO' && contentFile && uploadProgress !== null)}
           >
-            {isLoading ? (isNewLesson ? 'Đang tạo...' : 'Đang lưu...') : (isNewLesson ? 'Tạo bài học' : 'Lưu')}
+            {uploadProgress !== null
+              ? `Đang tải video... ${uploadProgress}%`
+              : isLoading
+                ? (isNewLesson ? 'Đang tạo...' : 'Đang lưu...')
+                : (isNewLesson ? 'Tạo bài học' : 'Lưu')}
           </button>
         </div>
       </form>

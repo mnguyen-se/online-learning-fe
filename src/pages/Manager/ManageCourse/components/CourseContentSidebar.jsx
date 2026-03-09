@@ -1,7 +1,7 @@
 import React from 'react';
 
 const CourseContentSidebar = ({
-  selectedCourse,
+  selectedCourse: _selectedCourse,
   contentTab,
   lessons,
   tests = [],
@@ -16,8 +16,10 @@ const CourseContentSidebar = ({
   onSelectTest,
   onDeleteChapter,
   onDeleteLesson,
+  onPublishChapter,
+  onPublishLesson,
   onSaveAndFinish,
-  getCourseId,
+  getCourseId: _getCourseId,
   isLoadingLessons,
   lessonsError,
   isLoadingTests,
@@ -27,6 +29,8 @@ const CourseContentSidebar = ({
   selectedLessonId,
   isReloadingLessons = false,
   isSavingTest = false,
+  publishingModuleIds = [],
+  publishingLessonIds = [],
 }) => {
   return (
     <div className="course-content-sidebar">
@@ -76,6 +80,8 @@ const CourseContentSidebar = ({
                 const label = `Chương ${orderIndex || 1}: ${displayTitle}`;
                 const isSelected = selectedChapterId === lesson.id;
                 const chapterLessons = isSelected ? moduleLessons : [];
+                const chapterKey = String(lesson.sectionId ?? lesson.id ?? '');
+                const isPublishingChapter = publishingModuleIds.includes(chapterKey);
                 
                 return (
                   <li key={lesson.id}>
@@ -91,6 +97,22 @@ const CourseContentSidebar = ({
                         <span className="course-program-item-icon" aria-hidden>≡</span>
                         <span className="course-program-item-label">{label}</span>
                       </button>
+                      {!lesson.isNew && !lesson.isPublic && (
+                        <button
+                          type="button"
+                          className="course-program-item-public"
+                          aria-label="Public chương"
+                          disabled={isPublishingChapter}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (onPublishChapter) {
+                              onPublishChapter(lesson.id);
+                            }
+                          }}
+                        >
+                          {isPublishingChapter ? '...' : 'Public'}
+                        </button>
+                      )}
                       <button
                         type="button"
                         className="course-program-item-delete"
@@ -121,6 +143,8 @@ const CourseContentSidebar = ({
                           <ul className={`course-program-lessons ${isReloadingLessons ? 'is-reloading' : ''}`}>
                             {chapterLessons.map((lessonItem) => {
                               const isLessonSelected = selectedLessonId === lessonItem.id;
+                              const lessonKey = String(lessonItem.lessonId ?? lessonItem.id ?? '');
+                              const isPublishingLesson = publishingLessonIds.includes(lessonKey);
                               return (
                                 <li key={lessonItem.id}>
                                   <div className="course-program-lesson-item-wrapper">
@@ -139,6 +163,22 @@ const CourseContentSidebar = ({
                                         {lessonItem.title || (lessonItem.isNew ? 'Bài học mới' : 'Bài học')}
                                       </span>
                                     </button>
+                                    {!lessonItem.isNew && !lessonItem.isPublic && (
+                                      <button
+                                        type="button"
+                                        className="course-program-lesson-item-public"
+                                        aria-label="Public bài học"
+                                        disabled={isPublishingLesson}
+                                        onClick={(e) => {
+                                          e.stopPropagation();
+                                          if (onPublishLesson) {
+                                            onPublishLesson(lessonItem.id);
+                                          }
+                                        }}
+                                      >
+                                        {isPublishingLesson ? '...' : 'Public'}
+                                      </button>
+                                    )}
                                     <button
                                       type="button"
                                       className="course-program-lesson-item-delete"

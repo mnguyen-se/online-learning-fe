@@ -31,7 +31,11 @@ export const createModule = async (moduleData) => {
  *  Nếu backend trả 404 (course chưa có module) thì coi là danh sách rỗng, không ném lỗi. */
 export const getModulesByCourse = async (courseId) => {
   try {
-    const response = await apiClient.get(`${base}/course/${courseId}`);
+    const response = await apiClient.get(`${base}/course/${courseId}`, {
+      // 404 "Course không có module nào" là trạng thái bình thường trên màn quản lý
+      // → tự xử lý, không hiện toast lỗi chung.
+      skipErrorToast: true,
+    });
     return response.data;
   } catch (err) {
     const status = err?.response?.status;
@@ -44,9 +48,19 @@ export const getModulesByCourse = async (courseId) => {
   }
 };
 
-/** Lấy danh sách module public của khóa học (filter từ getModulesByCourse). */
+/** GET /api/v1/modules/IdAndPublic?courseId={courseId} – lấy danh sách module public theo khóa học. */
 export const getPublicModulesByCourse = async (courseId) => {
-  const list = await getModulesByCourse(courseId);
-  const arr = Array.isArray(list) ? list : [];
-  return arr.filter((m) => m?.public === true || m?.isPublic === true);
+  try {
+    const response = await apiClient.get(`${base}/IdAndPublic`, {
+      skipErrorToast: true,
+      params: { courseId },
+    });
+    return response.data;
+  } catch (err) {
+    const status = err?.response?.status;
+    if (status === 404) {
+      return [];
+    }
+    throw err;
+  }
 };

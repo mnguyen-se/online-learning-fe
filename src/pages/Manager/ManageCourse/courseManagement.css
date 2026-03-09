@@ -1339,7 +1339,38 @@
 
 .course-program-item-wrapper .course-program-item {
   flex: 1;
-  padding-right: 40px; /* Tạo khoảng trống cho icon xóa */
+  padding-right: 108px; /* Tạo khoảng trống cho nút Public + icon xóa */
+}
+
+.course-program-item-public {
+  position: absolute;
+  right: 40px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 24px;
+  padding: 0 8px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #22c55e;
+  border-radius: 999px;
+  background: #f0fdf4;
+  color: #15803d;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 2;
+}
+
+.course-program-item-public:hover:not(:disabled) {
+  background: #dcfce7;
+  border-color: #16a34a;
+}
+
+.course-program-item-public:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .course-program-item-delete {
@@ -1399,7 +1430,7 @@
   align-items: center;
   gap: 8px;
   width: 100%;
-  padding: 8px 12px;
+  padding: 8px 92px 8px 12px;
   border: none;
   border-radius: 8px;
   background: #f8fafc;
@@ -1456,6 +1487,37 @@
   opacity: 0.7;
   z-index: 2;
   flex-shrink: 0;
+}
+
+.course-program-lesson-item-public {
+  position: absolute;
+  right: 34px;
+  top: 50%;
+  transform: translateY(-50%);
+  height: 20px;
+  padding: 0 7px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid #22c55e;
+  border-radius: 999px;
+  background: #f0fdf4;
+  color: #15803d;
+  font-size: 10px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  z-index: 2;
+}
+
+.course-program-lesson-item-public:hover:not(:disabled) {
+  background: #dcfce7;
+  border-color: #16a34a;
+}
+
+.course-program-lesson-item-public:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .course-program-lesson-item-wrapper:hover .course-program-lesson-item-delete {
@@ -2089,6 +2151,48 @@
 .lesson-details-file-name {
   font-size: 13px;
   color: #475569;
+}
+
+.lesson-details-file-name .lesson-details-upload-done {
+  color: #059669;
+  font-weight: 500;
+}
+
+.lesson-details-upload-progress-wrap {
+  margin-top: 8px;
+  background: #e2e8f0;
+  border-radius: 8px;
+  height: 28px;
+  overflow: hidden;
+  position: relative;
+}
+
+.lesson-details-upload-progress-bar {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  background: #3b82f6;
+  transition: width 0.2s ease;
+}
+
+.lesson-details-upload-progress-text {
+  position: relative;
+  z-index: 1;
+  font-size: 12px;
+  color: #1e293b;
+  padding: 0 8px;
+  line-height: 28px;
+  display: block;
+}
+
+.lesson-details-upload-error {
+  margin-top: 8px;
+  padding: 8px 12px;
+  background: #fef2f2;
+  color: #b91c1c;
+  border-radius: 8px;
+  font-size: 13px;
 }
 
 .lesson-details-actions {
