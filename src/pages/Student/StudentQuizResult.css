@@ -1,0 +1,116 @@
+/* ========== Trang kết quả Quiz – giống thiết kế Writing Result ========== */
+
+.student-quiz-result-content {
+  padding: 1.5rem;
+}
+
+/* Meta cards có icon (lịch, đồng hồ) */
+.student-result-meta-card--icon {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  position: relative;
+  padding-left: 2.5rem;
+}
+
+.student-result-meta-card-icon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+.student-result-meta-card--icon .student-result-meta-card-label {
+  margin-top: 0.125rem;
+}
+
+.student-result-meta-card--icon .student-result-meta-card-value {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+/* Tiêu đề "Chi tiết bài làm" có icon tài liệu */
+.student-result-section-title--with-icon {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0 0 1rem 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.student-result-section-title-icon {
+  color: #64748b;
+  flex-shrink: 0;
+}
+
+/* Số thứ tự câu: vòng tròn cam (đã có trong shared .student-result-qa-card-number) */
+.student-quiz-result-content .student-result-qa-card-number {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: #f97316;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+/* Ô đáp án của bạn: dạng input-like, viền rõ */
+.student-quiz-result-content .student-result-qa-answer-text {
+  padding: 0.75rem 1rem;
+  background: #f8fafc;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  border-left: 3px solid #e2e8f0;
+}
+
+/* Khối GIẢI THÍCH: nền vàng nhạt, bo góc */
+.student-quiz-result-content .student-result-qa-explanation {
+  margin-top: 1rem;
+  padding: 0.75rem 1rem;
+  background: #fefce8;
+  border-radius: 8px;
+  border: 1px solid #fef08a;
+}
+
+.student-quiz-result-content .student-result-qa-explanation-text {
+  font-size: 0.875rem;
+  line-height: 1.6;
+  color: #713f12;
+  margin-top: 0.35rem;
+}
+
+/* Câu chúc mừng dưới điểm (Kết quả cuối cùng) */
+.student-result-score-message {
+  margin: 0.75rem 0 0;
+  font-size: 0.9375rem;
+  line-height: 1.5;
+  color: inherit;
+  opacity: 0.95;
+  max-width: 280px;
+  text-align: center;
+}
+
+.student-result-score--high .student-result-score-message {
+  color: #166534;
+}
+
+.student-result-score--medium .student-result-score-message {
+  color: #854d0e;
+}
+
+.student-result-score--low .student-result-score-message {
+  color: #991b1b;
+}
+
+.student-result-score--neutral .student-result-score-message {
+  color: #475569;
+}

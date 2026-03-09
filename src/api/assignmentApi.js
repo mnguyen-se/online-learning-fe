@@ -27,7 +27,8 @@ export const getAssignmentQuestions = async (assignmentId) => {
 };
 
 export const getWritingQuestions = async (assignmentId) => {
-  const response = await apiClient.get(`/assignments/${assignmentId}/writing-questions`);
+  // Dùng chung endpoint lấy danh sách câu hỏi cho cả quiz và writing
+  const response = await apiClient.get(`/assignments/${assignmentId}/questions`);
   return response.data;
 };
 
@@ -68,9 +69,15 @@ export const getQuizSubmissions = async (assignmentId) => {
   return response.data;
 };
 
-/** GET /assignments/quiz-submissions/{submissionId} – Chi tiết bài nộp quiz (TEACHER chấm điểm) */
+/** GET /assignments/quiz-submissions/{submissionId} – Giáo viên xem chi tiết quiz submission để chấm điểm (lấy đáp án học sinh) */
 export const getQuizSubmission = async (submissionId) => {
   const response = await apiClient.get(`/assignments/quiz-submissions/${submissionId}`);
+  return response.data;
+};
+
+/** GET /assignments/{assignmentId}/quiz-result – Xem kết quả quiz, lấy câu hỏi + đáp án đúng (TEACHER/Học sinh) */
+export const getQuizResult = async (assignmentId) => {
+  const response = await apiClient.get(`/assignments/${assignmentId}/quiz-result`);
   return response.data;
 };
 

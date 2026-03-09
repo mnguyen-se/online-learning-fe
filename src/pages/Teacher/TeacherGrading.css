@@ -295,19 +295,85 @@
   box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3) !important;
 }
 
-/* Pagination */
+/* ----- Pagination: căn giữa, Previous | 1 2 3 | Next gần nhau, bỏ "10 / page" ----- */
 .grading-pagination.ant-pagination {
-  margin-top: 20px;
-  font-size: 15px;
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 0.875rem;
 }
 
+.grading-pagination .ant-pagination-total-text {
+  color: #64748b;
+  font-weight: 500;
+  margin-right: 0;
+}
+
+/* Nhóm nút: Prev + số trang + Next — gap 10px, sát nhau */
+.grading-pagination .ant-pagination-prev,
+.grading-pagination .ant-pagination-item,
+.grading-pagination .ant-pagination-next {
+  margin: 0 !important;
+}
+
+.grading-pagination .ant-pagination-prev {
+  margin-inline-end: 10px !important;
+}
+
+.grading-pagination .ant-pagination-item {
+  margin-inline-end: 10px !important;
+}
+
+.grading-pagination .ant-pagination-item:last-of-type {
+  margin-inline-end: 10px !important;
+}
+
+.grading-pagination .ant-pagination-next {
+  margin-inline-start: 0 !important;
+}
+
+.grading-pagination .ant-pagination-item,
+.grading-pagination .ant-pagination-prev,
+.grading-pagination .ant-pagination-next {
+  min-width: 36px;
+  height: 36px;
+  line-height: 34px;
+  border-radius: 10px;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  transition: border-color 0.2s, background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+
+.grading-pagination .ant-pagination-item a {
+  color: #475569;
+}
+
+.grading-pagination .ant-pagination-item:hover,
+.grading-pagination .ant-pagination-prev:hover:not(.ant-pagination-disabled),
+.grading-pagination .ant-pagination-next:hover:not(.ant-pagination-disabled) {
+  border-color: #cbd5e1;
+  background: #f8fafc;
+}
+
+/* Trang đang chọn: nền xanh, chữ trắng, bo góc */
 .grading-pagination .ant-pagination-item-active {
   border-color: #2563eb;
   background: #2563eb;
+  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.25);
 }
 
 .grading-pagination .ant-pagination-item-active a {
   color: #fff;
+}
+
+/* Xóa nút "10 / page" (size changer) */
+.grading-pagination .ant-pagination-options {
+  display: none !important;
 }
 
 .grading-empty {

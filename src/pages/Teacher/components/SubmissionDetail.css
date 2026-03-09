@@ -281,6 +281,16 @@ a.submission-detail-attachment-btn {
   border-color: #2563eb;
 }
 
+.submission-detail-score-readonly {
+  flex: 1;
+  font-size: 18px;
+  font-weight: 600;
+  color: #1e293b;
+  min-height: 40px;
+  display: flex;
+  align-items: center;
+}
+
 .submission-detail-score-scale {
   font-size: 16px;
   font-weight: 600;

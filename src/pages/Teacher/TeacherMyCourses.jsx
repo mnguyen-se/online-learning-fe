@@ -46,13 +46,16 @@ function TeacherMyCourses() {
     });
     getTeacherCourses()
       .then((data) => {
+        // BE GET /courses/my-courses trả về { totalCourses, courses: CourseDtoRes[] }
         const raw = Array.isArray(data)
-        ? data
-        : Array.isArray(data?.content)
-          ? data.content
-          : Array.isArray(data?.data)
-            ? data.data
-            : [];
+          ? data
+          : Array.isArray(data?.courses)
+            ? data.courses
+            : Array.isArray(data?.content)
+              ? data.content
+              : Array.isArray(data?.data)
+                ? data.data
+                : [];
         const list = raw.map(normalizeCourse).filter((c) => c && c.isPublic);
         if (!cancelled) setCourses(list);
       })

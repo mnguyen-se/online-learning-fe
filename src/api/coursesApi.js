@@ -51,3 +51,9 @@ export const deleteCourse = async (courseId) => {
   const response = await apiClient.post(`/courses/delete/${courseId}`);
   return response.data;
 };
+
+/** GET /api/v1/courses/{courseId}/statistics – Teacher xem thống kê khóa học mình quản lý */
+export const getCourseStatistics = async (courseId) => {
+  const response = await apiClient.get(`/courses/${courseId}/statistics`);
+  return response.data;
+};

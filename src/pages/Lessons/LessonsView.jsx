@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react';
+import React, { Suspense, lazy, useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import { useNavigate, useParams, Link } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import Header from '../../components/Header/header';
@@ -29,8 +29,10 @@ import {
   getAiLessonHint,
   getAiLessonQuiz,
   getLessonView,
+  getLessons,
 } from '../../api/lessionApi';
-import { getMyWritingStatus } from '../../api/assignmentApi';
+import { getMyWritingStatus, getQuizResult } from '../../api/assignmentApi';
+import { getMyCourses } from '../../api/enrollmentApi';
 import './LessonsView.css';
 
 const LessonVideoContent = lazy(() => import("./LessonVideoContent"));
@@ -151,6 +153,8 @@ const getOrderedLessonsByCourse = (modules, allLessons) => {
     return String(resolveModuleId(a)).localeCompare(String(resolveModuleId(b)));
   });
   const result = [];
+  const addedLessonKeys = new Set();
+
   for (const module of sortedModules) {
     const moduleId = resolveModuleId(module);
     if (!moduleId) continue;
@@ -165,7 +169,22 @@ const getOrderedLessonsByCourse = (modules, allLessons) => {
           String(resolveLessonId(b))
         );
       });
+    moduleLessons.forEach((l) => addedLessonKeys.add(idToKey(resolveLessonId(l))));
     result.push(...moduleLessons);
+  }
+
+  const orphans = allLessons.filter(
+    (lesson) =>
+      !addedLessonKeys.has(idToKey(resolveLessonId(lesson))) &&
+      resolveLessonModuleId(lesson)
+  );
+  if (orphans.length > 0) {
+    orphans.sort((a, b) => {
+      const orderDiff = getLessonOrder(a) - getLessonOrder(b);
+      if (orderDiff !== 0) return orderDiff;
+      return String(resolveLessonId(a)).localeCompare(String(resolveLessonId(b)));
+    });
+    result.push(...orphans);
   }
   return result;
 };
@@ -220,14 +239,23 @@ const getCourseStructureWithCache = async (courseId) => {
   const cached = getCachedCourseStructure(courseId);
   if (cached?.modules && cached?.lessons) return cached;
 
-  const [modulesRes, allLessons] = await Promise.all([
-    runWithRetry(() => getModulesByCourse(courseId), {
-      retries: 1,
-      baseDelayMs: 500,
-    }).catch(() => []),
-    getLessonViewWithCache().catch(() => []),
-  ]);
+  const modulesRes = await runWithRetry(() => getModulesByCourse(courseId), {
+    retries: 1,
+    baseDelayMs: 500,
+  }).catch(() => []);
   const modules = normalizeArrayResponse(modulesRes);
+
+  let allLessons = [];
+  try {
+    const byCourse = await getLessons({ courseId });
+    allLessons = normalizeArrayResponse(byCourse);
+  } catch {
+    allLessons = [];
+  }
+  if (!Array.isArray(allLessons) || allLessons.length === 0) {
+    allLessons = await getLessonViewWithCache().catch(() => []);
+  }
+
   const orderedLessons = getOrderedLessonsByCourse(modules, allLessons);
   const structure = { modules, lessons: orderedLessons };
   setCachedCourseStructure(courseId, structure);
@@ -334,6 +362,7 @@ function LessonsView() {
   const [expandedModules, setExpandedModules] = useState(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState("");
+  const [accessDenied, setAccessDenied] = useState(false);
   const [selectedLesson, setSelectedLesson] = useState(null);
   const [learningProcess, setLearningProcess] = useState(null);
   const [courseDetail, setCourseDetail] = useState(null);
@@ -342,13 +371,13 @@ function LessonsView() {
   const [isCompleting, setIsCompleting] = useState(false);
   const [isSubmittingAssignment, setIsSubmittingAssignment] = useState(false);
   const [assignmentDrafts, setAssignmentDrafts] = useState({});
-  const [assignmentStatuses, setAssignmentStatuses] = useState({});
   const [aiHintByLesson, setAiHintByLesson] = useState({});
   const [hintErrorByLesson, setHintErrorByLesson] = useState({});
   const [hintLoadingLessonKey, setHintLoadingLessonKey] = useState("");
   const [quizHtml, setQuizHtml] = useState("");
   const [quizLoading, setQuizLoading] = useState(false);
   const [quizError, setQuizError] = useState("");
+  const loadedAssignmentsRef = useRef(new Set());
 
   const selectedLessonKey = idToKey(resolveLessonId(selectedLesson));
   const selectedLessonHint = aiHintByLesson[selectedLessonKey] || "";
@@ -421,7 +450,7 @@ function LessonsView() {
     return allItems[currentIndex + 1];
   }, [lessons, assignments, selectedLesson]);
 
-  const patchAssignmentItem = (assignmentId, updater) => {
+  const patchAssignmentItem = useCallback((assignmentId, updater) => {
     if (!assignmentId) return;
     setLessons((prev) =>
       prev.map((item) => {
@@ -437,49 +466,58 @@ function LessonsView() {
       }
       return updater(prev);
     });
-  };
+  }, []);
 
-  const ensureAssignmentQuestionsLoaded = async (assignmentItem) => {
-    if (!assignmentItem || !isAssignmentItem(assignmentItem) || !assignmentItem.assignmentId) {
-      return;
-    }
-    if (assignmentItem.questionsLoaded || assignmentItem.questionsLoading) return;
+  const ensureAssignmentQuestionsLoaded = useCallback(
+    async (assignmentItem, options = {}) => {
+      const { force = false } = options;
+      if (!assignmentItem || !isAssignmentItem(assignmentItem) || !assignmentItem.assignmentId) {
+        return;
+      }
+      const key = idToKey(assignmentItem.assignmentId);
+      if (force) {
+        loadedAssignmentsRef.current.delete(key);
+      } else if (loadedAssignmentsRef.current.has(key)) {
+        return;
+      }
+      if (assignmentItem.questionsLoaded || assignmentItem.questionsLoading) return;
 
-    patchAssignmentItem(assignmentItem.assignmentId, (current) => ({
-      ...current,
-      questionsLoading: true,
-      questionsError: '',
-    }));
-
-    try {
-      const questionsRes = await runWithRetry(
-        () => getAssignmentQuestions(assignmentItem.assignmentId),
-        {
-          retries: 1,
-          baseDelayMs: 500,
-        },
-      );
-      const rawQuestions = normalizeArrayResponse(questionsRes);
-      const mappedQuestions = rawQuestions.map((question, index) =>
-        mapAssignmentQuestion(question, index, assignmentItem.assignmentId),
-      );
       patchAssignmentItem(assignmentItem.assignmentId, (current) => ({
         ...current,
-        questions: mappedQuestions,
-        questionsLoaded: true,
-        questionsLoading: false,
+        questionsLoading: true,
         questionsError: '',
       }));
-    } catch (err) {
-      const message =
-        err?.response?.data?.message || err?.message || 'Không thể tải câu hỏi bài tập.';
-      patchAssignmentItem(assignmentItem.assignmentId, (current) => ({
-        ...current,
-        questionsLoading: false,
-        questionsError: message,
-      }));
-    }
-  };
+
+      try {
+        const questionsRes = await runWithRetry(() => getAssignmentQuestions(assignmentItem.assignmentId), {
+          retries: 1,
+          baseDelayMs: 500,
+        });
+        const rawQuestions = normalizeArrayResponse(questionsRes);
+        const mappedQuestions = rawQuestions.map((question, index) =>
+          mapAssignmentQuestion(question, index, assignmentItem.assignmentId),
+        );
+        patchAssignmentItem(assignmentItem.assignmentId, (current) => ({
+          ...current,
+          questions: mappedQuestions,
+          questionsLoaded: true,
+          questionsLoading: false,
+          questionsError: '',
+        }));
+        loadedAssignmentsRef.current.add(key);
+      } catch (err) {
+        const message =
+          err?.response?.data?.message || err?.message || 'Không thể tải câu hỏi bài tập.';
+        patchAssignmentItem(assignmentItem.assignmentId, (current) => ({
+          ...current,
+          questionsLoading: false,
+          questionsError: message,
+        }));
+        loadedAssignmentsRef.current.add(key);
+      }
+    },
+    [patchAssignmentItem],
+  );
 
   const getAssignmentStatus = (assignmentId) => assignmentStatuses[idToKey(assignmentId)] ?? null;
 
@@ -525,6 +563,27 @@ function LessonsView() {
       setError("");
 
       if (isCourseLearningMode) {
+        setAccessDenied(false);
+        let myCourses = [];
+        try {
+          const res = await getMyCourses();
+          myCourses = normalizeArrayResponse(res?.data ?? res) || [];
+        } catch {
+          myCourses = [];
+        }
+        const isEnrolled = myCourses.some(
+          (c) => idToKey(c?.courseId ?? c?.id ?? c?.course_id) === idToKey(courseId)
+        );
+        if (!isEnrolled) {
+          setAccessDenied(true);
+          setLessons([]);
+          setModules([]);
+          setAssignments([]);
+          setSelectedLesson(null);
+          setIsLoading(false);
+          return;
+        }
+
         const [structure, process, assignmentItems] = await Promise.all([
           getCourseStructureWithCache(courseId),
           getLearningProcessWithCache(courseId),
@@ -545,10 +604,34 @@ function LessonsView() {
               .filter((a) => ((a.assignmentType ?? a.assignment_type ?? '').toUpperCase() === 'WRITING'))
               .map((a) => a.assignmentId ?? a.id)
               .filter(Boolean);
+            const quizIds = list
+              .filter((a) => ((a.assignmentType ?? a.assignment_type ?? '').toUpperCase() === 'QUIZ'))
+              .map((a) => a.assignmentId ?? a.id)
+              .filter(Boolean);
             if (writingIds.length > 0) {
               Promise.all(
                 writingIds.map((id) =>
                   getMyWritingStatus(id).then((s) => ({ id: String(id), status: s })),
+                )
+              ).then((results) => {
+                const next = {};
+                results.forEach(({ id, status }) => { next[id] = status; });
+                setAssignmentStatuses((prev) => ({ ...prev, ...next }));
+              }).catch(() => {});
+            }
+            if (quizIds.length > 0) {
+              Promise.all(
+                quizIds.map((id) =>
+                  getQuizResult(id)
+                    .then((data) => {
+                      const raw = data?.data ?? data;
+                      const score = raw?.score;
+                      if (score != null && Number(score) === Number(score)) {
+                        return { id: String(id), status: { state: 'graded', data: raw } };
+                      }
+                      return { id: String(id), status: { state: 'pending', data: raw } };
+                    })
+                    .catch(() => ({ id: String(id), status: { state: 'not_submitted', data: null } })),
                 )
               ).then((results) => {
                 const next = {};
@@ -626,14 +709,21 @@ function LessonsView() {
   }, [courseId]);
 
   useEffect(() => {
-    if (!lessonId || lessons.length === 0) return;
-    const lessonFromRoute = lessons.find(
+    if (!lessonId) return;
+    const allItems = [...lessons, ...assignments];
+    if (allItems.length === 0) return;
+    const lessonFromRoute = allItems.find(
       (lesson) => idToKey(resolveLessonId(lesson)) === idToKey(lessonId)
     );
     if (lessonFromRoute) {
       setSelectedLesson(lessonFromRoute);
     }
-  }, [lessonId, lessons]);
+  }, [lessonId, lessons, assignments]);
+
+  useEffect(() => {
+    if (!selectedLesson || !isAssignmentItem(selectedLesson)) return;
+    ensureAssignmentQuestionsLoaded(selectedLesson);
+  }, [selectedLesson, ensureAssignmentQuestionsLoaded]);
 
   const parseQuizContent = (content) => {
     if (!content) return [];
@@ -647,9 +737,6 @@ function LessonsView() {
 
   const handleSelectLesson = (lesson) => {
     setSelectedLesson(lesson);
-    if (isAssignmentItem(lesson)) {
-      ensureAssignmentQuestionsLoaded(lesson);
-    }
     if (!isCourseLearningMode || !courseId) return;
     const selectedId = resolveLessonId(lesson);
     if (selectedId) {
@@ -676,11 +763,6 @@ function LessonsView() {
       return newSet;
     });
   };
-
-  useEffect(() => {
-    if (!isAssignmentItem(selectedLesson)) return;
-    ensureAssignmentQuestionsLoaded(selectedLesson);
-  }, [selectedLesson]);
 
   const handleCompleteLesson = async () => {
     if (!isCourseLearningMode || !selectedLesson || !courseId) return;
@@ -867,7 +949,7 @@ function LessonsView() {
           <button
             type="button"
             className="retry-button"
-            onClick={() => ensureAssignmentQuestionsLoaded(assignmentItem)}
+            onClick={() => ensureAssignmentQuestionsLoaded(assignmentItem, { force: true })}
           >
             Tải lại câu hỏi
           </button>
@@ -950,7 +1032,7 @@ function LessonsView() {
           <button
             type="button"
             className="retry-button"
-            onClick={() => ensureAssignmentQuestionsLoaded(assignmentItem)}
+            onClick={() => ensureAssignmentQuestionsLoaded(assignmentItem, { force: true })}
           >
             Tải lại câu hỏi
           </button>
@@ -1166,6 +1248,22 @@ function LessonsView() {
     );
   };
 
+  if (accessDenied && isCourseLearningMode) {
+    return (
+      <div className="lessons-page">
+        <Header />
+        <div className="lessons-view-container">
+          <div className="lessons-access-denied">
+            <p>Bạn chưa đăng ký khóa học này. Vui lòng đăng ký để xem nội dung.</p>
+            <Link to="/my-courses" className="lessons-access-denied-link">
+              Về khóa học của tôi
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (isLoading) {
     return (
       <div className="lessons-page">
@@ -1359,34 +1457,6 @@ function LessonsView() {
                   })
                 )}
 
-                {/* Hiển thị assignments ở dưới cùng */}
-                {isCourseLearningMode && assignments.length > 0 && (
-                  <>
-                    <div className="assignments-separator">
-                      <h3 className="assignments-title">Bài tập ({assignments.length})</h3>
-                    </div>
-                    {assignments.map((assignment, index) => {
-                      const assignmentKey = idToKey(resolveLessonId(assignment)) || `assignment-${index}`;
-                      const assignmentStatus = getAssignmentStatus(assignment.assignmentId);
-                      return (
-                        <div
-                          key={assignmentKey}
-                          className={`lesson-item assignment-item ${selectedLessonKey === assignmentKey ? 'active' : ''}`}
-                          onClick={() => handleSelectLesson(assignment)}
-                        >
-                          <div className="lesson-item-number">{index + 1}</div>
-                          <div className="lesson-item-content">
-                            <div className="lesson-item-title">{assignment.title || 'Chưa có tiêu đề'}</div>
-                            <div className="lesson-item-type">
-                              {assignment.assignmentType === 'QUIZ' ? '❓ Trắc nghiệm' : '📝 Tự luận'}
-                              {assignmentStatus === 'SUBMITTED' ? ' • ✅ Đã nộp' : ''}
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </>
-                )}
               </div>
             )}
             {isCourseLearningMode && courseAssignments.length > 0 ? (
@@ -1399,71 +1469,61 @@ function LessonsView() {
                     const type = (a.assignmentType || a.assignment_type || '').toUpperCase();
                     const isWriting = type === 'WRITING';
                     const status = assignmentStatuses[String(aid)];
-                    const state = status?.state ?? 'not_submitted';
+                    const state =
+                      (status && typeof status === 'object' && status.state)
+                        ? status.state
+                        : status === 'SUBMITTED'
+                          ? 'pending'
+                          : 'not_submitted';
                     const score = status?.data?.score != null ? Number(status.data.score) : null;
                     const maxScore = status?.data?.maxScore ?? status?.data?.max_score ?? a?.maxScore ?? 100;
                     const dueDate = a?.dueDate ?? a?.due_date;
                     const dueStr = dueDate
                       ? new Date(dueDate).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' })
                       : null;
+                    const doLink = courseId ? `/course/${courseId}/learn/assignment-${aid}` : `/student/assignments/${aid}/do`;
+                    const writingResultTo = courseId
+                      ? { pathname: `/writing-result/${aid}`, search: `?courseId=${courseId}${lessonId ? `&lessonId=${lessonId}` : ''}`, state: { courseId, lessonId } }
+                      : `/writing-result/${aid}`;
+                    const quizResultTo = courseId
+                      ? { pathname: `/quiz-result/${aid}`, search: `?courseId=${courseId}${lessonId ? `&lessonId=${lessonId}` : ''}`, state: { courseId, lessonId } }
+                      : `/quiz-result/${aid}`;
                     return (
                       <li key={aid} className={`lessons-assignment-item lessons-assignment-item--${state}`}>
                         <span className="lessons-assignment-item-title">{title}</span>
                         {dueStr && <span className="lessons-assignment-item-due">Hạn nộp: {dueStr}</span>}
                         <span className="lessons-assignment-item-type">{isWriting ? 'Writing' : 'Quiz'}</span>
-                        {isWriting ? (
+                        {state === 'not_submitted' && (
                           <>
-                            {state === 'not_submitted' && (
-                              <>
-                                <span className="lessons-assignment-status lessons-assignment-status--not-done">Chưa làm bài</span>
-                                <Link
-                                  to={courseId ? { pathname: `/student/assignments/${aid}/do`, state: { courseId, lessonId } } : `/student/assignments/${aid}/do`}
-                                  className="lessons-assignment-link lessons-assignment-link--do"
-                                >
-                                  Làm bài
-                                </Link>
-                              </>
-                            )}
-                            {state === 'pending' && (
-                              <>
-                                <span className="lessons-assignment-status lessons-assignment-status--pending">Đã nộp bài</span>
-                                <p className="lessons-assignment-pending-msg">Bài đã nộp thành công, đang chờ giáo viên chấm điểm.</p>
-                                <Link
-                                  to={
-                                    courseId
-                                      ? { pathname: `/writing-result/${aid}`, search: `?courseId=${courseId}${lessonId ? `&lessonId=${lessonId}` : ''}`, state: { courseId, lessonId } }
-                                      : `/writing-result/${aid}`
-                                  }
-                                  className="lessons-assignment-link lessons-assignment-link--view"
-                                >
-                                  Xem bài đã nộp
-                                </Link>
-                              </>
-                            )}
-                            {state === 'graded' && (
-                              <>
-                                <span className="lessons-assignment-status lessons-assignment-status--graded">Đã có điểm</span>
-                                <p className="lessons-assignment-score">Điểm: <strong>{score}</strong> / {maxScore}</p>
-                                <Link
-                                  to={
-                                    courseId
-                                      ? { pathname: `/writing-result/${aid}`, search: `?courseId=${courseId}${lessonId ? `&lessonId=${lessonId}` : ''}`, state: { courseId, lessonId } }
-                                      : `/writing-result/${aid}`
-                                  }
-                                  className="lessons-assignment-link lessons-assignment-link--result"
-                                >
-                                  Xem kết quả
-                                </Link>
-                              </>
-                            )}
+                            <span className="lessons-assignment-status lessons-assignment-status--not-done">Chưa làm bài</span>
+                            <Link to={doLink} className="lessons-assignment-link lessons-assignment-link--do">
+                              Làm bài
+                            </Link>
                           </>
-                        ) : (
-                          <Link
-                            to={courseId ? { pathname: `/student/assignments/${aid}/do`, state: { courseId, lessonId } } : `/student/assignments/${aid}/do`}
-                            className="lessons-assignment-link lessons-assignment-link--do"
-                          >
-                            Làm bài
-                          </Link>
+                        )}
+                        {state === 'pending' && (
+                          <>
+                            <span className="lessons-assignment-status lessons-assignment-status--pending">Đã nộp</span>
+                            <p className="lessons-assignment-pending-msg">Bạn đã nộp bài thành công – chờ giáo viên chấm</p>
+                            <Link
+                              to={isWriting ? writingResultTo : quizResultTo}
+                              className="lessons-assignment-link lessons-assignment-link--view"
+                            >
+                              Xem kết quả
+                            </Link>
+                          </>
+                        )}
+                        {state === 'graded' && (
+                          <>
+                            <span className="lessons-assignment-status lessons-assignment-status--graded">Đã chấm</span>
+                            {score != null && <p className="lessons-assignment-score">Điểm: <strong>{score}</strong> / {maxScore}</p>}
+                            <Link
+                              to={isWriting ? writingResultTo : quizResultTo}
+                              className="lessons-assignment-link lessons-assignment-link--result"
+                            >
+                              Xem kết quả
+                            </Link>
+                          </>
                         )}
                       </li>
                     );

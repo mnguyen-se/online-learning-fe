@@ -1,18 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { Users, Clock, BookOpen } from 'lucide-react';
 import { getTeacherCourses } from '../../api/teacherApi';
-import { getEnrolledStudentsByCourse } from '../../api/enrollmentApi';
-import {
-  getAssignmentsByCourse,
-  getQuizSubmissions,
-  getWritingSubmissions,
-} from '../../api/assignmentApi';
+import { getCourseStatistics } from '../../api/coursesApi';
 import './TeacherPages.css';
-
-const ASSIGNMENT_TYPE_WRITING = 'WRITING';
-
-// Thanh tiến trình trên Dashboard dùng để xem tiến trình học sinh (không gọi API learning-process của giáo viên).
-// BE chỉ có API tiến độ theo user hiện tại (học viên). Tỉ lệ hoàn thành hiển thị theo học viên khi BE hỗ trợ API thống kê.
 
 const WEEK_DAYS = ['T2', 'T3', 'T4', 'T5', 'T6', 'T7', 'CN'];
 
@@ -22,13 +12,20 @@ function TeacherDashboard() {
   const [hoveredBar, setHoveredBar] = useState(null);
   const [studentsCount, setStudentsCount] = useState(0);
   const [ungradedCount, setUngradedCount] = useState(0);
+  const [weeklySubmissions, setWeeklySubmissions] = useState([0, 0, 0, 0, 0, 0, 0]);
 
   useEffect(() => {
     let cancelled = false;
 
     getTeacherCourses()
       .then((data) => {
-        const list = Array.isArray(data) ? data : [];
+        const list = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.courses)
+            ? data.courses
+            : Array.isArray(data?.data)
+              ? data.data
+              : [];
         const publishedOnly = list.filter((c) => c.public === true || c.isPublic === true);
         if (cancelled) return;
         setCourses(publishedOnly);
@@ -37,57 +34,29 @@ function TeacherDashboard() {
         if (courseIds.length === 0) {
           setStudentsCount(0);
           setUngradedCount(0);
+          setWeeklySubmissions([0, 0, 0, 0, 0, 0, 0]);
           return;
         }
 
+        // Gọi GET /api/v1/courses/{courseId}/statistics cho từng khóa, gộp thống kê
         Promise.all(
-          courseIds.map((id) =>
-            getEnrolledStudentsByCourse(id).catch(() => [])
-          )
-        ).then((results) => {
+          courseIds.map((id) => getCourseStatistics(id).catch(() => null))
+        ).then((statsList) => {
           if (cancelled) return;
-          const total = results.reduce(
-            (sum, students) => sum + (Array.isArray(students) ? students.length : 0),
-            0
-          );
-          setStudentsCount(total);
-        });
-
-        // Đếm bài tập chưa chấm: với từng khóa -> assignments -> submissions chưa GRADED
-        Promise.all(
-          courseIds.map(async (courseId) => {
-            let assignments = [];
-            try {
-              const data = await getAssignmentsByCourse(courseId);
-              assignments = Array.isArray(data) ? data : [];
-            } catch {
-              return 0;
-            }
-            let count = 0;
-            await Promise.all(
-              assignments.map(async (a) => {
-                const assignmentId = a.assignmentId ?? a.id;
-                const type = (a.assignmentType ?? a.assignment_type ?? '').toUpperCase();
-                const isWriting = type === ASSIGNMENT_TYPE_WRITING;
-                try {
-                  const list = isWriting
-                    ? await getWritingSubmissions(assignmentId)
-                    : await getQuizSubmissions(assignmentId);
-                  const subs = Array.isArray(list) ? list : [];
-                  subs.forEach((s) => {
-                    const graded = (s.status || '').toUpperCase() === 'GRADED' || s.score != null;
-                    if (!graded) count += 1;
-                  });
-                } catch {
-                  // bỏ qua assignment lỗi
-                }
-              })
-            );
-            return count;
-          })
-        ).then((counts) => {
-          if (cancelled) return;
-          setUngradedCount(counts.reduce((a, b) => a + b, 0));
+          const valid = statsList.filter(Boolean);
+          const raw = valid.map((s) => s?.data ?? s);
+          const totalStudents = raw.reduce((sum, s) => sum + (Number(s?.activeStudents) || 0), 0);
+          const totalUngraded = raw.reduce((sum, s) => sum + (Number(s?.ungradedSubmissions) || 0), 0);
+          setStudentsCount(totalStudents);
+          setUngradedCount(totalUngraded);
+          const byDay = [0, 0, 0, 0, 0, 0, 0];
+          raw.forEach((s) => {
+            const weekly = s?.weeklySubmissions ?? [];
+            weekly.forEach((w, i) => {
+              if (i < 7) byDay[i] += Number(w?.count) || 0;
+            });
+          });
+          setWeeklySubmissions(byDay);
         });
       })
       .catch(() => {
@@ -102,7 +71,6 @@ function TeacherDashboard() {
 
   const activeCourses = loading ? 0 : courses.length;
 
-  const weeklySubmissions = [4, 7, 5, 12, 8, 15, 6];
   const dataMax = Math.max(...weeklySubmissions, 1);
   const totalSubmissions = weeklySubmissions.reduce((a, b) => a + b, 0);
   const yMax = Math.max(16, Math.ceil(dataMax / 4) * 4);
@@ -111,7 +79,7 @@ function TeacherDashboard() {
   );
   const chartData = WEEK_DAYS.map((day, i) => ({
     day,
-    count: weeklySubmissions[i],
+    count: weeklySubmissions[i] ?? 0,
   }));
 
   const chartAreaHeightPx = 180;
@@ -163,14 +131,13 @@ function TeacherDashboard() {
         </div>
       </div>
 
-      {/* Chart Section – UI demo với mock data (backend chưa có API thống kê submission theo assignment) */}
+      {/* Chart Section – dữ liệu từ GET /api/v1/courses/{courseId}/statistics */}
       <section className="teacher-chart-section">
         <div className="teacher-chart-card teacher-chart-card--new">
           <div className="teacher-chart-header">
             <h2 className="teacher-chart-title">Thống kê nộp bài tuần này</h2>
             <div className="teacher-chart-total">
               Tổng: <span className="teacher-chart-total-value">{totalSubmissions}</span> bài nộp
-              <span className="teacher-chart-demo-badge">Dữ liệu mẫu</span>
             </div>
           </div>
 

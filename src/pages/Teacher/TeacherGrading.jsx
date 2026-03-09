@@ -74,7 +74,15 @@ function TeacherGrading() {
   useEffect(() => {
     getTeacherCourses()
       .then((data) => {
-        const raw = Array.isArray(data) ? data : [];
+        // BE GET /courses/my-courses trả về { totalCourses, courses: CourseDtoRes[] }
+        const raw = Array.isArray(data)
+          ? data
+          : Array.isArray(data?.courses)
+            ? data.courses
+            : Array.isArray(data?.data)
+              ? data.data
+              : [];
+        // Chỗ chọn khóa học: chỉ lấy khóa public
         setCourses(raw.filter((c) => c.public === true || c.isPublic === true));
       })
       .catch(() => setCourses([]))
@@ -181,7 +189,10 @@ function TeacherGrading() {
     setLoadingDetail(true);
     const fetchDetail = type === ASSIGNMENT_TYPE_WRITING ? getWritingSubmission(sid) : getQuizSubmission(sid);
     fetchDetail
-      .then((data) => setSubmissionDetail(data))
+      .then((res) => {
+        const data = res?.data ?? res;
+        setSubmissionDetail(data);
+      })
       .catch(() => toast.error('Không tải được chi tiết bài nộp.'))
       .finally(() => setLoadingDetail(false));
   };
@@ -304,15 +315,22 @@ function TeacherGrading() {
             size="middle"
             icon={<ClipboardCheck size={16} strokeWidth={2.25} />}
             onClick={() => {
-              if (isWriting && sid) {
-                navigate(`/teacher-page/grade/writing/${sid}`, {
-                  state: {
-                    courseId: selectedCourseId,
-                    assignmentId: selectedAssignmentId,
-                  },
-                });
-              } else {
-                openGradeModal(record);
+              if (sid) {
+                if (isWriting) {
+                  navigate(`/teacher-page/grade/writing/${sid}`, {
+                    state: {
+                      courseId: selectedCourseId,
+                      assignmentId: selectedAssignmentId,
+                    },
+                  });
+                } else {
+                  navigate(`/teacher-page/grade/quiz/${sid}`, {
+                    state: {
+                      courseId: selectedCourseId,
+                      assignmentId: selectedAssignmentId,
+                    },
+                  });
+                }
               }
             }}
             className="grading-table-btn-grade"
@@ -403,8 +421,7 @@ function TeacherGrading() {
             loading={loadingSubmissions}
             pagination={{
               pageSize: 10,
-              showSizeChanger: true,
-              pageSizeOptions: ['10', '20', '50'],
+              showSizeChanger: false,
               showTotal: (total) => `Tổng ${total} bài nộp`,
               className: 'grading-pagination',
             }}

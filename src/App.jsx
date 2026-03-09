@@ -17,12 +17,14 @@ import TeacherDashboard from './pages/Teacher/TeacherDashboard';
 import TeacherMyCourses from './pages/Teacher/TeacherMyCourses';
 import TeacherGrading from './pages/Teacher/TeacherGrading';
 import TeacherGradingDetail from './pages/Teacher/TeacherGradingDetail';
+import TeacherQuizGradingDetail from './pages/Teacher/TeacherQuizGradingDetail';
 import TeacherFeedback from './pages/Teacher/TeacherFeedback';
 import TeacherCourseDetail from './pages/Teacher/TeacherCourseDetail';
 import TeacherModuleDetail from './pages/Teacher/TeacherModuleDetail';
 import LessonsView from './pages/Lessons/LessonsView';
 import MyCourses from "./pages/MyCourses/MyCourses";
 import StudentWritingResult from "./pages/Student/StudentWritingResult";
+import StudentQuizResult from "./pages/Student/StudentQuizResult";
 
 function App() {
   const router = createBrowserRouter([
@@ -72,6 +74,7 @@ function App() {
         { path: 'courses/:courseId/modules/:moduleId', element: <TeacherModuleDetail /> },
         { path: 'grade', element: <TeacherGrading /> },
         { path: 'grade/writing/:submissionId', element: <TeacherGradingDetail /> },
+        { path: 'grade/quiz/:submissionId', element: <TeacherQuizGradingDetail /> },
         { path: 'feedback', element: <TeacherFeedback /> },
       ],
     },
@@ -94,6 +97,10 @@ function App() {
     {
       path: "/writing-result/:assignmentId",
       element: <StudentWritingResult />
+    },
+    {
+      path: "/quiz-result/:assignmentId",
+      element: <StudentQuizResult />
     },
 
     {

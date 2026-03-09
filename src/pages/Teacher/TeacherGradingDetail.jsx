@@ -50,13 +50,17 @@ function TeacherGradingDetail() {
     }
     setLoading(true);
     getWritingSubmission(submissionId)
-      .then((data) => {
+      .then((res) => {
+        const data = res?.data ?? res;
         setSubmission(data);
         setScore(data?.score != null ? String(data.score) : '');
         setFeedback(data?.feedback ?? '');
         const aid = data?.assignmentId ?? data?.assignment_id ?? data?.assignment?.assignmentId ?? data?.assignment?.id;
         if (aid) {
-          return getAssignmentById(aid).then((a) => setAssignment(a));
+          return getAssignmentById(aid).then((a) => {
+            const assignmentData = a?.data ?? a;
+            setAssignment(assignmentData);
+          });
         }
       })
       .catch(() => {

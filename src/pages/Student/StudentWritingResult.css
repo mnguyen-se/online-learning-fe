@@ -308,6 +308,16 @@
   margin-top: 0.25rem;
 }
 
+.student-result-qa-card--wrong .student-result-qa-correct {
+  color: #ef4444;
+}
+
+.student-result-qa-x {
+  color: #ef4444;
+  font-size: 1.25rem;
+  font-weight: bold;
+}
+
 .student-result-qa-item {
   padding: 1.25rem 1.5rem;
   border-bottom: 1px solid #f1f5f9;
