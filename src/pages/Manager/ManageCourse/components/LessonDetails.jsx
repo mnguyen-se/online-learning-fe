@@ -85,6 +85,9 @@ const LessonDetails = ({
   const [quizQuestions, setQuizQuestions] = useState(() => initialLesson.quizQuestions);
   const [contentFile, setContentFile] = useState(null);
   const [videoUrl, setVideoUrl] = useState(() => initialLesson.videoUrl); // Chỉ dùng cho VIDEO, để preview khi đổi file mới nhưng chưa save
+  const [uploadedVideoUrl, setUploadedVideoUrl] = useState(null); // URL sau khi upload ngay lúc chọn file → bấm Lưu không cần upload lại
+  const [uploadProgress, setUploadProgress] = useState(null); // 0-100 khi đang upload, null khi không upload
+  const [uploadError, setUploadError] = useState(null);
   useEffect(() => {
     setVideoUrl(initialLesson.videoUrl || '');
   }, [initialLesson.videoUrl]);
@@ -100,16 +103,39 @@ const LessonDetails = ({
     }
     if (next !== 'VIDEO') {
       setContentFile(null);
+      setUploadedVideoUrl(null);
+      setUploadProgress(null);
+      setUploadError(null);
     }
+  };
+
+  // Upload ngay khi chọn file video → khi bấm Lưu chỉ cần gửi URL (nhanh hơn)
+  const startUploadOnFileSelect = (file) => {
+    if (!file || lessonType !== 'VIDEO') return;
+    setUploadedVideoUrl(null);
+    setUploadError(null);
+    setUploadProgress(0);
+    uploadVideoToCloudinary(file, {
+      onProgress: (percent) => setUploadProgress(percent),
+    })
+      .then((url) => {
+        setUploadedVideoUrl(url);
+        setVideoUrl(url);
+        setUploadProgress(null);
+      })
+      .catch((err) => {
+        console.error('Upload video thất bại:', err);
+        setUploadError(err?.message || 'Upload video thất bại. Bạn có thể thử lại khi bấm Lưu.');
+        setUploadProgress(null);
+      });
   };
 
 
   const previewUrl = useMemo(() => {
-    if (contentFile) {
-      return URL.createObjectURL(contentFile);
-    }
+    if (contentFile && uploadedVideoUrl) return uploadedVideoUrl; // Sau khi upload xong, xem URL thật
+    if (contentFile) return URL.createObjectURL(contentFile);
     return videoUrl || contentUrl || '';
-  }, [contentFile, videoUrl, contentUrl]);
+  }, [contentFile, videoUrl, contentUrl, uploadedVideoUrl]);
 
   const embedPreviewUrl = useMemo(() => toEmbedVideoUrl(previewUrl), [previewUrl]);
 
@@ -171,10 +197,16 @@ const LessonDetails = ({
       let finalVideoUrl = videoUrl || contentUrl || "";
       let finalContentUrl = "";
 
-      // ✅ Upload nếu là VIDEO
+      // ✅ VIDEO: dùng URL đã upload sẵn (upload-on-select) hoặc upload bây giờ
       if (lessonType === "VIDEO" && contentFile) {
-        finalVideoUrl = await uploadVideoToCloudinary(contentFile);
-        console.log("Video URL sau upload:", finalVideoUrl);
+        if (uploadedVideoUrl) {
+          finalVideoUrl = uploadedVideoUrl; // Đã upload lúc chọn file → không cần upload lại
+        } else {
+          finalVideoUrl = await uploadVideoToCloudinary(contentFile, {
+            onProgress: (p) => setUploadProgress(p),
+          });
+          setUploadProgress(null);
+        }
       }
 
       // ✅ TEXT thì dùng contentUrl
@@ -200,6 +232,7 @@ const LessonDetails = ({
 
     } catch (err) {
       console.error(err);
+      setUploadProgress(null);
       alert("Upload thất bại");
     }
   };
@@ -402,11 +435,25 @@ const LessonDetails = ({
               onChange={(e) => {
                 const file = e.target.files?.[0] || null;
                 setContentFile(file);
+                setUploadError(null);
+                if (file) startUploadOnFileSelect(file);
               }}
               disabled={isLoading}
             />
             {contentFile?.name && (
-              <div className="lesson-details-file-name">Đã chọn: {contentFile.name}</div>
+              <div className="lesson-details-file-name">
+                Đã chọn: {contentFile.name}
+                {uploadedVideoUrl && <span className="lesson-details-upload-done"> • Đã tải lên, bấm Lưu để lưu bài học</span>}
+              </div>
+            )}
+            {uploadProgress !== null && (
+              <div className="lesson-details-upload-progress-wrap">
+                <div className="lesson-details-upload-progress-bar" style={{ width: `${uploadProgress}%` }} />
+                <span className="lesson-details-upload-progress-text">Đang tải video lên... {uploadProgress}%</span>
+              </div>
+            )}
+            {uploadError && (
+              <div className="lesson-details-upload-error">{uploadError}</div>
             )}
             {!contentFile && contentUrl && (
               <div className="lesson-details-file-name">Đang dùng video hiện tại.</div>
@@ -560,9 +607,13 @@ const LessonDetails = ({
           <button
             type="submit"
             className="lesson-details-btn lesson-details-btn-save"
-            disabled={isLoading || !title.trim() || (lessonType === 'VIDEO' && !contentFile && !videoUrl && !contentUrl)}
+            disabled={isLoading || !title.trim() || (lessonType === 'VIDEO' && !contentFile && !videoUrl && !contentUrl) || (lessonType === 'VIDEO' && contentFile && uploadProgress !== null)}
           >
-            {isLoading ? (isNewLesson ? 'Đang tạo...' : 'Đang lưu...') : (isNewLesson ? 'Tạo bài học' : 'Lưu')}
+            {uploadProgress !== null
+              ? `Đang tải video... ${uploadProgress}%`
+              : isLoading
+                ? (isNewLesson ? 'Đang tạo...' : 'Đang lưu...')
+                : (isNewLesson ? 'Tạo bài học' : 'Lưu')}
           </button>
         </div>
       </form>

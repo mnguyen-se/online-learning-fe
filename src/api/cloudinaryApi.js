@@ -3,17 +3,35 @@ import axios from "axios";
 const CLOUD_NAME = import.meta.env.VITE_CLOUD_NAME;
 const UPLOAD_PRESET = import.meta.env.VITE_UPLOAD_PRESET;
 
-export const uploadVideoToCloudinary = async (file) => {
+/** Timeout cho upload video (5 phút) - tránh timeout với file lớn */
+const UPLOAD_TIMEOUT_MS = 5 * 60 * 1000;
+
+/**
+ * Upload video lên Cloudinary.
+ * @param {File} file - File video
+ * @param {Object} options - { onProgress: (percent) => void } - callback % upload (0-100)
+ * @returns {Promise<string>} secure_url của video
+ */
+export const uploadVideoToCloudinary = async (file, options = {}) => {
+  const { onProgress } = options;
   const formData = new FormData();
   formData.append("file", file);
-  formData.append("upload_preset", import.meta.env.VITE_UPLOAD_PRESET);
+  formData.append("upload_preset", UPLOAD_PRESET || import.meta.env.VITE_UPLOAD_PRESET);
 
   const res = await axios.post(
-    `https://api.cloudinary.com/v1_1/${import.meta.env.VITE_CLOUD_NAME}/video/upload`,
-    formData
+    `https://api.cloudinary.com/v1_1/${CLOUD_NAME || import.meta.env.VITE_CLOUD_NAME}/video/upload`,
+    formData,
+    {
+      timeout: UPLOAD_TIMEOUT_MS,
+      headers: { "Content-Type": "multipart/form-data" },
+      onUploadProgress: onProgress
+        ? (e) => {
+            const percent = e.total ? Math.round((e.loaded / e.total) * 100) : 0;
+            onProgress(percent);
+          }
+        : undefined,
+    }
   );
-
-  console.log("Cloudinary full response:", res.data); // 👈 thêm dòng này
 
   return res.data.secure_url;
 };
