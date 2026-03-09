@@ -28,12 +28,13 @@ export const getWritingQuestions = async (assignmentId) => {
 export const uploadAssignmentQuestions = async (assignmentId, file) => {
   const formData = new FormData();
   formData.append('file', file);
+  // Không set Content-Type - để axios/browser tự set multipart/form-data với boundary đúng
   const response = await apiClient.post(
     `/assignments/${assignmentId}/questions/upload-excel`,
     formData,
     {
       headers: {
-        'Content-Type': 'multipart/form-data',
+        'Content-Type': false,
       },
     }
   );
