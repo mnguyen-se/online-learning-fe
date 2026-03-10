@@ -75,6 +75,7 @@ export const getAiLessonHint = async (lessonId) => {
 export const getAiLessonQuiz = async (lessonId) => {
   const response = await apiClient.get(`/ai/lessons/${lessonId}/quiz`, {
     responseType: "text",
+    timeout: 60000,
   });
   return response.data;
 };

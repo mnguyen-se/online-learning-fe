@@ -1642,6 +1642,30 @@
   background: white;
 }
 
+/* AI Quiz Practice full-screen layout */
+.ai-quiz-page {
+  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.ai-quiz-page .lessons-view-container.ai-quiz-container {
+  margin-left: 0;
+  padding: 0.75rem 1.5rem 0;
+  height: calc(100vh - 80px);
+  max-width: 100%;
+}
+
+.ai-quiz-page .ai-quiz-header {
+  margin-bottom: 0.75rem;
+}
+
+.ai-quiz-page .ai-quiz-iframe-full {
+  border: none;
+  border-radius: 0;
+  height: calc(100vh - 140px);
+}
+
 @media (max-width: 1024px) {
   .lessons-view-container {
     margin-left: 0;
