@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useMemo, useState } from "react";
+import React, { Suspense, lazy, useEffect, useMemo, useState, useCallback } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import Header from "../../components/Header/header";
@@ -453,36 +453,26 @@ function LessonsView() {
     };
   }, [lessons, assignments, selectedLesson]);
 
-  const patchAssignmentItem = (assignmentId, updater) => {
-    if (!assignmentId) return;
-    setLessons((prev) =>
-      prev.map((item) => {
-        if (!isAssignmentItem(item) || idToKey(item.assignmentId) !== idToKey(assignmentId)) {
-          return item;
-        }
-        return updater(item);
-      }),
-    );
-    setSelectedLesson((prev) => {
-      if (!isAssignmentItem(prev) || idToKey(prev.assignmentId) !== idToKey(assignmentId)) {
-        return prev;
+  const ensureAssignmentQuestionsLoaded = useCallback(
+    async (assignmentItem) => {
+      if (!assignmentItem || !isAssignmentItem(assignmentItem) || !assignmentItem.assignmentId) {
+        return;
       }
-      return updater(prev);
-    });
-  };
+      if (assignmentItem.questionsLoaded || assignmentItem.questionsLoading) return;
 
-  const ensureAssignmentQuestionsLoaded = async (assignmentItem) => {
-    if (!assignmentItem || !isAssignmentItem(assignmentItem) || !assignmentItem.assignmentId) {
-      return;
-    }
-    if (assignmentItem.questionsLoaded || assignmentItem.questionsLoading) return;
+      const key = idToKey(assignmentItem.assignmentId);
 
-    patchAssignmentItem(assignmentItem.assignmentId, (current) => ({
-      ...current,
-      questionsLoading: true,
-      questionsError: '',
-    }));
-
+      setLessons((prev) =>
+        prev.map((item) => {
+          if (!isAssignmentItem(item) || idToKey(item.assignmentId) !== key) {
+            return item;
+          }
+          return {
+            ...item,
+            questionsLoading: true,
+            questionsError: '',
+          };
+        }),
     try {
       const isQuiz =
         normalizeAssignmentType(
@@ -500,25 +490,89 @@ function LessonsView() {
       const mappedQuestions = rawQuestions.map((question, index) =>
         mapAssignmentQuestion(question, index, assignmentItem.assignmentId),
       );
-      patchAssignmentItem(assignmentItem.assignmentId, (current) => ({
-        ...current,
-        questions: mappedQuestions,
-        questionsLoaded: true,
-        questionsLoading: false,
-        questionsError: '',
-      }));
-    } catch (err) {
-      const message =
-        err?.response?.data?.message || err?.message || 'Không thể tải câu hỏi bài tập.';
-      patchAssignmentItem(assignmentItem.assignmentId, (current) => ({
-        ...current,
-        questionsLoading: false,
-        questionsError: message,
-      }));
-    }
-  };
+      setSelectedLesson((prev) => {
+        if (!isAssignmentItem(prev) || idToKey(prev.assignmentId) !== key) {
+          return prev;
+        }
+        return {
+          ...prev,
+          questionsLoading: true,
+          questionsError: '',
+        };
+      });
 
-  const getAssignmentStatus = (assignmentId) => assignmentStatuses[idToKey(assignmentId)] ?? null;
+      try {
+        const questionsRes = await runWithRetry(
+          () => getAssignmentQuestions(assignmentItem.assignmentId),
+          {
+            retries: 1,
+            baseDelayMs: 500,
+          },
+        );
+        const rawQuestions = normalizeArrayResponse(questionsRes);
+        const mappedQuestions = rawQuestions.map((question, index) =>
+          mapAssignmentQuestion(question, index, assignmentItem.assignmentId),
+        );
+        setLessons((prev) =>
+          prev.map((item) => {
+            if (!isAssignmentItem(item) || idToKey(item.assignmentId) !== key) {
+              return item;
+            }
+            return {
+              ...item,
+              questions: mappedQuestions,
+              questionsLoaded: true,
+              questionsLoading: false,
+              questionsError: '',
+            };
+          }),
+        );
+        setSelectedLesson((prev) => {
+          if (!isAssignmentItem(prev) || idToKey(prev.assignmentId) !== key) {
+            return prev;
+          }
+          return {
+            ...prev,
+            questions: mappedQuestions,
+            questionsLoaded: true,
+            questionsLoading: false,
+            questionsError: '',
+          };
+        });
+      } catch (err) {
+        const message =
+          err?.response?.data?.message || err?.message || 'Không thể tải câu hỏi bài tập.';
+        setLessons((prev) =>
+          prev.map((item) => {
+            if (!isAssignmentItem(item) || idToKey(item.assignmentId) !== key) {
+              return item;
+            }
+            return {
+              ...item,
+              questionsLoading: false,
+              questionsError: message,
+            };
+          }),
+        );
+        setSelectedLesson((prev) => {
+          if (!isAssignmentItem(prev) || idToKey(prev.assignmentId) !== key) {
+            return prev;
+          }
+          return {
+            ...prev,
+            questionsLoading: false,
+            questionsError: message,
+          };
+        });
+      }
+    },
+    [setLessons, setSelectedLesson],
+  );
+
+  const getAssignmentStatus = useCallback(
+    (assignmentId) => assignmentStatuses[idToKey(assignmentId)] ?? null,
+    [assignmentStatuses],
+  );
 
   const getQuizAnswerValue = (assignmentId, questionId) =>
     assignmentDrafts[idToKey(assignmentId)]?.quiz?.[toQuestionKey(questionId)] ?? '';
@@ -556,7 +610,7 @@ function LessonsView() {
     }));
   };
 
-  const loadLessons = async () => {
+  const loadLessons = useCallback(async () => {
     try {
       setIsLoading(true);
       setError("");
@@ -642,11 +696,11 @@ function LessonsView() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [courseId, isCourseLearningMode, lessonId, navigate]);
 
   useEffect(() => {
     loadLessons();
-  }, [courseId]);
+  }, [loadLessons]);
 
   useEffect(() => {
     if (!lessonId || lessons.length === 0) return;
@@ -703,7 +757,7 @@ function LessonsView() {
   useEffect(() => {
     if (!isAssignmentItem(selectedLesson)) return;
     ensureAssignmentQuestionsLoaded(selectedLesson);
-  }, [selectedLesson]);
+  }, [selectedLesson, ensureAssignmentQuestionsLoaded]);
 
   useEffect(() => {
     setAssignmentQuestionPage(1);
@@ -746,7 +800,7 @@ function LessonsView() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedLesson, quizCurrentQuestion]);
+  }, [selectedLesson, quizCurrentQuestion, getAssignmentStatus]);
 
   const handleCompleteLesson = async () => {
     if (!isCourseLearningMode || !selectedLesson || !courseId) return;
