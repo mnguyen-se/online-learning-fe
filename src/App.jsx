@@ -21,6 +21,7 @@ import TeacherFeedback from './pages/Teacher/TeacherFeedback';
 import TeacherCourseDetail from './pages/Teacher/TeacherCourseDetail';
 import TeacherModuleDetail from './pages/Teacher/TeacherModuleDetail';
 import LessonsView from './pages/Lessons/LessonsView';
+import AiQuizPage from "./pages/Lessons/AiQuizPage";
 import MyCourses from "./pages/MyCourses/MyCourses";
 import StudentWritingResult from "./pages/Student/StudentWritingResult";
 import StudentQuizResult from "./pages/Student/StudentQuizResult";
@@ -88,6 +89,10 @@ function App() {
     {
       path: '/course/:courseId/learn/:lessonId',
       element: <LessonsView />,
+    },
+    {
+      path: "/course/:courseId/learn/:lessonId/ai-quiz",
+      element: <AiQuizPage />
     },
     {
       path: "/my-courses",
