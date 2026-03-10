@@ -1297,7 +1297,6 @@ function LessonsView() {
       setHintErrorByLesson((prev) => ({ ...prev, [lessonKey]: "" }));
       const hintText = await runWithRetry(() => getAiLessonHint(selectedId), {
         retries: 0,
-        baseDelayMs: 500,
       });
       const normalizedHint =
         typeof hintText === "string" ? hintText.trim() : "";
