@@ -6,6 +6,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { getLearningProcess } from "../../api/learningProcessApi";
 import {
   getAssignmentQuestions,
+  getWritingQuestions,
   getAssignmentsByCourse,
   getMyAssignments,
   submitQuizAssignment,
@@ -487,13 +488,18 @@ function LessonsView() {
     }));
 
     try {
-      const questionsRes = await runWithRetry(
-        () => getAssignmentQuestions(assignmentItem.assignmentId),
-        {
-          retries: 1,
-          baseDelayMs: 500,
-        },
-      );
+      const isQuiz =
+        normalizeAssignmentType(
+          assignmentItem.assignmentType ?? assignmentItem.testType,
+        ) === "QUIZ";
+      const questionsRes = await runWithRetry(() => (
+        isQuiz
+          ? getAssignmentQuestions(assignmentItem.assignmentId)
+          : getWritingQuestions(assignmentItem.assignmentId)
+      ), {
+        retries: 1,
+        baseDelayMs: 500,
+      });
       const rawQuestions = normalizeArrayResponse(questionsRes);
       const mappedQuestions = rawQuestions.map((question, index) =>
         mapAssignmentQuestion(question, index, assignmentItem.assignmentId),

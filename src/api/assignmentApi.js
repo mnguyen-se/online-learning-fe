@@ -27,8 +27,11 @@ export const getAssignmentQuestions = async (assignmentId) => {
 };
 
 export const getWritingQuestions = async (assignmentId) => {
-  // Dùng chung endpoint lấy danh sách câu hỏi cho cả quiz và writing
-  const response = await apiClient.get(`/assignments/${assignmentId}/questions`);
+  // Học sinh xem câu hỏi bài Writing trong assignment
+  // Backend endpoint: GET /api/v1/assignments/{assignmentId}/writing-questions/student
+  const response = await apiClient.get(
+    `/assignments/${assignmentId}/writing-questions/student`,
+  );
   return response.data;
 };
 
