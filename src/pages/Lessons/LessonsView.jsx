@@ -6,6 +6,7 @@ import { useAuth } from "../../hooks/useAuth";
 import { getLearningProcess } from "../../api/learningProcessApi";
 import {
   getAssignmentQuestions,
+  getWritingQuestions,
   getAssignmentsByCourse,
   getMyAssignments,
   submitQuizAssignment,
@@ -29,7 +30,6 @@ import { runWithRetry } from "../../api/requestRetry";
 import {
   completeLessonById,
   getAiLessonHint,
-  getAiLessonQuiz,
   getLessonView,
 } from "../../api/lessionApi";
 import "./LessonsView.css";
@@ -369,9 +369,6 @@ function LessonsView() {
   const [aiHintByLesson, setAiHintByLesson] = useState({});
   const [hintErrorByLesson, setHintErrorByLesson] = useState({});
   const [hintLoadingLessonKey, setHintLoadingLessonKey] = useState("");
-  const [quizHtml, setQuizHtml] = useState("");
-  const [quizLoading, setQuizLoading] = useState(false);
-  const [quizError, setQuizError] = useState("");
   const [assignmentQuestionPage, setAssignmentQuestionPage] = useState(1);
   const [contentTab, setContentTab] = useState('content');
   const [aiHintExpanded, setAiHintExpanded] = useState(false);
@@ -476,6 +473,22 @@ function LessonsView() {
             questionsError: '',
           };
         }),
+    try {
+      const isQuiz =
+        normalizeAssignmentType(
+          assignmentItem.assignmentType ?? assignmentItem.testType,
+        ) === "QUIZ";
+      const questionsRes = await runWithRetry(() => (
+        isQuiz
+          ? getAssignmentQuestions(assignmentItem.assignmentId)
+          : getWritingQuestions(assignmentItem.assignmentId)
+      ), {
+        retries: 1,
+        baseDelayMs: 500,
+      });
+      const rawQuestions = normalizeArrayResponse(questionsRes);
+      const mappedQuestions = rawQuestions.map((question, index) =>
+        mapAssignmentQuestion(question, index, assignmentItem.assignmentId),
       );
       setSelectedLesson((prev) => {
         if (!isAssignmentItem(prev) || idToKey(prev.assignmentId) !== key) {
@@ -1344,7 +1357,6 @@ function LessonsView() {
       setHintErrorByLesson((prev) => ({ ...prev, [lessonKey]: "" }));
       const hintText = await runWithRetry(() => getAiLessonHint(selectedId), {
         retries: 0,
-        baseDelayMs: 500,
       });
       const normalizedHint =
         typeof hintText === "string" ? hintText.trim() : "";
@@ -1366,33 +1378,11 @@ function LessonsView() {
     }
   };
 
-  const handleOpenAiQuiz = async () => {
-    if (!canUseAiHint || !selectedLesson) return;
+  const handleOpenAiQuizPage = () => {
+    if (!canUseAiHint || !selectedLesson || !courseId) return;
     const selectedId = resolveLessonId(selectedLesson);
     if (!selectedId) return;
-    try {
-      setQuizLoading(true);
-      setQuizError("");
-      setQuizHtml("");
-      const html = await runWithRetry(() => getAiLessonQuiz(selectedId), {
-        retries: 0,
-        baseDelayMs: 500,
-      });
-      setQuizHtml(typeof html === "string" ? html : "");
-    } catch (err) {
-      const message =
-        err?.response?.data?.message ||
-        "Không thể tải Quiz Practice. Vui lòng thử lại.";
-      setQuizError(message);
-      toast.error(message);
-    } finally {
-      setQuizLoading(false);
-    }
-  };
-
-  const handleCloseQuizModal = () => {
-    setQuizHtml("");
-    setQuizError("");
+    navigate(`/course/${courseId}/learn/${selectedId}/ai-quiz`);
   };
 
   const renderLessonContent = (lesson) => {
@@ -1835,10 +1825,9 @@ function LessonsView() {
                       <button
                         className="lesson-ai-quiz-btn"
                         type="button"
-                        disabled={quizLoading}
-                        onClick={handleOpenAiQuiz}
+                        onClick={handleOpenAiQuizPage}
                       >
-                        {quizLoading ? "Đang tải..." : "AI Quiz Practice"}
+                        AI Quiz Practice
                       </button>
                     </div>
                     {aiHintExpanded && (
@@ -1916,47 +1905,6 @@ function LessonsView() {
             )}
         </div>
 
-        {/* Modal Quiz Practice (AI) */}
-        {(quizHtml || quizLoading || quizError) && (
-          <div
-            className="lesson-quiz-modal-overlay"
-            role="dialog"
-            aria-modal="true"
-          >
-            <div className="lesson-quiz-modal">
-              <div className="lesson-quiz-modal-header">
-                <h3 className="lesson-quiz-modal-title">Quiz Practice</h3>
-                <button
-                  type="button"
-                  className="lesson-quiz-modal-close"
-                  onClick={handleCloseQuizModal}
-                  disabled={quizLoading}
-                  aria-label="Đóng"
-                >
-                  ×
-                </button>
-              </div>
-              <div className="lesson-quiz-modal-body">
-                {quizLoading && (
-                  <div className="lesson-quiz-loading">
-                    AI đang tạo quiz cho bài học này...
-                  </div>
-                )}
-                {quizError && !quizLoading && (
-                  <div className="lesson-quiz-error">{quizError}</div>
-                )}
-                {quizHtml && !quizLoading && (
-                  <iframe
-                    title="Quiz Practice"
-                    className="lesson-quiz-iframe"
-                    srcDoc={quizHtml}
-                    sandbox="allow-scripts allow-same-origin"
-                  />
-                )}
-              </div>
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );
