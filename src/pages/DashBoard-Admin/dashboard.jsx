@@ -1,13 +1,16 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { getAllUsers, updateUser, createUser } from '../../api/userApi';
 import DashboardLayout from '../../components/DashboardLayout';
 import './dashboard.css';
 
+const USERS_PER_PAGE = 10;
+
 const Dashboard = () => {
   const [users, setUsers] = useState([]);
   const [filteredUsers, setFilteredUsers] = useState([]);
+  const [currentPage, setCurrentPage] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeFilter, setActiveFilter] = useState('Tất cả');
@@ -16,7 +19,7 @@ const Dashboard = () => {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
-  const [editFormData, setEditFormData] = useState({ name: '', address: '', dateOfBirth: '', active: true });
+  const [editFormData, setEditFormData] = useState({ name: '', address: '', dateOfBirth: '' });
   const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [showAddUserModal, setShowAddUserModal] = useState(false);
@@ -28,6 +31,13 @@ const Dashboard = () => {
     address: '',
     dateOfBirth: '',
     role: 'STUDENT'
+  });
+  const [addUserFormErrors, setAddUserFormErrors] = useState({
+    username: '',
+    name: '',
+    email: '',
+    password: '',
+    dateOfBirth: ''
   });
   const [isCreating, setIsCreating] = useState(false);
   const [showViewDetailModal, setShowViewDetailModal] = useState(false);
@@ -50,7 +60,7 @@ const Dashboard = () => {
 
     // Filter by search term
     if (searchTerm) {
-      filtered = filtered.filter(user => 
+      filtered = filtered.filter(user =>
         user.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         user.username?.toLowerCase().includes(searchTerm.toLowerCase())
@@ -58,7 +68,34 @@ const Dashboard = () => {
     }
 
     setFilteredUsers(filtered);
+    setCurrentPage(1);
   }, [users, activeFilter, searchTerm]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / USERS_PER_PAGE));
+  const safePage = Math.min(Math.max(1, currentPage), totalPages);
+  const paginatedUsers = useMemo(() => {
+    const start = (safePage - 1) * USERS_PER_PAGE;
+    return filteredUsers.slice(start, start + USERS_PER_PAGE);
+  }, [filteredUsers, safePage]);
+
+  useEffect(() => {
+    if (currentPage > totalPages && totalPages >= 1) setCurrentPage(1);
+  }, [currentPage, totalPages]);
+
+  const getPageNumbers = () => {
+    if (totalPages <= 5) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    const pages = [];
+    if (safePage <= 3) {
+      pages.push(1, 2, 3, '...', totalPages);
+    } else if (safePage >= totalPages - 2) {
+      pages.push(1, '...', totalPages - 2, totalPages - 1, totalPages);
+    } else {
+      pages.push(1, '...', safePage - 1, safePage, safePage + 1, '...', totalPages);
+    }
+    return pages;
+  };
 
   // Calculate statistics
   const stats = {
@@ -119,21 +156,13 @@ const Dashboard = () => {
 
   const handleConfirmDelete = async () => {
     if (!selectedUser) return;
-
     try {
       setIsDeleting(true);
-      // Update user: set active to false
-      await updateUser(selectedUser.id, {
-        ...selectedUser,
-        active: false,
-      });
-
-      // Update local state
-      setUsers(users.map(user => 
+      await updateUser(selectedUser.id, { ...selectedUser, active: false });
+      setUsers(users.map(user =>
         user.id === selectedUser.id ? { ...user, active: false } : user
       ));
-
-      toast.success('Chuyển trạng thái không hoạt động thành công!');
+      toast.success('Đã khóa tài khoản người dùng.');
       setShowDeleteModal(false);
       setSelectedUser(null);
     } catch (error) {
@@ -150,7 +179,6 @@ const Dashboard = () => {
       name: user.name || '',
       address: user.address || '',
       dateOfBirth: user.dateOfBirth ? user.dateOfBirth.split('T')[0] : '',
-      active: user.active !== false,
     });
     setShowEditModal(true);
   };
@@ -158,7 +186,7 @@ const Dashboard = () => {
   const handleCancelEdit = () => {
     setShowEditModal(false);
     setEditingUser(null);
-    setEditFormData({ name: '', address: '', dateOfBirth: '', active: true });
+    setEditFormData({ name: '', address: '', dateOfBirth: '' });
   };
 
   const handleEditSubmit = async (e) => {
@@ -171,31 +199,58 @@ const Dashboard = () => {
         name: editFormData.name,
         address: editFormData.address,
         dateOfBirth: editFormData.dateOfBirth,
-        active: editFormData.active,
+        active: editingUser.active !== false,
       });
 
-      // Update local state
-      setUsers(users.map(user => 
-        user.id === editingUser.id 
-          ? { ...user, name: editFormData.name, address: editFormData.address, dateOfBirth: editFormData.dateOfBirth, active: editFormData.active }
+      setUsers(users.map(user =>
+        user.id === editingUser.id
+          ? { ...user, name: editFormData.name, address: editFormData.address, dateOfBirth: editFormData.dateOfBirth }
           : user
       ));
 
-      setSuccessMessage('Chỉnh sửa thông tin người dùng thành công!');
       setShowEditModal(false);
       setEditingUser(null);
-      setEditFormData({ name: '', address: '', dateOfBirth: '', active: true });
+      setEditFormData({ name: '', address: '', dateOfBirth: '' });
 
-      // Hide success message after 5 seconds
-      setTimeout(() => {
-        setSuccessMessage('');
-      }, 5000);
+      toast.success('Cập nhật thông tin người dùng thành công.', { position: 'top-right', autoClose: 3500 });
     } catch (error) {
       console.error('Error updating user:', error);
-      toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi cập nhật người dùng. Vui lòng thử lại.');
+      toast.error('Cập nhật thất bại. Vui lòng thử lại.');
     } finally {
       setIsSaving(false);
     }
+  };
+
+  const validateAddUserForm = () => {
+    const { username, name, email, password } = addUserFormData;
+    const errors = { username: '', name: '', email: '', password: '', dateOfBirth: '' };
+
+    if (!username.trim()) {
+      errors.username = 'Tên người dùng không được để trống.';
+    } else if (username.trim().length < 4) {
+      errors.username = 'Tên người dùng phải có ít nhất 4 ký tự.';
+    }
+
+    if (!name.trim()) {
+      errors.name = 'Họ và tên không được để trống.';
+    } else if (name.trim().length < 4) {
+      errors.name = 'Họ và tên phải có ít nhất 4 ký tự.';
+    }
+
+    if (!email.trim()) {
+      errors.email = 'Email không được để trống.';
+    } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      errors.email = 'Email không đúng định dạng.';
+    }
+
+    if (!password.trim()) {
+      errors.password = 'Mật khẩu không được để trống.';
+    } else if (password.length < 6) {
+      errors.password = 'Mật khẩu phải có ít nhất 6 ký tự.';
+    }
+
+    setAddUserFormErrors(errors);
+    return !Object.values(errors).some(Boolean);
   };
 
   const handleAddUserClick = () => {
@@ -208,6 +263,7 @@ const Dashboard = () => {
       dateOfBirth: '',
       role: 'STUDENT'
     });
+    setAddUserFormErrors({ username: '', name: '', email: '', password: '', dateOfBirth: '' });
     setShowAddUserModal(true);
   };
 
@@ -222,16 +278,12 @@ const Dashboard = () => {
       dateOfBirth: '',
       role: 'STUDENT'
     });
+    setAddUserFormErrors({ username: '', name: '', email: '', password: '', dateOfBirth: '' });
   };
 
   const handleAddUserSubmit = async (e) => {
     e.preventDefault();
-
-    // Validation
-    if (addUserFormData.password.length < 6) {
-      toast.error('Mật khẩu phải có ít nhất 6 ký tự');
-      return;
-    }
+    if (!validateAddUserForm()) return;
 
     try {
       setIsCreating(true);
@@ -251,6 +303,7 @@ const Dashboard = () => {
         dateOfBirth: '',
         role: 'STUDENT'
       });
+      setAddUserFormErrors({ username: '', name: '', email: '', password: '', dateOfBirth: '' });
     } catch (error) {
       console.error('Error creating user:', error);
       toast.error(error.response?.data?.message || 'Có lỗi xảy ra khi tạo người dùng. Vui lòng thử lại.');
@@ -312,14 +365,14 @@ const Dashboard = () => {
         <div className="success-notification">
           <div className="success-notification-content">
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <polyline points="22 4 12 14.01 9 11.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <polyline points="22 4 12 14.01 9 11.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
             <span>{successMessage}</span>
             <button className="success-notification-close" onClick={() => setSuccessMessage('')}>
               <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
             </button>
           </div>
@@ -329,273 +382,342 @@ const Dashboard = () => {
       <div className="dashboard-header">
         <div className="header-title" />
         <button className="btn-add-user" onClick={handleAddUserClick}>
+          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <line x1="12" y1="8" x2="12" y2="16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            <line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span>+ Thêm người dùng</span>
+        </button>
+      </div>
+
+      {/* Stats Cards */}
+      <div className="stats-cards">
+        <div className="stat-card">
+          <div className="stat-icon stat-icon-blue">
             <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <line x1="12" y1="8" x2="12" y2="16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              <line x1="8" y1="12" x2="16" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
             </svg>
-            <span>+ Thêm người dùng</span>
-          </button>
-        </div>
-
-        {/* Stats Cards */}
-        <div className="stats-cards">
-          <div className="stat-card">
-            <div className="stat-icon stat-icon-blue">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-            <div className="stat-content">
-              <div className="stat-value">{stats.total}</div>
-              <div className="stat-trend stat-trend-up">+12.5%</div>
-              <div className="stat-label">Tổng người dùng</div>
-            </div>
           </div>
-
-          <div className="stat-card">
-            <div className="stat-icon stat-icon-green">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <polyline points="22 4 12 14.01 9 11.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-            <div className="stat-content">
-              <div className="stat-value">{stats.active}</div>
-              <div className="stat-trend stat-trend-up">+8.2%</div>
-              <div className="stat-label">Người dùng hoạt động</div>
-            </div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-icon stat-icon-orange">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <polyline points="17 6 23 6 23 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-            <div className="stat-content">
-              <div className="stat-value">{stats.newUsers}</div>
-              <div className="stat-trend stat-trend-up">+23.1%</div>
-              <div className="stat-label">Người dùng mới</div>
-            </div>
-          </div>
-
-          <div className="stat-card">
-            <div className="stat-icon stat-icon-red">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <line x1="12" y1="8" x2="12" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <line x1="12" y1="16" x2="12.01" y2="16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-            </div>
-            <div className="stat-content">
-              <div className="stat-value">{stats.locked}</div>
-              <div className="stat-trend stat-trend-down">-4.3%</div>
-              <div className="stat-label">Tài khoản bị khóa</div>
-            </div>
+          <div className="stat-content">
+            <div className="stat-value">{stats.total}</div>
+            <div className="stat-trend stat-trend-up">+12.5%</div>
+            <div className="stat-label">Tổng người dùng</div>
           </div>
         </div>
 
-        {/* Search and Filter Section */}
-        <div className="dashboard-controls">
-          <div className="search-section">
-            <div className="search-input-wrapper">
-              <svg className="search-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                <path d="m21 21-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-              </svg>
-              <input
-                type="text"
-                placeholder="Tìm kiếm theo tên hoặc email..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-              />
-            </div>
-
-            <div className="filter-buttons">
-              <button
-                className={`filter-btn ${activeFilter === 'Tất cả' ? 'active' : ''}`}
-                onClick={() => setActiveFilter('Tất cả')}
-              >
-                Tất cả
-              </button>
-              <button
-                className={`filter-btn ${activeFilter === 'Học viên' ? 'active' : ''}`}
-                onClick={() => setActiveFilter('Học viên')}
-              >
-                Học viên
-              </button>
-              <button
-                className={`filter-btn ${activeFilter === 'Giáo viên' ? 'active' : ''}`}
-                onClick={() => setActiveFilter('Giáo viên')}
-              >
-                Giáo viên
-              </button>
-              <button
-                className={`filter-btn ${activeFilter === 'Quản trị' ? 'active' : ''}`}
-                onClick={() => setActiveFilter('Quản trị')}
-              >
-                Quản trị
-              </button>
-              <button
-                className={`filter-btn ${activeFilter === 'Quản lý' ? 'active' : ''}`}
-                onClick={() => setActiveFilter('Quản lý')}
-              >
-                Quản lý
-              </button>
-            </div>
-
-            <div className="action-buttons">
-              <button className="action-btn">
-                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <polyline points="7 10 12 15 17 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                <span>Xuất Excel</span>
-              </button>
-              <button className="action-btn">
-                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <polyline points="17 8 12 3 7 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                <span>Nhập dữ liệu</span>
-              </button>
-            </div>
+        <div className="stat-card">
+          <div className="stat-icon stat-icon-green">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <polyline points="22 4 12 14.01 9 11.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <div className="stat-content">
+            <div className="stat-value">{stats.active}</div>
+            <div className="stat-trend stat-trend-up">+8.2%</div>
+            <div className="stat-label">Người dùng hoạt động</div>
           </div>
         </div>
 
-        {/* Users Table */}
-        <div className="dashboard-table-container">
-          <table className="users-table">
-            <thead>
-              <tr>
-                <th>NGƯỜI DÙNG</th>
-                <th>LIÊN HỆ</th>
-                <th>VAI TRÒ</th>
+        <div className="stat-card">
+          <div className="stat-icon stat-icon-orange">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <polyline points="17 6 23 6 23 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <div className="stat-content">
+            <div className="stat-value">{stats.newUsers}</div>
+            <div className="stat-trend stat-trend-up">+23.1%</div>
+            <div className="stat-label">Người dùng mới</div>
+          </div>
+        </div>
+
+        <div className="stat-card">
+          <div className="stat-icon stat-icon-red">
+            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <line x1="12" y1="8" x2="12" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <line x1="12" y1="16" x2="12.01" y2="16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <div className="stat-content">
+            <div className="stat-value">{stats.locked}</div>
+            <div className="stat-trend stat-trend-down">-4.3%</div>
+            <div className="stat-label">Tài khoản bị khóa</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Search and Filter Section */}
+      <div className="dashboard-controls">
+        <div className="search-section">
+          <div className="search-input-wrapper">
+            <svg className="search-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="11" cy="11" r="8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="m21 21-4.35-4.35" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <input
+              type="text"
+              placeholder="Tìm kiếm theo tên hoặc email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+            />
+          </div>
+
+          <div className="filter-buttons">
+            <button
+              className={`filter-btn ${activeFilter === 'Tất cả' ? 'active' : ''}`}
+              onClick={() => setActiveFilter('Tất cả')}
+            >
+              Tất cả
+            </button>
+            <button
+              className={`filter-btn ${activeFilter === 'Học viên' ? 'active' : ''}`}
+              onClick={() => setActiveFilter('Học viên')}
+            >
+              Học viên
+            </button>
+            <button
+              className={`filter-btn ${activeFilter === 'Giáo viên' ? 'active' : ''}`}
+              onClick={() => setActiveFilter('Giáo viên')}
+            >
+              Giáo viên
+            </button>
+            <button
+              className={`filter-btn ${activeFilter === 'Quản trị' ? 'active' : ''}`}
+              onClick={() => setActiveFilter('Quản trị')}
+            >
+              Quản trị
+            </button>
+            <button
+              className={`filter-btn ${activeFilter === 'Quản lý' ? 'active' : ''}`}
+              onClick={() => setActiveFilter('Quản lý')}
+            >
+              Quản lý
+            </button>
+          </div>
+
+          <div className="action-buttons">
+            <button className="action-btn">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <polyline points="7 10 12 15 17 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span>Xuất Excel</span>
+            </button>
+            <button className="action-btn">
+              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <polyline points="17 8 12 3 7 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+              <span>Nhập dữ liệu</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Users Table */}
+      <div className="dashboard-table-container">
+        <table className="users-table">
+          <thead>
+            <tr>
+              <th>NGƯỜI DÙNG</th>
+              <th>LIÊN HỆ</th>
+              <th>VAI TRÒ</th>
                 <th>TRẠNG THÁI</th>
-                <th>KHÓA HỌC</th>
                 <th>NGÀY THAM GIA</th>
-                <th>THAO TÁC</th>
+              <th>THAO TÁC</th>
+            </tr>
+          </thead>
+          <tbody>
+            {isLoading ? (
+              <tr>
+                <td colSpan="6" className="table-loading">
+                  <div className="loading-spinner-small"></div>
+                  <span>Đang tải dữ liệu...</span>
+                </td>
               </tr>
-            </thead>
-            <tbody>
-              {isLoading ? (
-                <tr>
-                  <td colSpan="7" className="table-loading">
-                    <div className="loading-spinner-small"></div>
-                    <span>Đang tải dữ liệu...</span>
-                  </td>
-                </tr>
-              ) : filteredUsers.length === 0 ? (
-                <tr>
-                  <td colSpan="7" className="table-empty">
-                    Không có dữ liệu
-                  </td>
-                </tr>
-              ) : (
-                filteredUsers.map((user) => (
-                  <tr key={user.id}>
-                    <td>
-                      <div className="user-info">
-                        <div className="user-avatar">
-                          {user.name?.[0]?.toUpperCase() || user.username?.[0]?.toUpperCase() || 'U'}
-                        </div>
-                        <div className="user-details">
-                          <div className="user-name">{user.name || user.username}</div>
-                          <div className="user-id">ID: #{user.id}</div>
-                        </div>
+            ) : filteredUsers.length === 0 ? (
+              <tr>
+                <td colSpan="6" className="table-empty">
+                  Không có dữ liệu
+                </td>
+              </tr>
+            ) : (
+              paginatedUsers.map((user) => (
+                <tr key={user.id}>
+                  <td>
+                    <div className="user-info">
+                      <div className="user-avatar">
+                        {user.name?.[0]?.toUpperCase() || user.username?.[0]?.toUpperCase() || 'U'}
                       </div>
-                    </td>
-                    <td>
-                      <div className="contact-info">
-                        <div className="contact-item">
-                          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            <polyline points="22,6 12,13 2,6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                          <span>{user.email || 'Chưa có'}</span>
-                        </div>
-                        <div className="contact-item">
-                          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                          <span>{user.phone || 'Chưa có'}</span>
-                        </div>
+                      <div className="user-details">
+                        <div className="user-name">{user.name || user.username}</div>
+                        <div className="user-id">ID: #{user.id}</div>
                       </div>
-                    </td>
-                    <td>
-                      <span className={`role-badge ${getRoleBadgeClass(user.role)}`}>
-                        {getRoleLabel(user.role)}
-                      </span>
-                    </td>
-                    <td>
-                      <span className={`status-badge ${user.active ? 'status-active' : 'status-inactive'}`}>
-                        {user.active ? 'Hoạt động' : 'Không hoạt động'}
-                      </span>
-                    </td>
-                    <td>
-                      <span className="course-count">5 khóa học</span>
-                    </td>
-                    <td>
-                      <div className="join-date">
+                    </div>
+                  </td>
+                  <td>
+                    <div className="contact-info">
+                      <div className="contact-item">
                         <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          <line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                          <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          <polyline points="22,6 12,13 2,6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
-                        <span>{formatDate(user.dateOfBirth)}</span>
+                        <span>{user.email || 'Chưa có'}</span>
                       </div>
-                    </td>
+                      <div className="contact-item">
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                        <span>{user.phone || 'Chưa có'}</span>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <span className={`role-badge ${getRoleBadgeClass(user.role)}`}>
+                      {getRoleLabel(user.role)}
+                    </span>
+                  </td>
+                  <td>
+                    <span className={`status-badge ${user.active ? 'status-active' : 'status-inactive'}`}>
+                      {user.active ? 'Hoạt động' : 'Không hoạt động'}
+                    </span>
+                  </td>
                     <td>
-                      <div className="table-actions">
-                        <button
-                          className="action-icon-btn"
-                          title="Xem chi tiết"
-                          onClick={() => {
-                            setViewingUser(user);
-                            setShowViewDetailModal(true);
-                          }}
-                        >
-                          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        </button>
-                        <button 
-                          className="action-icon-btn" 
-                          title="Chỉnh sửa"
-                          onClick={() => handleEditClick(user)}
-                        >
-                          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        </button>
-                        <button 
-                          className="action-icon-btn action-icon-btn-danger" 
-                          title="Xóa"
-                          onClick={() => handleDeleteClick(user)}
-                        >
-                          <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                            <polyline points="3 6 5 6 21 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                          </svg>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))
+                    <div className="join-date">
+                      <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                        <rect x="3" y="4" width="18" height="18" rx="2" ry="2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        <line x1="16" y1="2" x2="16" y2="6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        <line x1="8" y1="2" x2="8" y2="6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        <line x1="3" y1="10" x2="21" y2="10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                      <span>{formatDate(user.dateOfBirth)}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div className="table-actions">
+                      <button
+                        className="action-icon-btn"
+                        title="Xem chi tiết"
+                        onClick={() => {
+                          setViewingUser(user);
+                          setShowViewDetailModal(true);
+                        }}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                      <button
+                        className="action-icon-btn"
+                        title="Chỉnh sửa"
+                        onClick={() => handleEditClick(user)}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                      <button
+                        className="action-icon-btn action-icon-btn-danger"
+                        title="Khóa tài khoản"
+                        onClick={() => handleDeleteClick(user)}
+                      >
+                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                          <polyline points="3 6 5 6 21 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+
+        {!isLoading && filteredUsers.length > 0 && totalPages > 0 && (
+          <div className="dashboard-pagination">
+            <button
+              type="button"
+              className="pagination-btn pagination-prev"
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={safePage <= 1}
+              aria-label="Trang trước"
+            >
+              &lt;
+            </button>
+            <div className="pagination-numbers">
+              {getPageNumbers().map((item, idx) =>
+                item === '...' ? (
+                  <span key={`ellipsis-${idx}`} className="pagination-ellipsis">...</span>
+                ) : (
+                  <button
+                    key={item}
+                    type="button"
+                    className={`pagination-num ${safePage === item ? 'active' : ''}`}
+                    onClick={() => setCurrentPage(item)}
+                    aria-label={`Trang ${item}`}
+                    aria-current={safePage === item ? 'page' : undefined}
+                  >
+                    {item}
+                  </button>
+                )
               )}
-            </tbody>
-          </table>
+            </div>
+            <button
+              type="button"
+              className="pagination-btn pagination-next"
+              onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+              disabled={safePage >= totalPages}
+              aria-label="Trang sau"
+            >
+              &gt;
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Modal xác nhận khóa tài khoản (soft delete) */}
+      {showDeleteModal && selectedUser && (
+        <div className="modal-overlay" onClick={handleCancelDelete}>
+          <div className="modal-container" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Xác nhận khóa tài khoản</h2>
+              <button className="modal-close" onClick={handleCancelDelete} aria-label="Đóng">
+                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                  <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              </button>
+            </div>
+            <div className="modal-body">
+              <p>
+                Bạn có chắc chắn muốn khóa tài khoản người dùng này không?
+                <br />
+                Người dùng sẽ không thể đăng nhập cho đến khi được kích hoạt lại.
+              </p>
+            </div>
+            <div className="modal-footer">
+              <button type="button" className="modal-btn modal-btn-cancel" onClick={handleCancelDelete} disabled={isDeleting}>
+                Hủy
+              </button>
+              <button type="button" className="modal-btn modal-btn-confirm" onClick={handleConfirmDelete} disabled={isDeleting}>
+                {isDeleting ? 'Đang xử lý...' : 'Xác nhận'}
+              </button>
+            </div>
+          </div>
         </div>
+      )}
 
       {/* View User Detail Modal */}
       {showViewDetailModal && viewingUser && (
@@ -605,8 +727,8 @@ const Dashboard = () => {
               <h2>Thông tin chi tiết người dùng</h2>
               <button className="modal-close" onClick={() => { setShowViewDetailModal(false); setViewingUser(null); }}>
                 <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
             </div>
@@ -673,36 +795,6 @@ const Dashboard = () => {
         </div>
       )}
 
-      {/* Delete Confirmation Modal */}
-      {showDeleteModal && (
-        <div className="modal-overlay" onClick={handleCancelDelete}>
-          <div className="modal-container" onClick={(e) => e.stopPropagation()}>
-            <div className="modal-header">
-              <h2>Xác nhận thay đổi trạng thái</h2>
-              <button className="modal-close" onClick={handleCancelDelete}>
-                <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-              </button>
-            </div>
-            <div className="modal-body">
-              <p>
-                Bạn có chắc chắn muốn chuyển người dùng <strong>{selectedUser?.name || selectedUser?.username}</strong> sang trạng thái <strong>không hoạt động</strong> không?
-              </p>
-            </div>
-            <div className="modal-footer">
-              <button className="modal-btn modal-btn-cancel" onClick={handleCancelDelete} disabled={isDeleting}>
-                Hủy
-              </button>
-              <button className="modal-btn modal-btn-confirm" onClick={handleConfirmDelete} disabled={isDeleting}>
-                {isDeleting ? 'Đang xử lý...' : 'Xác nhận'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
       {/* Edit User Modal */}
       {showEditModal && editingUser && (
         <div className="modal-overlay" onClick={handleCancelEdit}>
@@ -711,8 +803,8 @@ const Dashboard = () => {
               <h2>Chỉnh sửa thông tin người dùng</h2>
               <button className="modal-close" onClick={handleCancelEdit}>
                 <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
             </div>
@@ -750,21 +842,6 @@ const Dashboard = () => {
                     onChange={(e) => setEditFormData({ ...editFormData, dateOfBirth: e.target.value })}
                   />
                 </div>
-
-                <div className="form-group form-group-toggle">
-                  <label htmlFor="edit-active">Trạng thái hoạt động</label>
-                  <button
-                    type="button"
-                    id="edit-active"
-                    role="switch"
-                    aria-checked={editFormData.active}
-                    className={`toggle-active-btn ${editFormData.active ? 'toggle-active-on' : 'toggle-active-off'}`}
-                    onClick={() => setEditFormData({ ...editFormData, active: !editFormData.active })}
-                  >
-                    <span className="toggle-active-slider" />
-                    <span className="toggle-active-label">{editFormData.active ? 'Hoạt động' : 'Không hoạt động'}</span>
-                  </button>
-                </div>
               </div>
               <div className="modal-footer">
                 <button type="button" className="modal-btn modal-btn-cancel" onClick={handleCancelEdit} disabled={isSaving}>
@@ -787,8 +864,8 @@ const Dashboard = () => {
               <h2>Thêm người dùng mới</h2>
               <button className="modal-close" onClick={handleCancelAddUser}>
                 <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                  <line x1="6" y1="6" x2="18" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </button>
             </div>
@@ -802,10 +879,16 @@ const Dashboard = () => {
                         type="text"
                         id="add-username"
                         value={addUserFormData.username}
-                        onChange={(e) => setAddUserFormData({ ...addUserFormData, username: e.target.value })}
-                        required
+                        onChange={(e) => {
+                          setAddUserFormData({ ...addUserFormData, username: e.target.value });
+                          setAddUserFormErrors((prev) => ({ ...prev, username: '' }));
+                        }}
                         placeholder="Nhập tên người dùng"
+                        className={addUserFormErrors.username ? 'input-error' : ''}
                       />
+                      {addUserFormErrors.username && (
+                        <span className="form-error">{addUserFormErrors.username}</span>
+                      )}
                     </div>
 
                     <div className="form-group">
@@ -814,11 +897,16 @@ const Dashboard = () => {
                         type="password"
                         id="add-password"
                         value={addUserFormData.password}
-                        onChange={(e) => setAddUserFormData({ ...addUserFormData, password: e.target.value })}
-                        required
-                        minLength={6}
+                        onChange={(e) => {
+                          setAddUserFormData({ ...addUserFormData, password: e.target.value });
+                          setAddUserFormErrors((prev) => ({ ...prev, password: '' }));
+                        }}
                         placeholder="Nhập mật khẩu (tối thiểu 6 ký tự)"
+                        className={addUserFormErrors.password ? 'input-error' : ''}
                       />
+                      {addUserFormErrors.password && (
+                        <span className="form-error">{addUserFormErrors.password}</span>
+                      )}
                     </div>
 
                     <div className="form-group">
@@ -827,10 +915,16 @@ const Dashboard = () => {
                         type="email"
                         id="add-email"
                         value={addUserFormData.email}
-                        onChange={(e) => setAddUserFormData({ ...addUserFormData, email: e.target.value })}
-                        required
+                        onChange={(e) => {
+                          setAddUserFormData({ ...addUserFormData, email: e.target.value });
+                          setAddUserFormErrors((prev) => ({ ...prev, email: '' }));
+                        }}
                         placeholder="Nhập email"
+                        className={addUserFormErrors.email ? 'input-error' : ''}
                       />
+                      {addUserFormErrors.email && (
+                        <span className="form-error">{addUserFormErrors.email}</span>
+                      )}
                     </div>
 
                     <div className="form-group">
@@ -851,10 +945,16 @@ const Dashboard = () => {
                         type="text"
                         id="add-name"
                         value={addUserFormData.name}
-                        onChange={(e) => setAddUserFormData({ ...addUserFormData, name: e.target.value })}
-                        required
+                        onChange={(e) => {
+                          setAddUserFormData({ ...addUserFormData, name: e.target.value });
+                          setAddUserFormErrors((prev) => ({ ...prev, name: '' }));
+                        }}
                         placeholder="Nhập họ và tên"
+                        className={addUserFormErrors.name ? 'input-error' : ''}
                       />
+                      {addUserFormErrors.name && (
+                        <span className="form-error">{addUserFormErrors.name}</span>
+                      )}
                     </div>
 
                     <div className="form-group">
