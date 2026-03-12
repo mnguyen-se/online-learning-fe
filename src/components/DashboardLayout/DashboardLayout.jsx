@@ -2,7 +2,7 @@ import React from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { toast } from 'react-toastify';
-import { LayoutDashboard, BookOpen, Feather, MessageSquare, Home, BarChart3, BookMarked } from 'lucide-react';
+import { LayoutDashboard, BookOpen, Feather, MessageSquare, Home, BarChart3, BookMarked, Users } from 'lucide-react';
 import { logout } from '../../store/slices/userSlice';
 import { useAuth } from '../../hooks';
 import Header from '../Header/header';
@@ -17,8 +17,7 @@ const getSidebarItems = (role) => {
   if (role === 'ADMIN') {
     return [
       ...base,
-      { key: '/dashboard-admin', label: 'Dashboard', path: '/dashboard-admin', icon: 'dashboard' },
-      { key: 'users', label: 'Quản lý người dùng', path: '/dashboard-admin', icon: 'dashboard' },
+      { key: '/dashboard-admin', label: 'Quản lý người dùng', path: '/dashboard-admin', icon: 'users' },
       { key: '/admin-courses', label: 'Quản lý khóa học', path: '/admin-courses', icon: 'book' },
     ];
   }
@@ -72,6 +71,7 @@ function DashboardLayout({
 
   const renderNavIcon = (item) => {
     if (item.key === '/' || item.icon === 'home') return <Home size={ICON_SIZE} strokeWidth={2} />;
+    if (item.icon === 'users') return <Users size={ICON_SIZE} strokeWidth={2} />;
     if (item.icon === 'dashboard') return <LayoutDashboard size={ICON_SIZE} strokeWidth={2} />;
     if (item.icon === 'book') return <BookOpen size={ICON_SIZE} strokeWidth={2} />;
     if (item.icon === 'overview') return <BarChart3 size={ICON_SIZE} strokeWidth={2} />;
