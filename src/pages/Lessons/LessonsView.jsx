@@ -472,7 +472,19 @@ function LessonsView() {
             questionsLoading: true,
             questionsError: '',
           };
-        }));
+        }),
+      );
+      setSelectedLesson((prev) => {
+        if (!isAssignmentItem(prev) || idToKey(prev.assignmentId) !== key) {
+          return prev;
+        }
+        return {
+          ...prev,
+          questionsLoading: true,
+          questionsError: '',
+        };
+      });
+
       try {
         const isQuiz =
           normalizeAssignmentType(
