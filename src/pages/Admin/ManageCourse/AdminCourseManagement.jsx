@@ -3,7 +3,9 @@ import { toast } from 'react-toastify';
 import DashboardLayout from '../../../components/DashboardLayout';
 import { getCourses } from '../../../api/coursesApi';
 import { getLessons } from '../../../api/lessionApi';
-import { assignEnrollment } from '../../../api/enrollmentApi';
+import { getModulesByCourse } from '../../../api/module';
+import { getAssignmentsByCourse } from '../../../api/assignmentApi';
+import { assignEnrollment, getEnrolledStudentsByCourse } from '../../../api/enrollmentApi';
 import '../../Manager/ManageCourse/courseManagement.css';
 
 function AdminCourseManagement() {
@@ -47,17 +49,28 @@ function AdminCourseManagement() {
     return getCourseIsActive(course);
   };
 
+  /** Lấy số liệu thực tế theo courseId: số chương, bài học, bài kiểm tra, số học sinh từ API */
   const loadCourseStats = async (courseId) => {
-    if (!courseId) return { modules: 0, lessons: 0 };
+    if (!courseId) return { modules: 0, lessons: 0, assignments: 0, students: 0 };
     try {
-      const data = await getLessons({ courseId });
-      const rawList = Array.isArray(data) ? data : data?.data ?? [];
-      const uniqueSections = new Set(
-        rawList.map((lesson) => lesson.sectionId ?? lesson.section_id ?? lesson.section ?? 0).filter((s) => s > 0)
-      );
-      return { modules: uniqueSections.size, lessons: rawList.length };
+      const [modulesRes, lessonsRes, assignmentsRes, studentsRes] = await Promise.all([
+        getModulesByCourse(courseId),
+        getLessons({ courseId }),
+        getAssignmentsByCourse(courseId).catch(() => []),
+        getEnrolledStudentsByCourse(courseId).catch(() => []),
+      ]);
+      const modulesList = Array.isArray(modulesRes) ? modulesRes : modulesRes?.data ?? [];
+      const lessonsList = Array.isArray(lessonsRes) ? lessonsRes : lessonsRes?.data ?? [];
+      const assignmentsList = Array.isArray(assignmentsRes) ? assignmentsRes : assignmentsRes?.data ?? [];
+      const studentsList = Array.isArray(studentsRes) ? studentsRes : studentsRes?.data ?? [];
+      return {
+        modules: modulesList.length,
+        lessons: lessonsList.length,
+        assignments: assignmentsList.length,
+        students: studentsList.length,
+      };
     } catch {
-      return { modules: 0, lessons: 0 };
+      return { modules: 0, lessons: 0, assignments: 0, students: 0 };
     }
   };
 
@@ -87,7 +100,7 @@ function AdminCourseManagement() {
           const stats = await loadCourseStats(courseId);
           return { courseId, stats };
         }
-        return { courseId: null, stats: { modules: 0, lessons: 0 } };
+        return { courseId: null, stats: { modules: 0, lessons: 0, assignments: 0, students: 0 } };
       });
       const statsResults = await Promise.all(statsPromises);
       const newStats = {};
@@ -158,6 +171,9 @@ function AdminCourseManagement() {
       await assignEnrollment({ username, courseId: Number(courseId) });
       toast.success('Đã gán học viên vào khóa học.');
       closeAssignModal();
+      // Cập nhật lại số học sinh trên card khóa học vừa gán
+      const stats = await loadCourseStats(courseId);
+      setCourseStats((prev) => ({ ...prev, [courseId]: { ...prev[courseId], ...stats } }));
     } catch (error) {
       const msg = error?.response?.data?.message || error?.message || 'Gán học viên thất bại.';
       toast.error(msg);
@@ -202,10 +218,12 @@ function AdminCourseManagement() {
             {filteredCourses.length ? (
               filteredCourses.map((course, index) => {
                 const courseId = getCourseId(course);
-                const stats = courseStats[courseId] || { modules: 0, lessons: 0 };
+                const stats = courseStats[courseId] || { modules: 0, lessons: 0, assignments: 0, students: 0 };
                 const isActive = resolveCourseActiveState(course);
                 const chaptersCount = Number(stats.modules) || 0;
                 const lessonsCount = Number(stats.lessons) || 0;
+                const testsCount = Number(stats.assignments) || 0;
+                const studentsCount = Number(stats.students) || 0;
                 return (
                   <article
                     className="manager-course-card"
@@ -240,7 +258,17 @@ function AdminCourseManagement() {
                             <path d="M21 12v7a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11" />
                           </svg>
                         </span>
-                        <span>0 BÀI KIỂM TRA</span>
+                        <span>{testsCount} BÀI KIỂM TRA</span>
+                      </div>
+                      <div className="manager-course-card__meta-row">
+                        <span className="manager-course-card__meta-icon">
+                          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+                            <circle cx="9" cy="7" r="4" />
+                            <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+                          </svg>
+                        </span>
+                        <span>{studentsCount} HỌC SINH</span>
                       </div>
                     </div>
                     <div className="manager-course-card__footer">
