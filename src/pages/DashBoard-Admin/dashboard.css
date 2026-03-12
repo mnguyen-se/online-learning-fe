@@ -1047,6 +1047,23 @@
   color: #9CA3AF;
 }
 
+.form-group input.input-error {
+  border-color: #dc2626;
+  background-color: #fef2f2;
+}
+
+.form-group input.input-error:focus {
+  border-color: #dc2626;
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+}
+
+.form-error {
+  display: block;
+  font-size: 13px;
+  color: #dc2626;
+  margin-top: 0.25rem;
+}
+
 .form-group select {
   padding: 10px 14px;
   border: 1px solid #E5E7EB;
@@ -1065,9 +1082,21 @@
 }
 
 .form-group-toggle {
-  flex-direction: row;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+}
+
+.form-group-toggle > label {
+  margin-bottom: 0;
+}
+
+.form-toggle-hint {
+  margin: 0.25rem 0 0 0;
+  font-size: 0.8125rem;
+  color: #6B7280;
+  line-height: 1.4;
+  max-width: 100%;
 }
 
 .toggle-active-btn {
@@ -1150,4 +1179,89 @@
   background: #FF5722;
   transform: translateY(-1px);
   box-shadow: 0 4px 8px rgba(255, 107, 74, 0.3);
+}
+
+/* Phân trang bảng người dùng */
+.dashboard-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 1rem 0;
+  margin-top: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.pagination-btn {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  border-color: #2563eb;
+  color: #2563eb;
+  background: #eff6ff;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.pagination-numbers {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.pagination-num {
+  min-width: 36px;
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  background: #fff;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #64748b;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.pagination-num:hover {
+  border-color: #2563eb;
+  color: #2563eb;
+  background: #eff6ff;
+}
+
+.pagination-num.active {
+  border-color: #2563eb;
+  background: #2563eb;
+  color: #fff;
+}
+
+.pagination-num.active:hover {
+  background: #1d4ed8;
+  border-color: #1d4ed8;
+  color: #fff;
+}
+
+.pagination-ellipsis {
+  padding: 0 0.25rem;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: #94a3b8;
+  user-select: none;
 }

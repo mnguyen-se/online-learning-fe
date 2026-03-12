@@ -1448,8 +1448,9 @@ function LessonsView() {
   if (isLoading) {
     return (
       <div className="lessons-page">
-        <Header />
-        <div className="lessons-view-container">
+        <div className="lessons-app-frame">
+          <Header />
+          <div className="lessons-view-container">
           <div className="lessons-header">
             <div className="loading-skeleton skeleton-title" />
             <div className="loading-skeleton skeleton-subtitle" />
@@ -1468,6 +1469,7 @@ function LessonsView() {
               <div className="loading-skeleton skeleton-main-content" />
             </div>
           </div>
+          </div>
         </div>
       </div>
     );
@@ -1476,8 +1478,9 @@ function LessonsView() {
   if (error) {
     return (
       <div className="lessons-page">
-        <Header />
-        <div className="lessons-view-container">
+        <div className="lessons-app-frame">
+          <Header />
+          <div className="lessons-view-container">
           <div className="lessons-error">
             <p>{error}</p>
             <button
@@ -1489,46 +1492,16 @@ function LessonsView() {
             </button>
           </div>
         </div>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="lessons-page">
-      <Header />
-      <div className="lessons-view-container">
-        {/* Breadcrumb cho course mode */}
-        {isCourseLearningMode ? (
-          <nav className="lessons-breadcrumb" aria-label="Breadcrumb">
-            <button
-              type="button"
-              className="breadcrumb-link"
-              onClick={() => navigate("/my-courses")}
-            >
-              Khóa học của tôi
-            </button>
-            <span className="breadcrumb-sep"> &gt; </span>
-            <span className="breadcrumb-current">
-              {courseDetail?.title || "Khóa học"}
-            </span>
-            {selectedLesson && (
-              <>
-                <span className="breadcrumb-sep"> &gt; </span>
-                <span className="breadcrumb-current">
-                  {selectedLesson.title || "Bài học"}
-                </span>
-              </>
-            )}
-          </nav>
-        ) : (
-          <div className="lessons-header">
-            <h1 className="lessons-title">Danh sách Bài học</h1>
-            <p className="lessons-subtitle">
-              Xem và học các bài học đã được công bố
-            </p>
-          </div>
-        )}
-
+      <div className="lessons-app-frame">
+        <Header />
+        <div className="lessons-view-container">
         <div className={`lessons-layout ${selectedLesson && isAssignmentItem(selectedLesson) && selectedLesson.assignmentType === 'QUIZ' && Array.isArray(selectedLesson.questions) && selectedLesson.questions.length > 0 ? 'lessons-layout-with-quiz-map' : ''}`}>
           <div className="lessons-sidebar">
             <h2 className="lessons-sidebar-title">
@@ -1678,6 +1651,39 @@ function LessonsView() {
             )}
           </div>
 
+          <div className="lessons-content-column">
+            {isCourseLearningMode ? (
+              <nav className="lessons-breadcrumb" aria-label="Breadcrumb">
+                <button
+                  type="button"
+                  className="breadcrumb-link"
+                  onClick={() => navigate("/my-courses")}
+                >
+                  Khóa học của tôi
+                </button>
+                <span className="breadcrumb-sep"> &gt; </span>
+                <span className="breadcrumb-current">
+                  {courseDetail?.title || "Khóa học"}
+                </span>
+                {selectedLesson && (
+                  <>
+                    <span className="breadcrumb-sep"> &gt; </span>
+                    <span className="breadcrumb-current">
+                      {selectedLesson.title || "Bài học"}
+                    </span>
+                  </>
+                )}
+              </nav>
+            ) : (
+              <div className="lessons-header">
+                <h1 className="lessons-title">Danh sách Bài học</h1>
+                <p className="lessons-subtitle">
+                  Xem và học các bài học đã được công bố
+                </p>
+              </div>
+            )}
+
+            <div className="lessons-main-row">
           <div className="lessons-main">
             {selectedLesson ? (
               <div className="lesson-detail lesson-detail-flow">
@@ -1892,8 +1898,11 @@ function LessonsView() {
                 </div>
               </aside>
             )}
+            </div>
+          </div>
         </div>
 
+        </div>
       </div>
     </div>
   );
