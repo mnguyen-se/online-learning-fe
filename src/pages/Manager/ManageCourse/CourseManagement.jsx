@@ -208,8 +208,12 @@ function CourseManagement() {
     const trimmedTitle = courseTitle.trim();
     const trimmedDescription = courseDescription.trim();
 
-    if (!trimmedTitle || !trimmedDescription) {
-      setCourseError('Vui lòng nhập tên khóa học và mô tả.');
+    if (!trimmedTitle) {
+      setCourseError('Vui lòng nhập tên khóa học.');
+      return;
+    }
+    if (!trimmedDescription) {
+      setCourseError('Vui lòng nhập mô tả.');
       return;
     }
 
@@ -1605,8 +1609,12 @@ function CourseManagement() {
     const trimmedTitle = editCourseForm.title.trim();
     const trimmedDescription = editCourseForm.description.trim();
 
-    if (!trimmedTitle || !trimmedDescription) {
-      toast.error('Vui lòng nhập tên khóa học và mô tả tổng quan.');
+    if (!trimmedTitle) {
+      toast.error('Vui lòng nhập tên khóa học.');
+      return;
+    }
+    if (!trimmedDescription) {
+      toast.error('Vui lòng nhập mô tả tổng quan.');
       return;
     }
 
