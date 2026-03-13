@@ -1414,6 +1414,11 @@ function CourseManagement() {
       setTestError('Vui lòng chọn hạn nộp.');
       return false;
     }
+    const dueDateMs = new Date(testData.dueDate).getTime();
+    if (!Number.isFinite(dueDateMs) || dueDateMs <= Date.now()) {
+      setTestError('Hạn nộp phải lớn hơn thời gian hiện tại.');
+      return false;
+    }
     const parsedMaxScore = Number(testData?.maxScore);
     if (!Number.isFinite(parsedMaxScore) || parsedMaxScore <= 0) {
       setTestError('Điểm tối đa phải lớn hơn 0.');

@@ -15,6 +15,13 @@ const toDateTimeLocalValue = (value) => {
   return raw.length >= 16 ? raw.slice(0, 16) : raw;
 };
 
+/** Trả về thời gian hiện tại dạng YYYY-MM-DDTHH:mm để dùng cho min của datetime-local */
+const getMinDateTimeLocal = () => {
+  const d = new Date();
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+};
+
 const toReadableDate = (value) => {
   if (!value) return 'Chưa đặt hạn nộp';
   const date = new Date(value);
@@ -321,6 +328,11 @@ const CourseTestDetails = ({
       setFormError('Vui lòng chọn hạn nộp.');
       return;
     }
+    const dueDateMs = new Date(dueDate).getTime();
+    if (!Number.isFinite(dueDateMs) || dueDateMs <= Date.now()) {
+      setFormError('Hạn nộp phải lớn hơn thời gian hiện tại.');
+      return;
+    }
 
     let writingPayload = [];
     if (testType === 'WRITING') {
@@ -607,6 +619,7 @@ const CourseTestDetails = ({
           <input
             className="lesson-details-input"
             type="datetime-local"
+            min={getMinDateTimeLocal()}
             value={dueDate}
             onChange={(event) => setDueDate(event.target.value)}
             disabled={isLoading}
