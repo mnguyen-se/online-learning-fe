@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { validateQuizExcelFile } from '../../../../utils/quizExcelValidation';
 
 const QUESTIONS_PER_PAGE = 5;
 
@@ -121,6 +122,8 @@ const CourseTestDetails = ({
   const [dueDate, setDueDate] = useState(() => initialTest.dueDate);
   const [testType, setTestType] = useState(() => initialTest.testType);
   const [quizFile, setQuizFile] = useState(null);
+  const [quizFileError, setQuizFileError] = useState('');
+  const [quizFileValid, setQuizFileValid] = useState(false);
   const [writingQuestions, setWritingQuestions] = useState(() => initialTest.writingQuestions);
   const [formError, setFormError] = useState('');
   const [questionPage, setQuestionPage] = useState(1);
@@ -130,6 +133,32 @@ const CourseTestDetails = ({
     setQuestionPage(1);
     setFormQuestionPage(1);
   }, [selectedTest?.id]);
+
+  useEffect(() => {
+    if (testType === 'WRITING') {
+      setQuizFile(null);
+      setQuizFileError('');
+      setQuizFileValid(false);
+    }
+  }, [testType]);
+
+  const handleQuizFileChange = async (event) => {
+    const file = event.target.files?.[0] ?? null;
+    event.target.value = '';
+    setQuizFile(file);
+    setQuizFileError('');
+    setQuizFileValid(false);
+    if (!file) return;
+    const result = await validateQuizExcelFile(file);
+    if (result.valid) {
+      setQuizFileValid(true);
+      setQuizFileError('');
+    } else {
+      setQuizFileValid(false);
+      setQuizFileError(result.message || 'File không đúng định dạng mẫu.');
+      setQuizFile(null);
+    }
+  };
 
   const handleTitleChange = (value) => {
     setTitle(value);
@@ -332,6 +361,13 @@ const CourseTestDetails = ({
     if (!Number.isFinite(dueDateMs) || dueDateMs <= Date.now()) {
       setFormError('Hạn nộp phải lớn hơn thời gian hiện tại.');
       return;
+    }
+
+    if (testType === 'QUIZ') {
+      if (!quizFile || !quizFileValid) {
+        setFormError(quizFileError || 'Vui lòng tải lên file Excel đúng định dạng mẫu trước khi tạo bài kiểm tra.');
+        return;
+      }
     }
 
     let writingPayload = [];
@@ -639,11 +675,19 @@ const CourseTestDetails = ({
               <input
                 type="file"
                 accept=".xlsx,.xls"
-                onChange={(event) => setQuizFile(event.target.files?.[0] ?? null)}
+                onChange={handleQuizFileChange}
                 disabled={isLoading}
               />
               Chọn file Excel
             </label>
+            {quizFileError && (
+              <p className="course-error" style={{ marginTop: 8 }}>{quizFileError}</p>
+            )}
+            {quizFileValid && quizFile && (
+              <p className="lesson-details-view-value" style={{ marginTop: 8, color: 'var(--success, #22c55e)' }}>
+                ✓ Đã chọn file hợp lệ: {quizFile.name}
+              </p>
+            )}
           </div>
         )}
 
@@ -989,7 +1033,11 @@ const CourseTestDetails = ({
           <button
             type="submit"
             className="lesson-details-btn lesson-details-btn-save"
-            disabled={isLoading || !title.trim()}
+            disabled={
+              isLoading
+              || !title.trim()
+              || (testType === 'QUIZ' && (!quizFile || !quizFileValid))
+            }
           >
             {isLoading ? 'Đang lưu...' : 'Tạo assignment'}
           </button>

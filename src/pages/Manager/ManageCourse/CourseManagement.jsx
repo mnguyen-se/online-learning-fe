@@ -11,6 +11,7 @@ import {
   getWritingQuestions,
   uploadAssignmentQuestions,
 } from '../../../api/assignmentApi';
+import { validateQuizExcelFile } from '../../../utils/quizExcelValidation';
 import { createModule, deleteModule, getModulesByCourse, getPublicModulesByCourse, updateModule } from '../../../api/module';
 import DashboardLayout from '../../../components/DashboardLayout';
 import CourseCard from './components/CourseCard';
@@ -1423,6 +1424,15 @@ function CourseManagement() {
     if (!Number.isFinite(parsedMaxScore) || parsedMaxScore <= 0) {
       setTestError('Điểm tối đa phải lớn hơn 0.');
       return false;
+    }
+
+    const resolvedType = normalizeAssignmentType(testData?.testType);
+    if (resolvedType === 'QUIZ' && testData?.quizFile instanceof File) {
+      const validation = await validateQuizExcelFile(testData.quizFile);
+      if (!validation.valid) {
+        setTestError(validation.message || 'File không đúng định dạng mẫu. Vui lòng kiểm tra lại các cột.');
+        return false;
+      }
     }
 
     try {
