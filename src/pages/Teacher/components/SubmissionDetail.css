@@ -312,6 +312,7 @@ a.submission-detail-attachment-btn {
   background: #1e40af !important;
   border-color: #1e40af !important;
   align-self: flex-start;
+  color: #ffffff !important;
 }
 
 .submission-detail-btn-save:hover {
@@ -323,6 +324,19 @@ a.submission-detail-attachment-btn {
   background: #7c3aed !important;
   border-color: #7c3aed !important;
   align-self: flex-start;
+  color: #ffffff !important;
+}
+
+.submission-detail-btn-publish {
+  background: #0f766e !important;
+  border-color: #0f766e !important;
+  align-self: flex-start;
+  color: #ffffff !important;
+}
+
+.submission-detail-btn-publish[disabled] {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 .submission-detail-btn-feedback:hover {

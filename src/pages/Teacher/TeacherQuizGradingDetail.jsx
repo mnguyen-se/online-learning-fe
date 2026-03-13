@@ -28,7 +28,8 @@ function TeacherQuizGradingDetail() {
   const [assignment, setAssignment] = useState(null);
   const [questions, setQuestions] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const [publishingScoreLoading, setPublishingScoreLoading] = useState(false);
+  const [sendingFeedbackLoading, setSendingFeedbackLoading] = useState(false);
   const [feedback, setFeedback] = useState('');
   const [activeTab, setActiveTab] = useState('all');
 
@@ -95,7 +96,7 @@ function TeacherQuizGradingDetail() {
 
   /** Quiz: chỉ gửi nhận xét (giữ nguyên điểm nếu đã có) */
   const handleSendFeedback = () => {
-    setSubmitting(true);
+    setSendingFeedbackLoading(true);
     const currentScore = submission?.score ?? displayScore;
     gradeQuizSubmission(submissionId, {
       score: currentScore != null ? currentScore : 0,
@@ -107,12 +108,12 @@ function TeacherQuizGradingDetail() {
         setSubmission((prev) => (prev ? { ...prev, feedback: feedback.trim() || null } : null));
       })
       .catch(() => toast.error('Không thể gửi nhận xét. Vui lòng thử lại.'))
-      .finally(() => setSubmitting(false));
+      .finally(() => setSendingFeedbackLoading(false));
   };
 
   /** Quiz: công bố điểm cho học sinh xem — BE tự chấm (score = null → BE tính từ đáp án) */
   const handlePublishScore = () => {
-    setSubmitting(true);
+    setPublishingScoreLoading(true);
     gradeQuizSubmission(submissionId, {
       score: null,
       feedback: feedback.trim() || null,
@@ -133,7 +134,7 @@ function TeacherQuizGradingDetail() {
         );
       })
       .catch(() => toast.error('Không thể công bố điểm. Vui lòng thử lại.'))
-      .finally(() => setSubmitting(false));
+      .finally(() => setPublishingScoreLoading(false));
   };
 
   const backToList = () => {
@@ -184,6 +185,7 @@ function TeacherQuizGradingDetail() {
     'Học viên';
   const isGraded = submission.score != null;
   const initial = studentName && studentName[0] ? studentName[0].toUpperCase() : '?';
+  const hasFeedback = submission.feedback != null && String(submission.feedback).trim() !== '';
   /** Đáp án học sinh từ API GET /assignments/quiz-submissions/{submissionId} */
   const answersArray = Array.isArray(submission?.answers)
     ? submission.answers
@@ -517,7 +519,10 @@ function TeacherQuizGradingDetail() {
             onSaveScore={() => {}}
             onSendFeedback={handleSendFeedback}
             onBack={backToList}
-            submitting={submitting}
+            scoreLoading={publishingScoreLoading}
+            feedbackLoading={sendingFeedbackLoading}
+            scoreDisabled={isGraded}
+            feedbackDisabled={hasFeedback}
             isQuiz
             displayScore={displayScore}
             onPublishScore={isGraded ? undefined : handlePublishScore}

@@ -37,7 +37,8 @@ function TeacherGradingDetail() {
   const [submission, setSubmission] = useState(null);
   const [assignment, setAssignment] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [submitting, setSubmitting] = useState(false);
+  const [savingScoreLoading, setSavingScoreLoading] = useState(false);
+  const [sendingFeedbackLoading, setSendingFeedbackLoading] = useState(false);
   const [score, setScore] = useState('');
   const [feedback, setFeedback] = useState('');
 
@@ -80,7 +81,7 @@ function TeacherGradingDetail() {
       toast.warning('Vui lòng nhập điểm.');
       return;
     }
-    setSubmitting(true);
+    setSavingScoreLoading(true);
     const answerGrades = buildAnswerGrades(submission);
     gradeWritingSubmission(submissionId, {
       score: numScore,
@@ -92,11 +93,11 @@ function TeacherGradingDetail() {
         setSubmission((prev) => (prev ? { ...prev, score: numScore, feedback: feedback.trim() || null } : null));
       })
       .catch(() => toast.error('Không thể lưu điểm. Vui lòng thử lại.'))
-      .finally(() => setSubmitting(false));
+      .finally(() => setSavingScoreLoading(false));
   };
 
   const handleSendFeedback = () => {
-    setSubmitting(true);
+    setSendingFeedbackLoading(true);
     const answerGrades = buildAnswerGrades(submission);
     gradeWritingSubmission(submissionId, {
       score: submission?.score ?? 0,
@@ -108,7 +109,7 @@ function TeacherGradingDetail() {
         setSubmission((prev) => (prev ? { ...prev, feedback: feedback.trim() || null } : null));
       })
       .catch(() => toast.error('Không thể gửi nhận xét. Vui lòng thử lại.'))
-      .finally(() => setSubmitting(false));
+      .finally(() => setSendingFeedbackLoading(false));
   };
 
   const backToList = () => {
@@ -188,6 +189,7 @@ function TeacherGradingDetail() {
   const studentName = submission.studentName ?? submission.student_name ?? submission.userName ?? submission.user_name ?? 'Học viên';
   const isGraded = submission.score != null;
   const initial = (studentName && studentName[0]) ? studentName[0].toUpperCase() : '?';
+  const hasFeedback = submission.feedback != null && String(submission.feedback).trim() !== '';
 
   return (
     <div className="grading-detail-page">
@@ -235,7 +237,10 @@ function TeacherGradingDetail() {
             onSaveScore={handleSaveScore}
             onSendFeedback={handleSendFeedback}
             onBack={backToList}
-            submitting={submitting}
+            scoreLoading={savingScoreLoading}
+            feedbackLoading={sendingFeedbackLoading}
+            scoreDisabled={isGraded}
+            feedbackDisabled={hasFeedback}
           />
         </div>
       </div>

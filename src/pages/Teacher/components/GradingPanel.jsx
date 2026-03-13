@@ -18,6 +18,14 @@ function GradingPanel({
   onSendFeedback,
   onBack,
   submitting = false,
+  /** Cho phép truyền loading riêng cho nút điểm (ưu tiên hơn submitting nếu có) */
+  scoreLoading,
+  /** Cho phép truyền loading riêng cho nút gửi nhận xét (ưu tiên hơn submitting nếu có) */
+  feedbackLoading,
+  /** Disable cố định nút điểm (ví dụ sau khi đã công bố/hiển thị 1 lần) */
+  scoreDisabled = false,
+  /** Disable cố định nút gửi nhận xét (ví dụ sau khi đã gửi 1 lần) */
+  feedbackDisabled = false,
   /** Quiz: true = điểm tự động theo BE, chỉ nút công bố điểm */
   isQuiz = false,
   /** Quiz: điểm hiển thị (đã chấm từ BE hoặc tính từ đáp án) */
@@ -27,6 +35,14 @@ function GradingPanel({
 }) {
   const showScoreReadOnly = isQuiz && (displayScore != null || onPublishScore != null);
   const scoreValue = showScoreReadOnly ? (displayScore ?? '—') : (score === '' ? undefined : Number(score));
+  const effectiveScoreLoading =
+    typeof scoreLoading === 'boolean'
+      ? scoreLoading
+      : submitting;
+  const effectiveFeedbackLoading =
+    typeof feedbackLoading === 'boolean'
+      ? feedbackLoading
+      : submitting;
 
   return (
     <Card className="submission-detail-card submission-detail-card-grading" bordered={false}>
@@ -57,30 +73,25 @@ function GradingPanel({
           <span className="submission-detail-score-scale">/ {maxScore}</span>
         </div>
         {isQuiz ? (
-          onPublishScore ? (
-            <Button
-              type="primary"
-              size="large"
-              icon={<Eye size={18} />}
-              onClick={onPublishScore}
-              loading={submitting}
-              disabled={submitting}
-              className="submission-detail-btn submission-detail-btn-publish"
-            >
-              Mở điểm cho học sinh xem
-            </Button>
-          ) : (
-            <Button size="large" disabled className="submission-detail-btn submission-detail-btn-publish">
-              Đã công bố điểm
-            </Button>
-          )
+          <Button
+            type="primary"
+            size="large"
+            icon={<Eye size={18} />}
+            onClick={onPublishScore}
+            loading={effectiveScoreLoading}
+            disabled={effectiveScoreLoading || scoreDisabled}
+            className="submission-detail-btn submission-detail-btn-publish"
+          >
+            Mở điểm cho học sinh xem
+          </Button>
         ) : (
           <Button
             type="primary"
             size="large"
             icon={<Eye size={18} />}
             onClick={onSaveScore}
-            loading={submitting}
+            loading={effectiveScoreLoading}
+            disabled={effectiveScoreLoading || scoreDisabled}
             className="submission-detail-btn submission-detail-btn-save"
           >
             Hiển thị điểm cho học sinh
@@ -103,7 +114,8 @@ function GradingPanel({
             size="large"
             icon={<Send size={18} />}
             onClick={onSendFeedback}
-            loading={submitting}
+            loading={effectiveFeedbackLoading}
+            disabled={effectiveFeedbackLoading || feedbackDisabled}
             className="submission-detail-btn submission-detail-btn-feedback"
           >
             Gửi nhận xét
