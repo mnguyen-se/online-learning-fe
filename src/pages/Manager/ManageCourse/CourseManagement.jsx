@@ -1634,12 +1634,14 @@ function CourseManagement() {
     }
 
     const teacherId = editCourseForm.teacherId ? Number(editCourseForm.teacherId) : null;
+    const currentIsPublic = getCourseIsActive(editCourseModal.course);
     try {
       setIsUpdatingCourse(true);
       await updateCourse(courseId, {
         title: trimmedTitle,
         description: trimmedDescription,
         teacherId,
+        isPublic: currentIsPublic,
       });
       toast.success('Đã cập nhật thông tin khóa học.');
       await loadCourses();
