@@ -107,6 +107,7 @@ function GradingPanel({
           onChange={(e) => onFeedbackChange(e.target.value)}
           placeholder="Nhập nhận xét chi tiết để giúp học sinh tiến bộ..."
           className="submission-detail-textarea"
+          disabled={feedbackDisabled}
         />
         {onSendFeedback && (
           <Button

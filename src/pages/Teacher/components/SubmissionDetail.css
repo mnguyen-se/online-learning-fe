@@ -351,6 +351,13 @@ a.submission-detail-attachment-btn {
   font-size: 14px;
 }
 
+/* Khi ô nhận xét bị disable vẫn dùng màu chữ đậm để dễ đọc */
+.submission-detail-textarea.ant-input[disabled] {
+  color: #334155;
+  -webkit-text-fill-color: #334155; /* fix màu chữ disabled trên WebKit */
+  background-color: #f1f5f9;
+}
+
 .submission-detail-textarea.ant-input:focus,
 .submission-detail-textarea.ant-input:hover {
   border-color: #2563eb;
