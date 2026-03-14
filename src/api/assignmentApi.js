@@ -78,9 +78,10 @@ export const getQuizSubmission = async (submissionId) => {
   return response.data;
 };
 
-/** GET /assignments/{assignmentId}/quiz-result – Xem kết quả quiz, lấy câu hỏi + đáp án đúng (TEACHER/Học sinh) */
-export const getQuizResult = async (assignmentId) => {
-  const response = await apiClient.get(`/assignments/${assignmentId}/quiz-result`);
+/** GET /assignments/{assignmentId}/quiz-result – Xem kết quả quiz, lấy câu hỏi + đáp án đúng (TEACHER/Học sinh)
+ * @param {Object} config - Axios config, e.g. { skipErrorToast: true } khi dùng để kiểm tra trạng thái (tránh toast trùng) */
+export const getQuizResult = async (assignmentId, config = {}) => {
+  const response = await apiClient.get(`/assignments/${assignmentId}/quiz-result`, config);
   return response.data;
 };
 
@@ -93,7 +94,7 @@ export const getQuizResult = async (assignmentId) => {
  */
 export const getMyQuizStatus = async (assignmentId) => {
   try {
-    const data = await getQuizResult(assignmentId);
+    const data = await getQuizResult(assignmentId, { skipErrorToast: true });
     const raw = data?.data ?? data;
     const score = raw?.score;
     const hasSubmission =
@@ -148,9 +149,10 @@ export const gradeWritingSubmission = async (submissionId, payload) => {
   return response.data;
 };
 
-/** GET /assignments/{assignmentId}/writing-result – Học sinh xem điểm và nhận xét bài Writing */
-export const getWritingResult = async (assignmentId) => {
-  const response = await apiClient.get(`/assignments/${assignmentId}/writing-result`);
+/** GET /assignments/{assignmentId}/writing-result – Học sinh xem điểm và nhận xét bài Writing
+ * @param {Object} config - Axios config, e.g. { skipErrorToast: true } khi dùng để kiểm tra trạng thái (tránh toast trùng) */
+export const getWritingResult = async (assignmentId, config = {}) => {
+  const response = await apiClient.get(`/assignments/${assignmentId}/writing-result`, config);
   return response.data;
 };
 
@@ -159,7 +161,7 @@ export const getWritingResult = async (assignmentId) => {
  */
 export const getMyWritingStatus = async (assignmentId) => {
   try {
-    const data = await getWritingResult(assignmentId);
+    const data = await getWritingResult(assignmentId, { skipErrorToast: true });
     const raw = data?.data ?? data;
     const score = raw?.score;
     const hasSubmission =

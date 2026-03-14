@@ -377,6 +377,7 @@ function LessonsView() {
   const [quizCurrentQuestion, setQuizCurrentQuestion] = useState(1);
   /** Lưu (courseId, assignmentDrafts) để khi đổi khóa học có thể ghi draft cũ vào đúng key trước khi load draft mới */
   const draftStorageRef = useRef({ courseId: undefined, assignmentDrafts: {} });
+  const mountedRef = useRef(true);
 
   const selectedLessonKey = idToKey(resolveLessonId(selectedLesson));
   const selectedLessonHint = aiHintByLesson[selectedLessonKey] || "";
@@ -622,7 +623,7 @@ function LessonsView() {
         setAssignments(assignmentItems);
         if (assignmentItems.length > 0) {
           buildInitialAssignmentStatuses(assignmentItems).then((map) => {
-            if (map && Object.keys(map).length > 0) {
+            if (mountedRef.current && map && Object.keys(map).length > 0) {
               setAssignmentStatuses((prev) => ({ ...prev, ...map }));
             }
           });
@@ -692,7 +693,11 @@ function LessonsView() {
   }, [courseId, isCourseLearningMode, lessonId, navigate]);
 
   useEffect(() => {
+    mountedRef.current = true;
     loadLessons();
+    return () => {
+      mountedRef.current = false;
+    };
   }, [loadLessons]);
 
   useEffect(() => {
