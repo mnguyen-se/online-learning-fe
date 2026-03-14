@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion as Motion } from 'framer-motion';
 import { User, Lock, BookOpen } from 'lucide-react';
 import { useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
@@ -114,7 +114,7 @@ export const LoginForm = ({ isActive }) => {
   };
 
   return (
-    <motion.div
+    <Motion.div
       className="auth-form-container auth-form-container--login"
       initial={false}
       animate={{
@@ -128,14 +128,14 @@ export const LoginForm = ({ isActive }) => {
         <div className="auth-header-icon" aria-hidden>
           <BookOpen size={32} strokeWidth={1.5} />
         </div>
-        <motion.h2
+        <Motion.h2
           className="auth-title"
           initial={{ y: 20, opacity: 0 }}
           animate={{ y: isActive ? 0 : 20, opacity: isActive ? 1 : 0 }}
           transition={{ delay: 0.1, duration: 0.5 }}
         >
           Chào mừng trở lại
-        </motion.h2>
+        </Motion.h2>
         <p className="auth-subtitle" style={{ margin: '5px 0 10px 0'}}>
           Chào mừng bạn đến với website học tiếng Nhật
         </p>
@@ -192,6 +192,6 @@ export const LoginForm = ({ isActive }) => {
           </button>
         </form>
       </div>
-    </motion.div>
+    </Motion.div>
   );
 };
