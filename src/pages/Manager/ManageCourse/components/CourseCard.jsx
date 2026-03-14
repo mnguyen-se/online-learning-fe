@@ -31,6 +31,14 @@ const IconEdit = () => (
   </svg>
 );
 
+const IconStudents = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" />
+    <circle cx="9" cy="7" r="4" />
+    <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
+  </svg>
+);
+
 const CourseCard = ({
   course,
   courseStats,
@@ -38,6 +46,7 @@ const CourseCard = ({
   onSelect,
   onToggleActive,
   onEdit,
+  onViewStudents,
   getCourseId,
   getCourseIsActive,
 }) => {
@@ -48,6 +57,7 @@ const CourseCard = ({
     modules: 0,
     lessons: 0,
     tests: 0,
+    students: 0,
   };
 
   const toSafeNumber = (value) =>
@@ -56,11 +66,17 @@ const CourseCard = ({
   const chaptersCount = toSafeNumber(stats.chapters ?? stats.modules ?? 0);
   const lessonsCount = toSafeNumber(stats.lessons ?? 0);
   const testsCount = toSafeNumber(stats.tests ?? 0);
+  const studentsCount = toSafeNumber(stats.students ?? 0);
 
   const isActive =
     typeof courseActiveStates[courseId] === 'boolean'
       ? courseActiveStates[courseId]
       : getCourseIsActive(course);
+
+  const handleViewStudentsClick = (e) => {
+    e.stopPropagation();
+    onViewStudents?.(course);
+  };
 
   return (
     <article
@@ -95,6 +111,21 @@ const CourseCard = ({
             <IconTests />
           </span>
           <span>{testsCount} BÀI KIỂM TRA</span>
+        </div>
+        <div className="manager-course-card__meta-row">
+          <span className="manager-course-card__meta-icon">
+            <IconStudents />
+          </span>
+          <span
+            className={`manager-course-card__students ${studentsCount > 0 ? 'manager-course-card__students--clickable' : ''}`}
+            onClick={handleViewStudentsClick}
+            role={studentsCount > 0 ? 'button' : undefined}
+            tabIndex={studentsCount > 0 ? 0 : undefined}
+            onKeyDown={studentsCount > 0 ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); handleViewStudentsClick(e); } } : undefined}
+            title={studentsCount > 0 ? 'Xem chi tiết danh sách học viên' : undefined}
+          >
+            {studentsCount} HỌC VIÊN
+          </span>
         </div>
       </div>
 

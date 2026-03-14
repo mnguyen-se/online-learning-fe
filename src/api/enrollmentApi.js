@@ -14,3 +14,9 @@ export const assignEnrollment = async (payload) => {
   const response = await apiClient.post('/enrollments', payload);
   return response.data;
 };
+
+/** Lấy danh sách khóa học mà học viên đã ghi danh (theo username) */
+export const getEnrolledCoursesByUsername = async (username) => {
+  const response = await apiClient.get(`/enrollments/students/${encodeURIComponent(username)}/courses`);
+  return response.data;
+};

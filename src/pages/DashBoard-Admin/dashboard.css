@@ -249,6 +249,160 @@
   font-weight: 500;
 }
 
+/* Tra cứu Học viên - Khóa học */
+.dashboard-lookup-card {
+  background: #FFFFFF;
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-bottom: 2rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.dashboard-lookup-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.125rem;
+  font-weight: 600;
+  color: #111827;
+}
+
+.dashboard-lookup-desc {
+  margin: 0 0 1rem 0;
+  font-size: 14px;
+  color: #6B7280;
+}
+
+.dashboard-lookup-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
+.dashboard-lookup-tab {
+  padding: 8px 16px;
+  border: 1px solid #E5E7EB;
+  background: #F9FAFB;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 500;
+  color: #6B7280;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.dashboard-lookup-tab:hover {
+  background: #F3F4F6;
+  color: #111827;
+}
+
+.dashboard-lookup-tab.active {
+  background: #FF6B4A;
+  border-color: #FF6B4A;
+  color: #FFFFFF;
+}
+
+.dashboard-lookup-form {
+  margin-bottom: 1rem;
+}
+
+.dashboard-lookup-row {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.dashboard-lookup-input,
+.dashboard-lookup-select {
+  flex: 1;
+  min-width: 200px;
+  padding: 10px 14px;
+  border: 1px solid #E5E7EB;
+  border-radius: 8px;
+  font-size: 14px;
+}
+
+.dashboard-lookup-btn {
+  padding: 10px 20px;
+  background: #FF6B4A;
+  color: #FFFFFF;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.dashboard-lookup-btn:hover:not(:disabled) {
+  background: #e55a3a;
+}
+
+.dashboard-lookup-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.dashboard-lookup-result {
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid #E5E7EB;
+}
+
+.dashboard-lookup-result h4 {
+  margin: 0 0 0.75rem 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.dashboard-lookup-empty {
+  margin: 0;
+  color: #6B7280;
+  font-size: 14px;
+}
+
+.dashboard-lookup-list {
+  margin: 0;
+  padding-left: 1.25rem;
+}
+
+.dashboard-lookup-list li {
+  margin-bottom: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.dashboard-lookup-badge {
+  font-size: 11px;
+  padding: 2px 6px;
+  background: #E5E7EB;
+  border-radius: 4px;
+  color: #4B5563;
+}
+
+.dashboard-lookup-table-wrap {
+  overflow-x: auto;
+}
+
+.dashboard-lookup-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.dashboard-lookup-table th,
+.dashboard-lookup-table td {
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid #E5E7EB;
+}
+
+.dashboard-lookup-table th {
+  font-weight: 600;
+  color: #374151;
+  background: #F9FAFB;
+}
+
 /* Dashboard Controls */
 .dashboard-controls {
   background: #FFFFFF;

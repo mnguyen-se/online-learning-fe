@@ -1,0 +1,163 @@
+.student-list-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  padding: 16px;
+}
+
+.student-list-modal {
+  background: #fff;
+  border-radius: 12px;
+  max-width: 560px;
+  width: 100%;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.2);
+}
+
+.student-list-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.student-list-modal-header h3 {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.student-list-modal-close {
+  background: none;
+  border: none;
+  padding: 6px;
+  cursor: pointer;
+  color: #6b7280;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.student-list-modal-close:hover {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+.student-list-modal-close svg {
+  width: 20px;
+  height: 20px;
+}
+
+.student-list-modal-body {
+  padding: 16px 20px;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.student-list-modal-loading,
+.student-list-modal-error,
+.student-list-modal-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 32px;
+  color: #6b7280;
+}
+
+.student-list-modal-spinner {
+  width: 24px;
+  height: 24px;
+  border: 2px solid #e5e7eb;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: student-list-spin 0.8s linear infinite;
+}
+
+@keyframes student-list-spin {
+  to { transform: rotate(360deg); }
+}
+
+.student-list-modal-error {
+  color: #dc2626;
+}
+
+.student-list-modal-table-wrap {
+  overflow-x: auto;
+}
+
+.student-list-modal-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.student-list-modal-table th,
+.student-list-modal-table td {
+  padding: 10px 12px;
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.student-list-modal-table th {
+  font-weight: 600;
+  color: #374151;
+  background: #f9fafb;
+}
+
+.student-list-modal-table td {
+  color: #4b5563;
+}
+
+.student-list-modal-status {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.student-list-modal-status--active {
+  background: #d1fae5;
+  color: #065f46;
+}
+
+.student-list-modal-status--completed {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.student-list-modal-status--dropped {
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.student-list-modal-footer {
+  padding: 12px 20px;
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.student-list-modal-btn {
+  padding: 8px 16px;
+  background: #3b82f6;
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.student-list-modal-btn:hover {
+  background: #2563eb;
+}

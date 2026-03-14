@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import DashboardLayout from '../../../components/DashboardLayout';
+import StudentListModal from '../../../components/StudentListModal/StudentListModal';
 import { getCourses } from '../../../api/coursesApi';
 import { getLessons } from '../../../api/lessionApi';
 import { getModulesByCourse } from '../../../api/module';
@@ -19,6 +20,7 @@ function AdminCourseManagement() {
   const [assignModal, setAssignModal] = useState({ isOpen: false, course: null });
   const [assignUsername, setAssignUsername] = useState('');
   const [isAssigning, setIsAssigning] = useState(false);
+  const [studentListModal, setStudentListModal] = useState({ isOpen: false, courseId: null, courseTitle: '' });
 
   const getCourseId = (course) =>
     course?.id ??
@@ -268,7 +270,26 @@ function AdminCourseManagement() {
                             <path d="M23 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" />
                           </svg>
                         </span>
-                        <span>{studentsCount} HỌC SINH</span>
+                        <span
+                          className={`manager-course-card__students ${studentsCount > 0 ? 'manager-course-card__students--clickable' : ''}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (studentsCount > 0 && courseId) {
+                              setStudentListModal({ isOpen: true, courseId, courseTitle: course.title || '' });
+                            }
+                          }}
+                          role={studentsCount > 0 ? 'button' : undefined}
+                          tabIndex={studentsCount > 0 ? 0 : undefined}
+                          onKeyDown={(e) => {
+                            if (studentsCount > 0 && courseId && (e.key === 'Enter' || e.key === ' ')) {
+                              e.preventDefault();
+                              setStudentListModal({ isOpen: true, courseId, courseTitle: course.title || '' });
+                            }
+                          }}
+                          title={studentsCount > 0 ? 'Xem chi tiết danh sách học viên' : undefined}
+                        >
+                          {studentsCount} HỌC VIÊN
+                        </span>
                       </div>
                     </div>
                     <div className="manager-course-card__footer">
@@ -342,11 +363,18 @@ function AdminCourseManagement() {
                 >
                   {isAssigning ? 'Đang gán...' : 'Gán học viên'}
                 </button>
-              </div>
-            </form>
+          </div>
+        </form>
           </div>
         </div>
       )}
+
+      <StudentListModal
+        isOpen={studentListModal.isOpen}
+        onClose={() => setStudentListModal({ isOpen: false, courseId: null, courseTitle: '' })}
+        courseId={studentListModal.courseId}
+        courseTitle={studentListModal.courseTitle}
+      />
     </DashboardLayout>
   );
 }

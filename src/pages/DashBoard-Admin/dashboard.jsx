@@ -2,6 +2,8 @@ import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { getAllUsers, updateUser, createUser } from '../../api/userApi';
+import { getCourses } from '../../api/coursesApi';
+import { getEnrolledCoursesByUsername, getEnrolledStudentsByCourse } from '../../api/enrollmentApi';
 import DashboardLayout from '../../components/DashboardLayout';
 import './dashboard.css';
 
@@ -42,6 +44,12 @@ const Dashboard = () => {
   const [isCreating, setIsCreating] = useState(false);
   const [showViewDetailModal, setShowViewDetailModal] = useState(false);
   const [viewingUser, setViewingUser] = useState(null);
+  const [lookupMode, setLookupMode] = useState('student'); // 'student' | 'course'
+  const [lookupUsername, setLookupUsername] = useState('');
+  const [lookupCourseId, setLookupCourseId] = useState('');
+  const [lookupResult, setLookupResult] = useState(null);
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [courses, setCourses] = useState([]);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -355,6 +363,55 @@ const Dashboard = () => {
     fetchUsers();
   }, [fetchUsers]);
 
+  useEffect(() => {
+    getCourses()
+      .then((data) => {
+        const raw = Array.isArray(data) ? data : data?.data ?? [];
+        setCourses(raw);
+      })
+      .catch(() => setCourses([]));
+  }, []);
+
+  const handleLookup = useCallback(async () => {
+    setLookupResult(null);
+    if (lookupMode === 'student') {
+      const username = lookupUsername.trim();
+      if (!username) {
+        toast.warning('Vui lòng nhập username học viên.');
+        return;
+      }
+      setLookupLoading(true);
+      try {
+        const data = await getEnrolledCoursesByUsername(username);
+        const list = Array.isArray(data) ? data : data?.data ?? [];
+        setLookupResult({ type: 'courses', username, data: list });
+      } catch {
+        toast.error('Không tìm thấy học viên hoặc không có quyền truy cập.');
+        setLookupResult({ type: 'courses', username, data: [] });
+      } finally {
+        setLookupLoading(false);
+      }
+    } else {
+      const courseId = lookupCourseId;
+      if (!courseId) {
+        toast.warning('Vui lòng chọn khóa học.');
+        return;
+      }
+      setLookupLoading(true);
+      try {
+        const data = await getEnrolledStudentsByCourse(courseId);
+        const list = Array.isArray(data) ? data : data?.data ?? [];
+        const course = courses.find((c) => String(c.id ?? c.courseId ?? c.course_id) === String(courseId));
+        setLookupResult({ type: 'students', courseId, courseTitle: course?.title || courseId, data: list });
+      } catch {
+        toast.error('Không thể tải danh sách học viên.');
+        setLookupResult({ type: 'students', courseId, courseTitle: lookupCourseId, data: [] });
+      } finally {
+        setLookupLoading(false);
+      }
+    }
+  }, [lookupMode, lookupUsername, lookupCourseId, courses]);
+
   return (
     <DashboardLayout
       pageTitle="Quản Lý Người Dùng"
@@ -451,6 +508,116 @@ const Dashboard = () => {
             <div className="stat-label">Tài khoản bị khóa</div>
           </div>
         </div>
+      </div>
+
+      {/* Tra cứu phân bổ Học viên - Khóa học */}
+      <div className="dashboard-lookup-card">
+        <h3 className="dashboard-lookup-title">Tra cứu phân bổ Học viên — Khóa học</h3>
+        <p className="dashboard-lookup-desc">Tra cứu nhanh học viên đang ở khóa học nào hoặc khóa học có những học viên nào.</p>
+        <div className="dashboard-lookup-tabs">
+          <button
+            type="button"
+            className={`dashboard-lookup-tab ${lookupMode === 'student' ? 'active' : ''}`}
+            onClick={() => { setLookupMode('student'); setLookupResult(null); }}
+          >
+            Theo học viên (username)
+          </button>
+          <button
+            type="button"
+            className={`dashboard-lookup-tab ${lookupMode === 'course' ? 'active' : ''}`}
+            onClick={() => { setLookupMode('course'); setLookupResult(null); }}
+          >
+            Theo khóa học
+          </button>
+        </div>
+        <div className="dashboard-lookup-form">
+          {lookupMode === 'student' ? (
+            <div className="dashboard-lookup-row">
+              <input
+                type="text"
+                placeholder="Nhập username học viên (VD: student01)"
+                value={lookupUsername}
+                onChange={(e) => setLookupUsername(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleLookup()}
+                className="dashboard-lookup-input"
+              />
+              <button type="button" className="dashboard-lookup-btn" onClick={handleLookup} disabled={lookupLoading}>
+                {lookupLoading ? 'Đang tra cứu...' : 'Tra cứu'}
+              </button>
+            </div>
+          ) : (
+            <div className="dashboard-lookup-row">
+              <select
+                value={lookupCourseId}
+                onChange={(e) => setLookupCourseId(e.target.value)}
+                className="dashboard-lookup-select"
+              >
+                <option value="">— Chọn khóa học —</option>
+                {courses.map((c) => (
+                  <option key={c.id ?? c.courseId ?? c.course_id} value={c.id ?? c.courseId ?? c.course_id}>
+                    {c.title || `Khóa #${c.id ?? c.courseId}`}
+                  </option>
+                ))}
+              </select>
+              <button type="button" className="dashboard-lookup-btn" onClick={handleLookup} disabled={lookupLoading}>
+                {lookupLoading ? 'Đang tra cứu...' : 'Tra cứu'}
+              </button>
+            </div>
+          )}
+        </div>
+        {lookupResult && (
+          <div className="dashboard-lookup-result">
+            {lookupResult.type === 'courses' ? (
+              <>
+                <h4>Khóa học của học viên &quot;{lookupResult.username}&quot;</h4>
+                {lookupResult.data.length === 0 ? (
+                  <p className="dashboard-lookup-empty">Học viên chưa ghi danh khóa học nào.</p>
+                ) : (
+                  <ul className="dashboard-lookup-list">
+                    {lookupResult.data.map((item, idx) => (
+                      <li key={item.enrollmentId ?? item.courseId ?? idx}>
+                        <strong>{item.courseTitle ?? item.title ?? item.course?.title ?? '—'}</strong>
+                        {item.enrollmentStatus && (
+                          <span className="dashboard-lookup-badge">{String(item.enrollmentStatus)}</span>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            ) : (
+              <>
+                <h4>Học viên trong khóa &quot;{lookupResult.courseTitle}&quot;</h4>
+                {lookupResult.data.length === 0 ? (
+                  <p className="dashboard-lookup-empty">Khóa học chưa có học viên nào.</p>
+                ) : (
+                  <div className="dashboard-lookup-table-wrap">
+                    <table className="dashboard-lookup-table">
+                      <thead>
+                        <tr>
+                          <th>STT</th>
+                          <th>Tên</th>
+                          <th>Email</th>
+                          <th>Trạng thái</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {lookupResult.data.map((s, idx) => (
+                          <tr key={s.enrollmentId ?? s.studentId ?? idx}>
+                            <td>{idx + 1}</td>
+                            <td>{s.name || s.username || '—'}</td>
+                            <td>{s.email || '—'}</td>
+                            <td>{s.status ? String(s.status) : '—'}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Search and Filter Section */}

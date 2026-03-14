@@ -3342,6 +3342,14 @@
   min-width: 42px;
 }
 
+.bar-chart-item--clickable {
+  cursor: pointer;
+}
+
+.bar-chart-item--clickable:hover .bar-chart-bar {
+  background: #3b82f6;
+}
+
 .bar-chart-bar {
   width: 100%;
   max-width: 46px;
@@ -3534,6 +3542,17 @@
 
 .manager-course-card__meta-icon svg {
   display: block;
+}
+
+.manager-course-card__students--clickable {
+  cursor: pointer;
+  color: #3b82f6;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.manager-course-card__students--clickable:hover {
+  color: #2563eb;
 }
 
 .manager-course-card__footer {

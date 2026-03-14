@@ -14,6 +14,7 @@ import {
 import { validateQuizExcelFile } from '../../../utils/quizExcelValidation';
 import { createModule, deleteModule, getModulesByCourse, getPublicModulesByCourse, updateModule } from '../../../api/module';
 import DashboardLayout from '../../../components/DashboardLayout';
+import StudentListModal from '../../../components/StudentListModal/StudentListModal';
 import CourseCard from './components/CourseCard';
 import CourseContentLayout from './components/CourseContentLayout';
 import CourseInitForm from './components/CourseInitForm';
@@ -64,6 +65,7 @@ function CourseManagement() {
   const [teachers, setTeachers] = useState([]);
   const [publishingModuleIds, setPublishingModuleIds] = useState([]);
   const [publishingLessonIds, setPublishingLessonIds] = useState([]);
+  const [studentListModal, setStudentListModal] = useState({ isOpen: false, courseId: null, courseTitle: '' });
 
   // Utility functions
   const getCourseId = (course) =>
@@ -1893,6 +1895,7 @@ function CourseManagement() {
       id: courseId ?? `${label}-${index}`,
       label,
       value: getCourseStudentCount(course),
+      course,
     };
   });
   const maxBarValue = Math.max(1, ...courseBars.map((item) => item.value));
@@ -1991,17 +1994,29 @@ function CourseManagement() {
                   </div>
                   {courseBars.length ? (
                     <div className="bar-chart">
-                      {courseBars.map((item) => (
-                        <div key={item.id} className="bar-chart-item">
+                      {courseBars.map((item) => {
+                        const courseId = getCourseId(item.course);
+                        const isClickable = item.value > 0 && courseId;
+                        return (
                           <div
-                            className="bar-chart-bar"
-                            style={{ height: `${Math.max(8, (item.value / maxBarValue) * 100)}%` }}
+                            key={item.id}
+                            className={`bar-chart-item ${isClickable ? 'bar-chart-item--clickable' : ''}`}
+                            onClick={isClickable ? () => setStudentListModal({ isOpen: true, courseId, courseTitle: item.label }) : undefined}
+                            role={isClickable ? 'button' : undefined}
+                            tabIndex={isClickable ? 0 : undefined}
+                            onKeyDown={isClickable ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setStudentListModal({ isOpen: true, courseId, courseTitle: item.label }); } } : undefined}
+                            title={isClickable ? 'Xem chi tiết danh sách học viên' : undefined}
                           >
-                            <span className="bar-chart-value">{item.value}</span>
+                            <div
+                              className="bar-chart-bar"
+                              style={{ height: `${Math.max(8, (item.value / maxBarValue) * 100)}%` }}
+                            >
+                              <span className="bar-chart-value">{item.value}</span>
+                            </div>
+                            <span className="bar-chart-label">{item.label}</span>
                           </div>
-                          <span className="bar-chart-label">{item.label}</span>
-                        </div>
-                      ))}
+                        );
+                      })}
                     </div>
                   ) : (
                     <div className="course-status">Chưa có dữ liệu khóa học.</div>
@@ -2176,6 +2191,7 @@ function CourseManagement() {
                                   const nextCourseId = getCourseId(courseItem);
                                   handleEditCourse({ ...courseItem, id: nextCourseId ?? courseItem.id }, nextCourseId);
                                 }}
+                                onViewStudents={(c) => setStudentListModal({ isOpen: true, courseId: getCourseId(c), courseTitle: c?.title || '' })}
                                 getCourseId={getCourseId}
                                 getCourseIsActive={getCourseIsActive}
                               />
@@ -2211,6 +2227,7 @@ function CourseManagement() {
                                   const nextCourseId = getCourseId(courseItem);
                                   handleEditCourse({ ...courseItem, id: nextCourseId ?? courseItem.id }, nextCourseId);
                                 }}
+                                onViewStudents={(c) => setStudentListModal({ isOpen: true, courseId: getCourseId(c), courseTitle: c?.title || '' })}
                                 getCourseId={getCourseId}
                                 getCourseIsActive={getCourseIsActive}
                               />
@@ -2362,6 +2379,13 @@ function CourseManagement() {
             </div>
           </div>
         )}
+
+        <StudentListModal
+          isOpen={studentListModal.isOpen}
+          onClose={() => setStudentListModal({ isOpen: false, courseId: null, courseTitle: '' })}
+          courseId={studentListModal.courseId}
+          courseTitle={studentListModal.courseTitle}
+        />
       </div>
     </DashboardLayout>
   );
