@@ -254,6 +254,11 @@ const mapAssignmentQuestion = (question, index, assignmentId) => {
     items: Array.isArray(question?.items) ? question.items : [],
     columnA: Array.isArray(question?.columnA) ? question.columnA : [],
     columnB: Array.isArray(question?.columnB) ? question.columnB : [],
+    points: question?.points ?? null,
+    topic: question?.topic ?? '',
+    minWords: question?.minWords ?? null,
+    maxWords: question?.maxWords ?? null,
+    instructions: question?.instructions ?? '',
   };
 };
 
@@ -1310,9 +1315,29 @@ function LessonsView() {
             const answerValue = getWritingAnswerValue(assignmentItem.assignmentId, question.questionId);
             return (
               <div key={question.id || globalIndex} className="quiz-question-item">
-                <div className="quiz-question-number">Câu {globalIndex + 1}</div>
+                <div className="quiz-question-number">
+                  Câu {globalIndex + 1}
+                  {question.points != null && (
+                    <span className="quiz-question-points"> ({question.points} điểm)</span>
+                  )}
+                </div>
                 <div className="quiz-question-text">{question.question || 'Chưa có câu hỏi'}</div>
                 <div className="assignment-question-type">{questionType}</div>
+                
+                {questionType === 'ESSAY_WRITING' && (
+                  <div className="essay-writing-details" style={{ backgroundColor: '#f8fafc', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', border: '1px solid #e2e8f0' }}>
+                    {question.topic && <p style={{ margin: '0 0 8px 0' }}><strong>Chủ đề:</strong> {question.topic}</p>}
+                    {question.instructions && <p style={{ margin: '0 0 8px 0' }}><strong>Hướng dẫn:</strong> {question.instructions}</p>}
+                    {(question.minWords != null || question.maxWords != null) && (
+                      <p style={{ margin: '0', color: '#64748b' }}>
+                        <em>Yêu cầu số từ: {question.minWords ? `Tối thiểu ${question.minWords} từ` : ''}
+                        {question.minWords && question.maxWords ? ' - ' : ''}
+                        {question.maxWords ? `Tối đa ${question.maxWords} từ` : ''}</em>
+                      </p>
+                    )}
+                  </div>
+                )}
+
                 {questionType === 'REORDER' ? (
                   <Suspense fallback={<div className="lesson-content-skeleton" />}>
                     <ReorderQuestion

@@ -212,12 +212,13 @@ const MatchingQuestion = ({ question, answerValue, onChange }) => {
       <div className="matching-columns">
         <div className="matching-column matching-column-a" ref={columnARef}>
           <div className="matching-column-header">Cột A</div>
-          {columnA.map((item) => {
+          {columnA.map((item, index) => {
             const itemId = item.id || item.itemId || '';
             const itemText = item.text || item.itemText || '';
             const isConnected = isItemConnected(itemId, 'A');
             const isDragging = draggingFrom?.column === 'A' && draggingFrom.id === itemId;
             const connectedBId = getConnectedItem(itemId, 'A');
+            const displayId = index + 1;
 
             return (
               <div
@@ -228,7 +229,7 @@ const MatchingQuestion = ({ question, answerValue, onChange }) => {
                 onMouseEnter={() => handleItemHover(itemId, 'A')}
               >
                 <div className="matching-item-content">
-                  <span className="matching-item-id">{itemId}</span>
+                  <span className="matching-item-id">{displayId}</span>
                   <span className="matching-item-text">{itemText}</span>
                 </div>
                 {isConnected && (
@@ -304,12 +305,13 @@ const MatchingQuestion = ({ question, answerValue, onChange }) => {
 
         <div className="matching-column matching-column-b" ref={columnBRef}>
           <div className="matching-column-header">Cột B</div>
-          {columnB.map((item) => {
+          {columnB.map((item, index) => {
             const itemId = item.id || item.itemId || '';
             const itemText = item.text || item.itemText || '';
             const isConnected = isItemConnected(itemId, 'B');
             const isDragging = draggingFrom?.column === 'B' && draggingFrom.id === itemId;
             const isHoverTarget = hoverTarget?.column === 'B' && hoverTarget.id === itemId;
+            const displayId = String.fromCharCode(65 + index);
 
             return (
               <div
@@ -325,7 +327,7 @@ const MatchingQuestion = ({ question, answerValue, onChange }) => {
                 }}
               >
                 <div className="matching-item-content">
-                  <span className="matching-item-id">{itemId}</span>
+                  <span className="matching-item-id">{displayId}</span>
                   <span className="matching-item-text">{itemText}</span>
                 </div>
               </div>
@@ -346,17 +348,23 @@ const MatchingQuestion = ({ question, answerValue, onChange }) => {
           <h4 className="matching-results-title">Kết quả nối của bạn:</h4>
           <div className="matching-results-list">
             {connections.map((conn, index) => {
-              const itemA = columnA.find((item) => (item.id || item.itemId) === conn.aId);
-              const itemB = columnB.find((item) => (item.id || item.itemId) === conn.bId);
+              const itemAIndex = columnA.findIndex((item) => (item.id || item.itemId) === conn.aId);
+              const itemBIndex = columnB.findIndex((item) => (item.id || item.itemId) === conn.bId);
+              
+              const itemA = columnA[itemAIndex];
+              const itemB = columnB[itemBIndex];
               const textA = itemA?.text || itemA?.itemText || conn.aId;
               const textB = itemB?.text || itemB?.itemText || conn.bId;
+              
+              const displayIdA = itemAIndex >= 0 ? `${itemAIndex + 1}` : conn.aId;
+              const displayIdB = itemBIndex >= 0 ? String.fromCharCode(65 + itemBIndex) : conn.bId;
               
               return (
                 <div key={`${conn.aId}-${conn.bId}-${index}`} className="matching-result-item">
                   <span className="matching-result-pair">
-                    <span className="matching-result-a">{conn.aId}: {textA}</span>
+                    <span className="matching-result-a">{displayIdA}: {textA}</span>
                     <span className="matching-result-arrow">→</span>
-                    <span className="matching-result-b">{conn.bId}: {textB}</span>
+                    <span className="matching-result-b">{displayIdB}: {textB}</span>
                   </span>
                   <button
                     className="matching-result-remove"

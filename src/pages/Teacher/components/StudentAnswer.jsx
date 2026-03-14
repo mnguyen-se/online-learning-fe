@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Tag, Empty, Button, Switch } from 'antd';
+import { Tag, Empty, Button, Switch, InputNumber } from 'antd';
 import { CheckCircle2, XCircle, HelpCircle, Eye, EyeOff } from 'lucide-react';
 import './SubmissionDetail.css';
 
@@ -74,17 +74,31 @@ function QuestionAnswerPair({ item, onUpdateAnswerGrade, answerGrades = {} }) {
   // Lấy giá trị isCorrect đã sửa hoặc giá trị gốc
   const editedGrade = answerId ? answerGrades[answerId] : null;
   const currentIsCorrect = editedGrade?.isCorrect !== undefined ? editedGrade.isCorrect : isCorrect;
+  const currentPointsEarned = editedGrade?.pointsEarned !== undefined ? editedGrade.pointsEarned : pointsEarned;
   const [localIsCorrect, setLocalIsCorrect] = useState(currentIsCorrect);
+  const [localPointsEarned, setLocalPointsEarned] = useState(currentPointsEarned);
 
   // Update local state khi giá trị từ props thay đổi
   useEffect(() => {
     setLocalIsCorrect(currentIsCorrect);
-  }, [currentIsCorrect]);
+    setLocalPointsEarned(currentPointsEarned);
+  }, [currentIsCorrect, currentPointsEarned]);
 
   const handleToggleCorrect = (checked) => {
     setLocalIsCorrect(checked);
     if (onUpdateAnswerGrade && answerId) {
       onUpdateAnswerGrade(answerId, { isCorrect: checked });
+    }
+  };
+
+  const handlePointsChange = (value) => {
+    const newPoints = value === null ? 0 : value;
+    setLocalPointsEarned(newPoints);
+    
+    // Auto-update isCorrect based on points > 0 if desired, or let teacher manually toggle.
+    // For now we just sync the points.
+    if (onUpdateAnswerGrade && answerId) {
+      onUpdateAnswerGrade(answerId, { pointsEarned: newPoints, isCorrect: newPoints > 0 });
     }
   };
 
@@ -160,15 +174,29 @@ function QuestionAnswerPair({ item, onUpdateAnswerGrade, answerGrades = {} }) {
           <h3 className="submission-detail-section-title">Bài làm câu {order}</h3>
           <div className="submission-detail-answer-controls">
             {onUpdateAnswerGrade && answerId && (
-              <div className="submission-detail-correct-toggle">
-                <span className="submission-detail-correct-toggle-label">Kết quả:</span>
-                <Switch
-                  checked={localIsCorrect === true}
-                  checkedChildren="Đúng"
-                  unCheckedChildren="Sai"
-                  onChange={handleToggleCorrect}
-                  size="small"
-                />
+              <div className="submission-detail-correct-toggle" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span className="submission-detail-correct-toggle-label">Điểm:</span>
+                  <InputNumber
+                    min={0}
+                    max={points || 100}
+                    value={localPointsEarned}
+                    onChange={handlePointsChange}
+                    size="small"
+                    style={{ width: '70px' }}
+                  />
+                  <span style={{ fontSize: '13px', color: '#64748b' }}>/ {points}</span>
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <span className="submission-detail-correct-toggle-label">Kết quả:</span>
+                  <Switch
+                    checked={localIsCorrect === true}
+                    checkedChildren="Đúng"
+                    unCheckedChildren="Sai"
+                    onChange={handleToggleCorrect}
+                    size="small"
+                  />
+                </div>
               </div>
             )}
             {(!onUpdateAnswerGrade || !answerId) && localIsCorrect !== null && (
@@ -199,9 +227,9 @@ function QuestionAnswerPair({ item, onUpdateAnswerGrade, answerGrades = {} }) {
             pointsEarned={pointsEarned}
             points={points}
           />
-          {pointsEarned != null && (
+          {localPointsEarned != null && (
             <div className={`submission-detail-points-earned ${localIsCorrect === true ? 'submission-detail-points-earned-correct' : localIsCorrect === false ? 'submission-detail-points-earned-incorrect' : ''}`}>
-              Điểm đạt: <strong>{pointsEarned}</strong> / {points}
+              Điểm đạt: <strong>{localPointsEarned}</strong> / {points}
             </div>
           )}
         </div>
