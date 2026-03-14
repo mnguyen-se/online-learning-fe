@@ -2050,13 +2050,38 @@
   font-size: 0.9375rem;
 }
 
+/* Khung đọc nội dung bài học (textContent) */
+.tcd-reading-container {
+  width: 100%;
+  background: #fff;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  min-height: 280px;
+}
+
+.tcd-reading-content {
+  padding: 1.5rem 1.75rem;
+  font-size: 1rem;
+  line-height: 1.7;
+  color: #334155;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.tcd-reading-content br {
+  display: block;
+  content: "";
+  margin-top: 0.25em;
+}
+
 .tcd-video-title {
   margin: 0;
-  padding: 1rem 1.25rem;
-  font-size: 1.125rem;
-  font-weight: 600;
+  padding: 1rem 1.25rem 1rem;
+  font-size: 1.25rem;
+  font-weight: 700;
   color: #1e293b;
-  border-top: 1px solid #f1f5f9;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 /* Sidebar nội dung khóa học – nền trắng, scroll riêng */

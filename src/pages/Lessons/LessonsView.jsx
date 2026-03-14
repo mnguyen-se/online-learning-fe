@@ -1,4 +1,4 @@
-import React, { Suspense, lazy, useEffect, useMemo, useState, useCallback } from "react";
+import React, { Suspense, lazy, useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { toast } from "react-toastify";
 import Header from "../../components/Header/header";
@@ -41,6 +41,8 @@ const ReorderQuestion = lazy(() => import("./ReorderQuestion"));
 
 const idToKey = (value) => String(value ?? "");
 const QUESTIONS_PER_PAGE = 5;
+/** Tiền tố key sessionStorage lưu draft đáp án bài tập (chưa nộp). Key đầy đủ: lesson_drafts_${courseId || 'default'} */
+const DRAFT_STORAGE_KEY_PREFIX = "lesson_drafts_";
 
 const normalizeArrayResponse = (response) => {
   if (Array.isArray(response)) return response;
@@ -373,6 +375,8 @@ function LessonsView() {
   const [contentTab, setContentTab] = useState('content');
   const [aiHintExpanded, setAiHintExpanded] = useState(false);
   const [quizCurrentQuestion, setQuizCurrentQuestion] = useState(1);
+  /** Lưu (courseId, assignmentDrafts) để khi đổi khóa học có thể ghi draft cũ vào đúng key trước khi load draft mới */
+  const draftStorageRef = useRef({ courseId: undefined, assignmentDrafts: {} });
 
   const selectedLessonKey = idToKey(resolveLessonId(selectedLesson));
   const selectedLessonHint = aiHintByLesson[selectedLessonKey] || "";
@@ -701,6 +705,47 @@ function LessonsView() {
     }
   }, [lessonId, lessons]);
 
+  /* Khôi phục draft đáp án từ sessionStorage khi vào trang / đổi khóa học; ghi draft cũ vào storage trước khi load khóa mới */
+  useEffect(() => {
+    const storageKey = (cid) => `${DRAFT_STORAGE_KEY_PREFIX}${cid ?? "default"}`;
+    const prev = draftStorageRef.current;
+    if (prev.courseId !== courseId) {
+      try {
+        sessionStorage.setItem(storageKey(prev.courseId), JSON.stringify(prev.assignmentDrafts ?? {}));
+      } catch {
+        // ignore quota / private mode
+      }
+      try {
+        const raw = sessionStorage.getItem(storageKey(courseId));
+        const data = raw ? JSON.parse(raw) : {};
+        if (data && typeof data === "object") {
+          const filtered = {};
+          for (const [aid, draft] of Object.entries(data)) {
+            if (assignmentStatuses[aid] !== "SUBMITTED") filtered[aid] = draft;
+          }
+          setAssignmentDrafts(filtered);
+          draftStorageRef.current = { courseId, assignmentDrafts: filtered };
+          return;
+        }
+      } catch {
+        // ignore parse error
+      }
+      setAssignmentDrafts({});
+      draftStorageRef.current = { courseId, assignmentDrafts: {} };
+    }
+  }, [courseId, assignmentStatuses]);
+
+  /* Ghi draft đáp án vào sessionStorage mỗi khi thay đổi (để F5 vẫn giữ đáp án) */
+  useEffect(() => {
+    draftStorageRef.current = { courseId, assignmentDrafts };
+    try {
+      const key = `${DRAFT_STORAGE_KEY_PREFIX}${courseId ?? "default"}`;
+      sessionStorage.setItem(key, JSON.stringify(assignmentDrafts));
+    } catch {
+      // ignore quota / private mode
+    }
+  }, [courseId, assignmentDrafts]);
+
   const parseQuizContent = (content) => {
     if (!content) return [];
     try {
@@ -875,6 +920,11 @@ function LessonsView() {
         ...prev,
         [idToKey(assignmentItem.assignmentId)]: 'SUBMITTED',
       }));
+      setAssignmentDrafts((prev) => {
+        const next = { ...prev };
+        delete next[idToKey(assignmentItem.assignmentId)];
+        return next;
+      });
       toast.success('Đã nộp bài trắc nghiệm. Bài làm ở trạng thái SUBMITTED.');
     } catch (err) {
       const message = err?.response?.data?.message || 'Không thể nộp bài trắc nghiệm.';
@@ -976,6 +1026,11 @@ function LessonsView() {
         ...prev,
         [idToKey(assignmentItem.assignmentId)]: 'SUBMITTED',
       }));
+      setAssignmentDrafts((prev) => {
+        const next = { ...prev };
+        delete next[idToKey(assignmentItem.assignmentId)];
+        return next;
+      });
       toast.success('Đã nộp bài writing. Bài làm ở trạng thái SUBMITTED.');
     } catch (err) {
       const message = err?.response?.data?.message || 'Không thể nộp bài writing.';
