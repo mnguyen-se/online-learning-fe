@@ -155,10 +155,32 @@ export default function StudentQuizResult() {
   const score = data?.score != null ? Number(data.score) : null;
   const maxScore =
     data?.maxScore ?? data?.max_score ?? data?.totalPoints ?? data?.assignment?.maxScore ?? 100;
+  // Extract feedback from various possible locations in the API response
   const feedback =
     data?.feedback ??
     data?.teacherFeedback ??
     data?.teacher_feedback ??
+    data?.comment ??
+    data?.comments ??
+    data?.data?.feedback ??
+    data?.data?.teacherFeedback ??
+    data?.data?.teacher_feedback ??
+    data?.submission?.feedback ??
+    data?.submission?.teacherFeedback ??
+    data?.submission?.teacher_feedback ??
+    data?.submission?.comment ??
+    data?.quizSubmission?.feedback ??
+    data?.quizSubmission?.teacherFeedback ??
+    data?.quizSubmission?.teacher_feedback ??
+    data?.quizSubmission?.comment ??
+    data?.quizResult?.feedback ??
+    data?.quizResult?.teacherFeedback ??
+    data?.quizResult?.teacher_feedback ??
+    data?.quizResult?.comment ??
+    data?.result?.feedback ??
+    data?.result?.teacherFeedback ??
+    data?.result?.teacher_feedback ??
+    data?.result?.comment ??
     (Array.isArray(data?.feedbacks) && data.feedbacks.length > 0 ? data.feedbacks[0] : '');
   const isGraded = score != null;
   const scoreTheme = getScoreTheme(score, maxScore);
