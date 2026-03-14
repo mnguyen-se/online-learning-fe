@@ -2495,6 +2495,21 @@
   white-space: nowrap;
 }
 
+/* Label cho ID trong matching question (1, 2, 3, 4 hoặc A, B, C, D) */
+.lesson-quiz-answer-id-label {
+  background: #3b82f6;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  text-transform: none;
+  min-width: 32px;
+  text-align: center;
+  padding: 6px 10px;
+  border-radius: 6px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
 .lesson-quiz-add-question {
   display: flex;
   flex-direction: column;

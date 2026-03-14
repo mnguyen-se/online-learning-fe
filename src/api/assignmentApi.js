@@ -35,6 +35,12 @@ export const getWritingQuestions = async (assignmentId) => {
   return response.data;
 };
 
+/** GET /api/v1/assignments/{assignmentId}/writing-questions – Lấy danh sách câu hỏi Writing (TEACHER) */
+export const getWritingQuestionsForTeacher = async (assignmentId) => {
+  const response = await apiClient.get(`/assignments/${assignmentId}/writing-questions`);
+  return response.data;
+};
+
 export const uploadAssignmentQuestions = async (assignmentId, file) => {
   const formData = new FormData();
   formData.append('file', file);

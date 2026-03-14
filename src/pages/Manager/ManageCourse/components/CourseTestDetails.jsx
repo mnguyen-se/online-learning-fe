@@ -828,26 +828,30 @@ const CourseTestDetails = ({
                 {question.questionType === 'MATCHING' && (
                   <div className="lesson-details-field">
                     <label className="lesson-details-label">MATCHING - COLUMN A</label>
-                    {question.columnA.map((item, itemIndex) => (
-                      <div key={`${question.id}-columnA-${itemIndex}`} className="lesson-quiz-answer">
-                        <input
-                          className="lesson-quiz-answer-input"
-                          type="text"
-                          value={item.text}
-                          placeholder={`A${itemIndex + 1}`}
-                          onChange={(event) => handleUpdateMatchingItem(question.id, 'columnA', itemIndex, event.target.value)}
-                          disabled={isLoading}
-                        />
-                        <button
-                          type="button"
-                          className="lesson-quiz-delete-btn"
-                          onClick={() => handleRemoveMatchingItem(question.id, 'columnA', itemIndex)}
-                          disabled={isLoading}
-                        >
-                          Xóa
-                        </button>
-                      </div>
-                    ))}
+                    {question.columnA.map((item, itemIndex) => {
+                      const displayId = String(itemIndex + 1); // Hiển thị 1, 2, 3, 4
+                      return (
+                        <div key={`${question.id}-columnA-${itemIndex}`} className="lesson-quiz-answer">
+                          <span className="lesson-quiz-answer-id-label">{displayId}:</span>
+                          <input
+                            className="lesson-quiz-answer-input"
+                            type="text"
+                            value={item.text}
+                            placeholder={`Nhập nội dung cho ${displayId}`}
+                            onChange={(event) => handleUpdateMatchingItem(question.id, 'columnA', itemIndex, event.target.value)}
+                            disabled={isLoading}
+                          />
+                          <button
+                            type="button"
+                            className="lesson-quiz-delete-btn"
+                            onClick={() => handleRemoveMatchingItem(question.id, 'columnA', itemIndex)}
+                            disabled={isLoading}
+                          >
+                            Xóa
+                          </button>
+                        </div>
+                      );
+                    })}
                     <button
                       type="button"
                       className="course-outline-btn"
@@ -858,26 +862,31 @@ const CourseTestDetails = ({
                     </button>
 
                     <label className="lesson-details-label" style={{ marginTop: 12 }}>MATCHING - COLUMN B</label>
-                    {question.columnB.map((item, itemIndex) => (
-                      <div key={`${question.id}-columnB-${itemIndex}`} className="lesson-quiz-answer">
-                        <input
-                          className="lesson-quiz-answer-input"
-                          type="text"
-                          value={item.text}
-                          placeholder={`B${itemIndex + 1}`}
-                          onChange={(event) => handleUpdateMatchingItem(question.id, 'columnB', itemIndex, event.target.value)}
-                          disabled={isLoading}
-                        />
-                        <button
-                          type="button"
-                          className="lesson-quiz-delete-btn"
-                          onClick={() => handleRemoveMatchingItem(question.id, 'columnB', itemIndex)}
-                          disabled={isLoading}
-                        >
-                          Xóa
-                        </button>
-                      </div>
-                    ))}
+                    {question.columnB.map((item, itemIndex) => {
+                      const letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+                      const displayId = letters[itemIndex] || String(itemIndex + 1); // Hiển thị A, B, C, D
+                      return (
+                        <div key={`${question.id}-columnB-${itemIndex}`} className="lesson-quiz-answer">
+                          <span className="lesson-quiz-answer-id-label">{displayId}:</span>
+                          <input
+                            className="lesson-quiz-answer-input"
+                            type="text"
+                            value={item.text}
+                            placeholder={`Nhập nội dung cho ${displayId}`}
+                            onChange={(event) => handleUpdateMatchingItem(question.id, 'columnB', itemIndex, event.target.value)}
+                            disabled={isLoading}
+                          />
+                          <button
+                            type="button"
+                            className="lesson-quiz-delete-btn"
+                            onClick={() => handleRemoveMatchingItem(question.id, 'columnB', itemIndex)}
+                            disabled={isLoading}
+                          >
+                            Xóa
+                          </button>
+                        </div>
+                      );
+                    })}
                     <button
                       type="button"
                       className="course-outline-btn"
