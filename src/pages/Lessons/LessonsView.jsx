@@ -43,6 +43,8 @@ const idToKey = (value) => String(value ?? "");
 const QUESTIONS_PER_PAGE = 5;
 /** Tiền tố key sessionStorage lưu draft đáp án bài tập (chưa nộp). Key đầy đủ: lesson_drafts_${courseId || 'default'} */
 const DRAFT_STORAGE_KEY_PREFIX = "lesson_drafts_";
+/** Tiền tố key sessionStorage lưu danh sách lesson đã hoàn thành (để tránh lỗi nhảy dấu tích khi backend chỉ trả completedTasks) */
+const COMPLETED_LESSONS_STORAGE_KEY_PREFIX = "lesson_completed_";
 
 const normalizeArrayResponse = (response) => {
   if (Array.isArray(response)) return response;
@@ -113,14 +115,43 @@ const getCompletedLessonIdSet = (process) => {
   return new Set(list.map((id) => idToKey(id)).filter((id) => id !== ""));
 };
 
-const getCompletedLessonSetWithFallback = (process, orderedLessons) => {
+/**
+ * Lấy danh sách lesson đã hoàn thành từ sessionStorage (theo courseId).
+ * Dùng để tránh lỗi "nhảy dấu tích" khi backend chỉ trả completedTasks mà không trả completedLessonIds.
+ */
+const getLocalCompletedLessonIds = (courseId) => {
+  if (!courseId) return new Set();
+  try {
+    const key = `${COMPLETED_LESSONS_STORAGE_KEY_PREFIX}${courseId}`;
+    const raw = sessionStorage.getItem(key);
+    const arr = raw ? JSON.parse(raw) : [];
+    return new Set(Array.isArray(arr) ? arr.map(idToKey).filter((k) => k !== "") : []);
+  } catch {
+    return new Set();
+  }
+};
+
+const setLocalCompletedLessonId = (courseId, lessonId) => {
+  if (!courseId || !lessonId) return;
+  try {
+    const key = `${COMPLETED_LESSONS_STORAGE_KEY_PREFIX}${courseId}`;
+    const current = getLocalCompletedLessonIds(courseId);
+    current.add(idToKey(lessonId));
+    sessionStorage.setItem(key, JSON.stringify([...current]));
+  } catch {
+    // ignore quota / private mode
+  }
+};
+
+const getCompletedLessonSetWithFallback = (process, orderedLessons, localCompletedIds = new Set()) => {
   const explicitSet = getCompletedLessonIdSet(process);
-  if (explicitSet.size > 0) return explicitSet;
+  const merged = new Set([...explicitSet, ...localCompletedIds]);
+  if (merged.size > 0) return merged;
 
   const lessons = Array.isArray(orderedLessons)
     ? orderedLessons.filter((lesson) => !isAssignmentItem(lesson))
     : [];
-  if (lessons.length === 0) return explicitSet;
+  if (lessons.length === 0) return merged;
 
   const isFullyCompleted =
     process?.completed === true ||
@@ -131,21 +162,12 @@ const getCompletedLessonSetWithFallback = (process, orderedLessons) => {
     return new Set(lessons.map((lesson) => idToKey(resolveLessonId(lesson))));
   }
 
-  const completedTasks = Number(
-    process?.completedTasks ?? process?.completedCount ?? 0
-  );
-  if (!Number.isFinite(completedTasks) || completedTasks <= 0)
-    return explicitSet;
-
-  const limit = Math.min(
-    Math.max(0, Math.floor(completedTasks)),
-    lessons.length
-  );
-  const inferredSet = new Set();
-  for (let index = 0; index < limit; index += 1) {
-    inferredSet.add(idToKey(resolveLessonId(lessons[index])));
-  }
-  return inferredSet;
+  /* Không dùng suy luận theo index (completedTasks) vì gây lỗi nhảy dấu tích:
+   * Khi user hoàn thành L1, bỏ qua L2, hoàn thành L3 -> completedTasks=2
+   * Suy luận "2 bài đầu" = L1,L2 sai; phải là L1,L3.
+   * Backend không trả completedLessonIds nên dùng localCompletedIds từ sessionStorage.
+   */
+  return merged;
 };
 
 const getOrderedLessonsByCourse = (modules, allLessons) => {
@@ -392,13 +414,18 @@ function LessonsView() {
     () => [...lessons, ...assignments],
     [lessons, assignments]
   );
+  const localCompletedIds = useMemo(
+    () => getLocalCompletedLessonIds(courseId),
+    [courseId, learningProcess]
+  );
   const completedLessonSet = useMemo(
     () =>
       getCompletedLessonSetWithFallback(
         learningProcess,
-        allLessonsForProgress
+        allLessonsForProgress,
+        localCompletedIds
       ),
-    [learningProcess, allLessonsForProgress]
+    [learningProcess, allLessonsForProgress, localCompletedIds]
   );
   const selectedLessonCompleted = useMemo(() => {
     if (!selectedLesson) return false;
@@ -866,6 +893,7 @@ function LessonsView() {
       });
       invalidateCachedMyCourses();
       toast.success("Đã đánh dấu hoàn thành bài học.");
+      setLocalCompletedLessonId(courseId, selectedId);
       invalidateCachedLearningProcess(courseId);
       const latestProcess = await getLearningProcessWithCache(courseId, {
         force: true,
