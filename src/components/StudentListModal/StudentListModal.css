@@ -161,3 +161,70 @@
 .student-list-modal-btn:hover {
   background: #2563eb;
 }
+
+.student-list-modal-unassign-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-size: 13px;
+  color: #dc2626;
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.student-list-modal-unassign-btn:hover {
+  background: #fee2e2;
+  border-color: #f87171;
+  color: #b91c1c;
+}
+
+.student-list-modal-unassign-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* Modal xác nhận hủy gán */
+.student-list-confirm-overlay {
+  z-index: 10000;
+}
+
+.student-list-confirm-box {
+  background: #fff;
+  border-radius: 12px;
+  padding: 20px;
+  max-width: 400px;
+  width: 100%;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.25);
+}
+
+.student-list-confirm-box h4 {
+  margin: 0 0 12px 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: #111827;
+}
+
+.student-list-confirm-box p {
+  margin: 0 0 20px 0;
+  font-size: 14px;
+  color: #4b5563;
+  line-height: 1.5;
+}
+
+.student-list-confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.student-list-confirm-danger {
+  background: #dc2626 !important;
+}
+
+.student-list-confirm-danger:hover {
+  background: #b91c1c !important;
+}

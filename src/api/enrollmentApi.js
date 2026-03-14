@@ -15,6 +15,12 @@ export const assignEnrollment = async (payload) => {
   return response.data;
 };
 
+/** Hủy gán học viên khỏi khóa học (chỉ ADMIN, COURSE_MANAGER) */
+export const unenrollStudent = async (courseId, username) => {
+  const response = await apiClient.delete(`/enrollments/courses/${courseId}/students/${encodeURIComponent(username)}`);
+  return response.data;
+};
+
 /** Lấy danh sách khóa học mà học viên đã ghi danh (theo username) */
 export const getEnrolledCoursesByUsername = async (username) => {
   const response = await apiClient.get(`/enrollments/students/${encodeURIComponent(username)}/courses`);

@@ -2385,6 +2385,9 @@ function CourseManagement() {
           onClose={() => setStudentListModal({ isOpen: false, courseId: null, courseTitle: '' })}
           courseId={studentListModal.courseId}
           courseTitle={studentListModal.courseTitle}
+          onUnassignSuccess={(cid) => {
+            if (cid) loadCourseStats(cid).then((stats) => setCourseStats((prev) => ({ ...prev, [cid]: stats })));
+          }}
         />
       </div>
     </DashboardLayout>
