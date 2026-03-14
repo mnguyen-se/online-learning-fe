@@ -1,7 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState, useRef } from 'react';
 import { toast } from 'react-toastify';
 import DashboardLayout from '../../../components/DashboardLayout';
 import StudentListModal from '../../../components/StudentListModal/StudentListModal';
+import { getAllUsers } from '../../../api/userApi';
 import { getCourses } from '../../../api/coursesApi';
 import { getLessons } from '../../../api/lessionApi';
 import { getModulesByCourse } from '../../../api/module';
@@ -19,8 +20,13 @@ function AdminCourseManagement() {
   const [courseActiveStates, setCourseActiveStates] = useState({});
   const [assignModal, setAssignModal] = useState({ isOpen: false, course: null });
   const [assignUsername, setAssignUsername] = useState('');
+  const [assignSearchQuery, setAssignSearchQuery] = useState('');
+  const [assignDropdownOpen, setAssignDropdownOpen] = useState(false);
+  const [assignAvailableStudents, setAssignAvailableStudents] = useState([]);
+  const [assignLoadingStudents, setAssignLoadingStudents] = useState(false);
   const [isAssigning, setIsAssigning] = useState(false);
   const [studentListModal, setStudentListModal] = useState({ isOpen: false, courseId: null, courseTitle: '' });
+  const assignDropdownRef = useRef(null);
 
   const getCourseId = (course) =>
     course?.id ??
@@ -149,19 +155,90 @@ function AdminCourseManagement() {
   const openAssignModal = (course) => {
     setAssignModal({ isOpen: true, course });
     setAssignUsername('');
+    setAssignSearchQuery('');
+    setAssignDropdownOpen(false);
+    setAssignAvailableStudents([]);
   };
 
   const closeAssignModal = () => {
     setAssignModal({ isOpen: false, course: null });
     setAssignUsername('');
+    setAssignSearchQuery('');
+    setAssignDropdownOpen(false);
+    setAssignAvailableStudents([]);
   };
+
+  /** Khi modal gán học viên mở, tải danh sách học viên chưa gán vào khóa */
+  useEffect(() => {
+    if (!assignModal.isOpen || !assignModal.course) return;
+    const courseId = getCourseId(assignModal.course);
+    if (!courseId) return;
+
+    let cancelled = false;
+    setAssignLoadingStudents(true);
+    Promise.all([
+      getAllUsers(),
+      getEnrolledStudentsByCourse(courseId).catch(() => []),
+    ])
+      .then(([usersRes, enrolledRes]) => {
+        if (cancelled) return;
+        const users = Array.isArray(usersRes) ? usersRes : usersRes?.data ?? [];
+        const enrolled = Array.isArray(enrolledRes) ? enrolledRes : enrolledRes?.data ?? [];
+        const enrolledUsernames = new Set(
+          enrolled.map((e) => (e.username ?? e.userName ?? '').toLowerCase()).filter(Boolean)
+        );
+        const students = users
+          .filter((u) => (u.role ?? '').toUpperCase() === 'STUDENT' && u.active !== false)
+          .filter((u) => !enrolledUsernames.has((u.username ?? '').toLowerCase()));
+        setAssignAvailableStudents(students);
+      })
+      .catch(() => {
+        if (!cancelled) setAssignAvailableStudents([]);
+      })
+      .finally(() => {
+        if (!cancelled) setAssignLoadingStudents(false);
+      });
+    return () => { cancelled = true; };
+  }, [assignModal.isOpen, assignModal.course]);
+
+  /** Học viên đã chọn (để hiển thị tên) */
+  const selectedStudent = useMemo(() => {
+    if (!assignUsername) return null;
+    return assignAvailableStudents.find(
+      (u) => (u.username ?? '').toLowerCase() === assignUsername.toLowerCase()
+    );
+  }, [assignUsername, assignAvailableStudents]);
+
+  /** Danh sách gợi ý sau khi lọc theo search */
+  const assignFilteredStudents = useMemo(() => {
+    const q = (assignSearchQuery ?? '').trim().toLowerCase();
+    if (!q) return assignAvailableStudents.slice(0, 10);
+    const haystack = (u) =>
+      [u.username, u.name, u.email].filter(Boolean).join(' ').toLowerCase();
+    return assignAvailableStudents
+      .filter((u) => haystack(u).includes(q))
+      .slice(0, 10);
+  }, [assignAvailableStudents, assignSearchQuery]);
+
+  /** Click outside để đóng dropdown */
+  useEffect(() => {
+    const handleClickOutside = (e) => {
+      if (assignDropdownRef.current && !assignDropdownRef.current.contains(e.target)) {
+        setAssignDropdownOpen(false);
+      }
+    };
+    if (assignModal.isOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
+    }
+  }, [assignModal.isOpen]);
 
   const handleAssign = async (event) => {
     event.preventDefault();
     const username = assignUsername.trim();
     const courseId = getCourseId(assignModal.course);
     if (!username) {
-      toast.error('Vui lòng nhập username học viên.');
+      toast.error('Vui lòng chọn học viên từ danh sách.');
       return;
     }
     if (!courseId) {
@@ -339,14 +416,65 @@ function AdminCourseManagement() {
             <form className="course-edit-modal-body" onSubmit={handleAssign}>
               <label className="course-edit-modal-label">Khóa học</label>
               <div className="course-edit-modal-input">{assignModal.course?.title || '—'}</div>
-              <label className="course-edit-modal-label">Username học viên</label>
-              <input
-                className="course-edit-modal-input"
-                type="text"
-                value={assignUsername}
-                onChange={(event) => setAssignUsername(event.target.value)}
-                placeholder="Nhập username"
-              />
+              <label className="course-edit-modal-label">Chọn học viên (tìm theo tên, email, username)</label>
+              <div className="assign-student-select" ref={assignDropdownRef}>
+                {selectedStudent ? (
+                  <div className="assign-student-selected">
+                    <span className="assign-student-selected-text">
+                      {selectedStudent.name || selectedStudent.username} <em>(@{selectedStudent.username})</em>
+                    </span>
+                    <button
+                      type="button"
+                      className="assign-student-clear"
+                      onClick={() => { setAssignUsername(''); setAssignSearchQuery(''); setAssignDropdownOpen(true); }}
+                      aria-label="Chọn lại"
+                    >
+                      ×
+                    </button>
+                  </div>
+                ) : (
+                  <input
+                    className="course-edit-modal-input assign-student-input"
+                    type="text"
+                    value={assignSearchQuery}
+                    onChange={(e) => {
+                      setAssignSearchQuery(e.target.value);
+                      setAssignDropdownOpen(true);
+                    }}
+                    onFocus={() => setAssignDropdownOpen(true)}
+                    placeholder={assignLoadingStudents ? 'Đang tải danh sách...' : 'Gõ tên, email hoặc username để tìm...'}
+                    disabled={assignLoadingStudents}
+                    autoComplete="off"
+                  />
+                )}
+                {assignDropdownOpen && (
+                  <div className="assign-student-dropdown">
+                    {assignFilteredStudents.length === 0 ? (
+                      <div className="assign-student-dropdown-empty">
+                        {assignAvailableStudents.length === 0
+                          ? 'Không còn học viên nào chưa gán.'
+                          : 'Không tìm thấy kết quả phù hợp.'}
+                      </div>
+                    ) : (
+                      assignFilteredStudents.map((u) => (
+                        <button
+                          key={u.id ?? u.userId ?? u.username}
+                          type="button"
+                          className="assign-student-option"
+                          onClick={() => {
+                            setAssignUsername(u.username ?? '');
+                            setAssignSearchQuery('');
+                            setAssignDropdownOpen(false);
+                          }}
+                        >
+                          <span className="assign-student-option-name">{u.name || u.username || '—'}</span>
+                          <span className="assign-student-option-meta">{u.email || ''} · @{u.username}</span>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
               <div className="course-edit-modal-footer">
                 <button
                   type="button"

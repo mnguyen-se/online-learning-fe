@@ -3661,6 +3661,109 @@
   cursor: pointer;
 }
 
+/* Assign student searchable dropdown */
+.assign-student-select {
+  position: relative;
+}
+
+.assign-student-input {
+  width: 100%;
+}
+
+.assign-student-selected {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.assign-student-selected-text {
+  flex: 1;
+  font-size: 14px;
+  color: #0f172a;
+}
+
+.assign-student-selected-text em {
+  font-style: normal;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.assign-student-clear {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: none;
+  background: #e2e8f0;
+  color: #64748b;
+  border-radius: 6px;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.assign-student-clear:hover {
+  background: #cbd5e1;
+  color: #0f172a;
+}
+
+.assign-student-dropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  max-height: 220px;
+  overflow-y: auto;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  box-shadow: 0 10px 40px rgba(15, 23, 42, 0.15);
+  z-index: 100;
+}
+
+.assign-student-dropdown-empty {
+  padding: 12px 14px;
+  font-size: 13px;
+  color: #64748b;
+}
+
+.assign-student-option {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background 0.15s;
+}
+
+.assign-student-option:hover {
+  background: #f1f5f9;
+}
+
+.assign-student-option-name {
+  display: block;
+  font-weight: 500;
+  color: #0f172a;
+}
+
+.assign-student-option-meta {
+  display: block;
+  font-size: 12px;
+  color: #64748b;
+  margin-top: 2px;
+}
+
 .course-edit-modal-btn.primary {
   background: #2563eb;
   color: #ffffff;
