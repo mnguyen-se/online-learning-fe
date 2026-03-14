@@ -133,15 +133,20 @@ function TeacherGradingDetail() {
   };
 
   const handleSendFeedback = () => {
+    const numScore = score === '' ? null : Number(score);
+    if (numScore != null && (Number.isNaN(numScore) || numScore < 0 || numScore > maxScore)) {
+      toast.warning(`Điểm số hợp lệ từ 0 đến ${maxScore}.`);
+      return;
+    }
     setSendingFeedbackLoading(true);
     const grades = buildAnswerGrades();
     gradeWritingSubmission(submissionId, {
-      score: submission?.score ?? 0,
+      score: numScore != null ? numScore : (submission?.score ?? 0),
       feedback: feedback.trim() || null,
       answerGrades: grades,
     })
       .then(() => {
-        toast.success('Đã gửi nhận xét.');
+        toast.success('Đã lưu điểm và gửi nhận xét.');
         // Reload submission để đồng bộ dữ liệu từ backend
         return getWritingSubmission(submissionId).then((res) => {
           const data = res?.data ?? res;

@@ -72,31 +72,6 @@ function GradingPanel({
           )}
           <span className="submission-detail-score-scale">/ {maxScore}</span>
         </div>
-        {isQuiz ? (
-          <Button
-            type="primary"
-            size="large"
-            icon={<Eye size={18} />}
-            onClick={onPublishScore}
-            loading={effectiveScoreLoading}
-            disabled={effectiveScoreLoading || scoreDisabled}
-            className="submission-detail-btn submission-detail-btn-publish"
-          >
-            Mở điểm cho học sinh xem
-          </Button>
-        ) : (
-          <Button
-            type="primary"
-            size="large"
-            icon={<Eye size={18} />}
-            onClick={onSaveScore}
-            loading={effectiveScoreLoading}
-            disabled={effectiveScoreLoading || scoreDisabled}
-            className="submission-detail-btn submission-detail-btn-save"
-          >
-            Hiển thị điểm cho học sinh
-          </Button>
-        )}
 
         <label className="submission-detail-grading-label submission-detail-grading-label-feedback">
           NHẬN XÉT CỦA GIÁO VIÊN
