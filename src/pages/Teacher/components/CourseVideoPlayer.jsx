@@ -13,9 +13,20 @@ function isYoutube(url) {
   return /youtube\.com|youtu\.be/.test(url || '');
 }
 
+/** Chuẩn hóa textContent từ API (có thể trả về text_content hoặc textContent) */
+function getLessonTextContent(lesson) {
+  if (!lesson) return '';
+  const raw = lesson.textContent ?? lesson.text_content ?? lesson.content ?? '';
+  const s = typeof raw === 'string' ? raw : String(raw ?? '');
+  return s.trim();
+}
+
 function CourseVideoPlayer({ lesson }) {
-  const videoUrl = lesson?.videoUrl || lesson?.contentUrl || '';
+  const videoUrl = (lesson?.videoUrl ?? lesson?.video_url ?? lesson?.contentUrl ?? '').trim();
   const title = lesson?.title || 'Bài học';
+  const textContent = getLessonTextContent(lesson);
+  const hasVideo = videoUrl.length > 0;
+  const hasText = textContent.length > 0;
 
   if (!lesson) {
     return (
@@ -25,7 +36,7 @@ function CourseVideoPlayer({ lesson }) {
     );
   }
 
-  if (isYoutube(videoUrl)) {
+  if (hasVideo && isYoutube(videoUrl)) {
     const embedUrl = getEmbedUrl(videoUrl);
     if (embedUrl) {
       return (
@@ -43,7 +54,7 @@ function CourseVideoPlayer({ lesson }) {
     }
   }
 
-  if (videoUrl && (videoUrl.endsWith('.mp4') || videoUrl.includes('mp4'))) {
+  if (hasVideo && (videoUrl.endsWith('.mp4') || videoUrl.includes('mp4'))) {
     return (
       <div className="tcd-video-wrap">
         <video src={videoUrl} controls className="tcd-video-el" title={title}>
@@ -53,9 +64,22 @@ function CourseVideoPlayer({ lesson }) {
     );
   }
 
+  if (hasText) {
+    return (
+      <div className="tcd-reading-container">
+        <div
+          className="tcd-reading-content"
+          dangerouslySetInnerHTML={{
+            __html: textContent.replace(/\n/g, '<br />'),
+          }}
+        />
+      </div>
+    );
+  }
+
   return (
     <div className="tcd-video-placeholder">
-      <p>Chưa có video cho bài này.</p>
+      <p>Chưa có nội dung cho bài học.</p>
     </div>
   );
 }

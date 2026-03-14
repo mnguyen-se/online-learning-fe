@@ -115,8 +115,10 @@ function TeacherModuleDetail() {
       <div className="teacher-md-main">
         <section className="tcd-video-col">
           <div className="tcd-video-card">
+            {currentLesson && (
+              <h2 className="tcd-video-title">{currentLesson.title}</h2>
+            )}
             <CourseVideoPlayer lesson={currentLesson} />
-            {currentLesson && <h2 className="tcd-video-title">{currentLesson.title}</h2>}
           </div>
         </section>
         <aside className="tcd-sidebar-col">
