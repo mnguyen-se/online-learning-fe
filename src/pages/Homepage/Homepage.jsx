@@ -188,6 +188,80 @@ function Homepages() {
               </div>
             </section>
 
+            {/* FAQ – Giải đáp thắc mắc */}
+            <section className="homepage-faq reveal">
+              <div className="homepage-faq-header">
+                <p className="homepage-faq-kicker">FAQ</p>
+                <h2 className="homepage-faq-title">Giải đáp thắc mắc của bạn</h2>
+                <p className="homepage-faq-subtitle">
+                  Những câu hỏi phổ biến về khóa học tiếng Nhật tại Ryugo. Nếu bạn vẫn còn băn khoăn, hãy liên hệ đội ngũ tư vấn để được hỗ trợ chi tiết.
+                </p>
+              </div>
+              <div className="homepage-faq-list">
+                <details className="faq-item" open>
+                  <summary className="faq-summary">
+                    <span className="faq-question">1. Khóa N5 sẽ được học những gì?</span>
+                    <span className="faq-toggle" aria-hidden="true">+</span>
+                  </summary>
+                  <div className="faq-content">
+                    <p>
+                      Bạn sẽ được học đầy đủ bảng chữ cái, từ vựng, ngữ pháp, đọc hiểu và luyện nghe – tương ứng trình độ JLPT N5.
+                      Lộ trình được chia theo tuần, có bài tập và bài kiểm tra định kỳ.
+                    </p>
+                  </div>
+                </details>
+
+                <details className="faq-item">
+                  <summary className="faq-summary">
+                    <span className="faq-question">2. Có thầy cô kèm trực tiếp không ạ?</span>
+                    <span className="faq-toggle" aria-hidden="true">+</span>
+                  </summary>
+                  <div className="faq-content">
+                    <p>
+                      Giảng viên sẽ hỗ trợ bạn qua hệ thống bài tập, chấm bài viết, phản hồi nhận xét và giải đáp thắc mắc qua nền tảng.
+                    </p>
+                  </div>
+                </details>
+
+                <details className="faq-item">
+                  <summary className="faq-summary">
+                    <span className="faq-question">3. Em muốn học thì sẽ phải đăng ký như thế nào?</span>
+                    <span className="faq-toggle" aria-hidden="true">+</span>
+                  </summary>
+                  <div className="faq-content">
+                    <p>
+                      Bạn chỉ cần tạo tài khoản, chọn khóa học mong muốn và hoàn tất đăng ký. Hệ thống sẽ tự động mở lộ trình học cho bạn.
+                    </p>
+                  </div>
+                </details>
+
+                <details className="faq-item">
+                  <summary className="faq-summary">
+                    <span className="faq-question">4. Tại sao học phí tại Nhật lại khác so với ở Việt Nam?</span>
+                    <span className="faq-toggle" aria-hidden="true">+</span>
+                  </summary>
+                  <div className="faq-content">
+                    <p>
+                      Mức học phí được xây dựng dựa trên chi phí vận hành, chất lượng giảng viên và nội dung bài học.
+                      Ryugo luôn cố gắng tối ưu chi phí nhưng vẫn đảm bảo chất lượng.
+                    </p>
+                  </div>
+                </details>
+
+                <details className="faq-item">
+                  <summary className="faq-summary">
+                    <span className="faq-question">5. Em có được hỗ trợ lộ trình JLPT dài hạn không?</span>
+                    <span className="faq-toggle" aria-hidden="true">+</span>
+                  </summary>
+                  <div className="faq-content">
+                    <p>
+                      Có. Bạn sẽ được tư vấn lộ trình từ N5 đến các cấp độ cao hơn và theo dõi tiến độ học tập trong hệ thống Ryugo.
+                    </p>
+                  </div>
+                </details>
+              </div>
+            </section>
+
             {/* Nội dung theo role: Guest / Admin / Manager (hình ảnh + CTA), Student (khóa đang học), Teacher (khóa đang dạy) */}
             <section className="homepage-role-section reveal">
               {/* Guest: khám phá khóa học + hình ảnh */}
@@ -313,6 +387,51 @@ function Homepages() {
               ) : null}
             </section>
 
+          </div>
+
+          <div className="homepage-bottom-bar">
+            <div className="homepage-bottom-bar-inner">
+              <div className="bottom-bar-buttons">
+                <button
+                  type="button"
+                  className="bottom-bar-btn primary"
+                  onClick={() => navigate('/quiz-placement')}
+                >
+                  Kiểm tra trình độ · Nhận tài liệu
+                </button>
+                <button
+                  type="button"
+                  className="bottom-bar-btn"
+                  onClick={() => navigate('/contact')}
+                >
+                  Tư vấn
+                </button>
+                <button
+                  type="button"
+                  className="bottom-bar-btn"
+                  onClick={() => navigate('/schedule')}
+                >
+                  Lịch khai giảng
+                </button>
+                <button
+                  type="button"
+                  className="bottom-bar-btn"
+                  onClick={() => navigate('/testimonials')}
+                >
+                  Cảm nhận học viên
+                </button>
+                <button
+                  type="button"
+                  className="bottom-bar-btn"
+                  onClick={() => navigate('/resources')}
+                >
+                  Kho tài liệu
+                </button>
+              </div>
+              <p className="bottom-bar-note">
+                Chọn một mục bên trên để bắt đầu hành trình của bạn với Ryugo.
+              </p>
+            </div>
           </div>
 
           <Footer />

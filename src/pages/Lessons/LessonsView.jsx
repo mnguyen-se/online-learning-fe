@@ -1,6 +1,5 @@
 import React, { Suspense, lazy, useEffect, useMemo, useState, useCallback, useRef } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { toast } from "react-toastify";
 import Header from "../../components/Header/header";
 import { useAuth } from "../../hooks/useAuth";
 import { getLearningProcess } from "../../api/learningProcessApi";
@@ -32,6 +31,7 @@ import {
   getAiLessonHint,
   getLessonView,
 } from "../../api/lessionApi";
+import { notify } from "../../utils/notification";
 import "./LessonsView.css";
 
 const LessonVideoContent = lazy(() => import("./LessonVideoContent"));
@@ -920,7 +920,7 @@ function LessonsView() {
     if (!assignmentItem?.assignmentId) return;
     const questions = Array.isArray(assignmentItem.questions) ? assignmentItem.questions : [];
     if (questions.length === 0) {
-      toast.info('Bài tập này chưa có câu hỏi.');
+      notify.info('Bài tập chưa có câu hỏi', 'Giáo viên chưa tạo câu hỏi cho bài tập này.');
       return;
     }
 
@@ -928,12 +928,12 @@ function LessonsView() {
     for (const question of questions) {
       const selectedAnswer = getQuizAnswerValue(assignmentItem.assignmentId, question.questionId);
       if (!selectedAnswer) {
-        toast.error('Vui lòng chọn đáp án cho tất cả câu hỏi trước khi nộp.');
+        notify.error('Chưa hoàn thành bài trắc nghiệm', 'Vui lòng chọn đáp án cho tất cả câu hỏi trước khi nộp.');
         return;
       }
       const questionId = Number(question.questionId);
       if (!Number.isFinite(questionId)) {
-        toast.error('Không xác định được mã câu hỏi để nộp bài.');
+        notify.error('Không thể nộp bài', 'Không xác định được mã câu hỏi để nộp bài.');
         return;
       }
       answers.push({
@@ -963,10 +963,13 @@ function LessonsView() {
         delete next[idToKey(assignmentItem.assignmentId)];
         return next;
       });
-      toast.success('Đã nộp bài trắc nghiệm. Bài làm ở trạng thái SUBMITTED.');
+      notify.success(
+        'Đã nộp bài trắc nghiệm thành công',
+        'Bài làm của bạn đã được gửi và đang chờ giáo viên chấm điểm.'
+      );
     } catch (err) {
       const message = err?.response?.data?.message || 'Không thể nộp bài trắc nghiệm.';
-      toast.error(message);
+      notify.error('Không thể nộp bài trắc nghiệm', message);
     } finally {
       setIsSubmittingAssignment(false);
     }

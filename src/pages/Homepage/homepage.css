@@ -628,6 +628,116 @@
   box-shadow: 0 8px 24px rgba(201, 162, 39, 0.4);
 }
 
+/* FAQ – Giải đáp thắc mắc */
+.homepage-faq {
+  background: var(--ryugo-white);
+  border-radius: 24px;
+  padding: 3rem 2.5rem;
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 18px 50px rgba(15, 23, 42, 0.06);
+}
+
+.homepage-faq-header {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.homepage-faq-kicker {
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--ryugo-gold);
+  margin: 0 0 0.5rem 0;
+}
+
+.homepage-faq-title {
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--ryugo-navy);
+  margin: 0 0 0.75rem 0;
+}
+
+.homepage-faq-subtitle {
+  max-width: 640px;
+  margin: 0 auto;
+  font-size: 1rem;
+  color: var(--ryugo-navy-light);
+  line-height: 1.6;
+}
+
+.homepage-faq-list {
+  margin-top: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.faq-item {
+  border-radius: 18px;
+  border: 1px solid rgba(15, 23, 42, 0.06);
+  background: var(--ryugo-off-white);
+  overflow: hidden;
+}
+
+.faq-item[open] {
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  border-color: rgba(201, 162, 39, 0.25);
+}
+
+.faq-summary {
+  list-style: none;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 1.1rem 1.5rem;
+  cursor: pointer;
+}
+
+.faq-summary::-webkit-details-marker {
+  display: none;
+}
+
+.faq-question {
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--ryugo-navy);
+}
+
+.faq-toggle {
+  width: 32px;
+  height: 32px;
+  border-radius: 999px;
+  border: 2px solid rgba(148, 163, 184, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: #0f172a;
+  background: #ffffff;
+}
+
+.faq-item[open] .faq-toggle {
+  background: var(--ryugo-gold);
+  border-color: var(--ryugo-gold);
+  color: var(--ryugo-navy);
+}
+
+.faq-content {
+  padding: 0 1.5rem 1.1rem 1.5rem;
+  border-top: 1px solid rgba(226, 232, 240, 0.9);
+}
+
+.faq-content p {
+  margin: 0.8rem 0 0 0;
+  font-size: 0.96rem;
+  color: var(--ryugo-navy-light);
+  line-height: 1.6;
+}
+
 /* Role-based section: Guest / Admin / Manager (banner + image), Student / Teacher (course list) */
 .homepage-role-section {
   background: var(--ryugo-white);
@@ -636,6 +746,69 @@
   border: 1px solid rgba(15, 23, 42, 0.08);
   box-shadow: 0 18px 50px rgba(15, 23, 42, 0.06);
   overflow: hidden;
+}
+
+/* Bottom CTA bar – giống thanh menu lộ trình */
+.homepage-bottom-bar {
+  margin-top: 2.5rem;
+}
+
+.homepage-bottom-bar-inner {
+  max-width: 1200px;
+  margin: 0 auto 1.5rem auto;
+  border-radius: 20px;
+  background: linear-gradient(90deg, #f59e0b 0%, #fbbf24 25%, #f97316 50%, #f59e0b 75%, #fbbf24 100%);
+  box-shadow: 0 -8px 30px rgba(15, 23, 42, 0.25);
+  padding: 0.75rem 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.bottom-bar-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.bottom-bar-btn {
+  border: none;
+  outline: none;
+  padding: 10px 20px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.94);
+  color: #111827;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, background 0.2s ease;
+}
+
+.bottom-bar-btn.primary {
+  background: #111827;
+  color: #f9fafb;
+}
+
+.bottom-bar-btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(15, 23, 42, 0.25);
+  background: #ffffff;
+}
+
+.bottom-bar-btn.primary:hover {
+  background: #020617;
+}
+
+.bottom-bar-note {
+  font-size: 0.85rem;
+  color: rgba(15, 23, 42, 0.85);
+  font-weight: 500;
+  text-align: right;
 }
 
 /* Role banners (Guest, Admin, Manager) – hình ảnh + nội dung */
