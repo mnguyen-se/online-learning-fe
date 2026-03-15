@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
-import { toast } from 'react-toastify';
 import { Card, Select, Table, Input, Avatar, Tag, Button, Modal, Form, InputNumber, Spin, Empty } from 'antd';
 import { Search, ClipboardCheck } from 'lucide-react';
 import { getTeacherCourses } from '../../api/teacherApi';
@@ -13,6 +12,7 @@ import {
   gradeQuizSubmission,
   gradeWritingSubmission,
 } from '../../api/assignmentApi';
+import { notify } from '../../utils/notification';
 import './TeacherPages.css';
 import './TeacherGrading.css';
 
@@ -193,7 +193,7 @@ function TeacherGrading() {
         const data = res?.data ?? res;
         setSubmissionDetail(data);
       })
-      .catch(() => toast.error('Không tải được chi tiết bài nộp.'))
+      .catch(() => notify.error('Không tải được chi tiết bài nộp', 'Vui lòng kiểm tra kết nối và thử lại.'))
       .finally(() => setLoadingDetail(false));
   };
 
@@ -208,7 +208,7 @@ function TeacherGrading() {
     if (!sid || !selectedAssignment) return;
     const scoreVal = values.score;
     if (scoreVal != null && (Number.isNaN(scoreVal) || scoreVal < 0 || scoreVal > 10)) {
-      toast.warning('Điểm số hợp lệ từ 0 đến 10.');
+      notify.warning('Điểm số không hợp lệ', 'Điểm số hợp lệ từ 0 đến 10.');
       return;
     }
     const type = (selectedAssignment.assignmentType || selectedAssignment.assignment_type || '').toUpperCase();
@@ -227,12 +227,12 @@ function TeacherGrading() {
     const gradeFn = type === ASSIGNMENT_TYPE_WRITING ? gradeWritingSubmission : gradeQuizSubmission;
     gradeFn(sid, payload)
       .then(() => {
-        toast.success('Đã lưu điểm và nhận xét.');
+        notify.success('Đã lưu điểm và nhận xét', 'Thông tin đã được cập nhật vào hệ thống.');
         closeGradeModal();
         const fetchSubmissions = type === ASSIGNMENT_TYPE_WRITING ? getWritingSubmissions : getQuizSubmissions;
         fetchSubmissions(selectedAssignmentId).then((data) => setSubmissions(Array.isArray(data) ? data : []));
       })
-      .catch(() => toast.error('Không thể lưu. Vui lòng thử lại.'))
+      .catch(() => notify.error('Không thể lưu', 'Vui lòng thử lại sau.'))
       .finally(() => setSubmitting(false));
   };
 

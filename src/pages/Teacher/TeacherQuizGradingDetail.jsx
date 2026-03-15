@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { toast } from 'react-toastify';
 import { Avatar, Button, Spin, Empty } from 'antd';
 import { ArrowLeft, MoreVertical, CheckCircle2, XCircle } from 'lucide-react';
 import {
@@ -9,6 +8,7 @@ import {
   getAssignmentQuestions,
   gradeQuizSubmission,
 } from '../../api/assignmentApi';
+import { notify } from '../../utils/notification';
 import GradingPanel from './components/GradingPanel';
 import './TeacherPages.css';
 import './TeacherGrading.css';
@@ -86,7 +86,7 @@ function TeacherQuizGradingDetail() {
         ]);
       })
       .catch(() => {
-        toast.error('Không tải được bài nộp quiz.');
+        notify.error('Không tải được bài nộp quiz', 'Vui lòng kiểm tra kết nối và thử lại.');
         setSubmission(null);
         setQuestions([]);
       })
@@ -104,10 +104,10 @@ function TeacherQuizGradingDetail() {
       answerGrades: [],
     })
       .then(() => {
-        toast.success('Đã gửi nhận xét.');
+        notify.success('Đã gửi nhận xét', 'Nhận xét đã được lưu vào hệ thống.');
         setSubmission((prev) => (prev ? { ...prev, feedback: feedback.trim() || null } : null));
       })
-      .catch(() => toast.error('Không thể gửi nhận xét. Vui lòng thử lại.'))
+      .catch(() => notify.error('Không thể gửi nhận xét', 'Vui lòng thử lại sau.'))
       .finally(() => setSendingFeedbackLoading(false));
   };
 
@@ -121,7 +121,7 @@ function TeacherQuizGradingDetail() {
     })
       .then((data) => {
         const newScore = data?.data?.score ?? data?.score ?? data?.quizResult?.score;
-        toast.success('Đã mở điểm cho học sinh xem.');
+        notify.success('Đã mở điểm cho học sinh xem', 'Học sinh có thể xem điểm số của mình.');
         setSubmission((prev) =>
           prev
             ? {
@@ -133,7 +133,7 @@ function TeacherQuizGradingDetail() {
             : null
         );
       })
-      .catch(() => toast.error('Không thể công bố điểm. Vui lòng thử lại.'))
+      .catch(() => notify.error('Không thể công bố điểm', 'Vui lòng thử lại sau.'))
       .finally(() => setPublishingScoreLoading(false));
   };
 

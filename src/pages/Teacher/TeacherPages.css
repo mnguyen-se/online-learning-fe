@@ -2487,3 +2487,41 @@
     grid-template-columns: 1fr;
   }
 }
+
+.ant-notification {
+  z-index: 10000;
+}
+
+.ant-notification-notice {
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  padding: 16px;
+}
+
+.ant-notification-notice-message {
+  font-weight: 600;
+  font-size: 15px;
+  margin-bottom: 4px;
+  color: #1e293b;
+}
+
+.ant-notification-notice-description {
+  font-size: 14px;
+  color: #64748b;
+  margin-top: 4px;
+  line-height: 1.5;
+}
+
+.ant-notification-notice-icon {
+  margin-right: 12px;
+}
+
+.ant-notification-notice-close {
+  color: #94a3b8;
+  top: 16px;
+  right: 16px;
+}
+
+.ant-notification-notice-close:hover {
+  color: #64748b;
+}

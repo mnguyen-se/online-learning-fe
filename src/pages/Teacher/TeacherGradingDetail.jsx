@@ -1,9 +1,9 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { toast } from 'react-toastify';
 import { Avatar, Button, Spin, Empty } from 'antd';
 import { ArrowLeft, MoreVertical } from 'lucide-react';
 import { getWritingSubmission, getAssignmentById, gradeWritingSubmission, getWritingQuestionsForTeacher } from '../../api/assignmentApi';
+import { notify } from '../../utils/notification';
 import StudentAnswer from './components/StudentAnswer';
 import AttachmentList from './components/AttachmentList';
 import GradingPanel from './components/GradingPanel';
@@ -33,9 +33,8 @@ function TeacherGradingDetail() {
   const [feedback, setFeedback] = useState('');
   const [answerGrades, setAnswerGrades] = useState({}); // State để lưu isCorrect và pointsEarned đã sửa
 
-  const maxScore = submission?.maxScore ?? assignment?.maxScore ?? assignment?.totalPoints ?? assignment?.point ?? 10;
+  const maxScore = submission?.maxScore ?? assignment?.maxScore ?? assignment?.totalPoints ?? assignment?.point ?? 100;
 
-  // Handler để update isCorrect/pointsEarned cho một answer
   const handleUpdateAnswerGrade = useCallback((answerId, updates) => {
     setAnswerGrades((prev) => ({
       ...prev,
@@ -46,7 +45,6 @@ function TeacherGradingDetail() {
     }));
   }, []);
 
-  // Trả về mảng answerGrades cho API grade (dùng giá trị đã sửa nếu có)
   const buildAnswerGrades = useCallback(() => {
     const answers = submission?.answers ?? submission?.writingAnswers ?? [];
     if (!Array.isArray(answers) || answers.length === 0) return [];
@@ -60,6 +58,56 @@ function TeacherGradingDetail() {
       };
     });
   }, [submission, answerGrades]);
+
+  const calculateTotalScore = useCallback(() => {
+    const answers = submission?.answers ?? submission?.writingAnswers ?? [];
+    if (!Array.isArray(answers) || answers.length === 0) return 0;
+    
+    return answers.reduce((sum, a) => {
+      const answerId = a.answerId ?? a.id;
+      const edited = answerGrades[answerId];
+      const pointsEarned = edited?.pointsEarned !== undefined ? edited.pointsEarned : (a.pointsEarned ?? a.points_earned ?? null);
+      
+      if (pointsEarned === null || pointsEarned === undefined) return sum;
+      const points = Number(pointsEarned);
+      return sum + (Number.isNaN(points) ? 0 : points);
+    }, 0);
+  }, [submission, answerGrades]);
+
+  const validateAllQuestionsGraded = useCallback(() => {
+    const answers = submission?.answers ?? submission?.writingAnswers ?? [];
+    if (!Array.isArray(answers) || answers.length === 0) {
+      return { valid: false, message: 'Không có câu hỏi nào.' };
+    }
+
+    let order = 0;
+    for (const a of answers) {
+      order++;
+      const answerId = a.answerId ?? a.id;
+      const edited = answerGrades[answerId];
+      const pointsEarned = edited?.pointsEarned !== undefined ? edited.pointsEarned : (a.pointsEarned ?? a.points_earned ?? null);
+      
+      const questionId = a.questionId ?? a.question_id ?? order;
+      const questionDetail = questions.find(q => (q.questionId ?? q.id ?? q.question_id) === questionId);
+      const questionPoints = a.points ?? a.point ?? questionDetail?.points ?? questionDetail?.point ?? 1;
+      
+      if (pointsEarned === null || pointsEarned === undefined) {
+        return { valid: false, message: `Vui lòng chấm điểm cho câu hỏi ${order}.` };
+      }
+      
+      const pointsNum = Number(pointsEarned);
+      if (Number.isNaN(pointsNum) || pointsNum < 0 || pointsNum > questionPoints) {
+        return { valid: false, message: `Điểm của câu hỏi ${order} phải từ 0 đến ${questionPoints}.` };
+      }
+    }
+
+    const totalScore = calculateTotalScore();
+    if (totalScore > maxScore) {
+      return { valid: false, message: `Tổng điểm (${totalScore.toFixed(2)}) không được vượt quá ${maxScore}.` };
+    }
+
+    return { valid: true };
+  }, [submission, answerGrades, questions, calculateTotalScore, maxScore]);
 
   useEffect(() => {
     if (!submissionId) {
@@ -94,69 +142,67 @@ function TeacherGradingDetail() {
         }
       })
       .catch(() => {
-        toast.error('Không tải được bài nộp.');
+        notify.error('Không tải được bài nộp', 'Vui lòng kiểm tra kết nối và thử lại.');
         setSubmission(null);
       })
       .finally(() => setLoading(false));
   }, [submissionId]);
 
   const handleSaveScore = () => {
-    const numScore = score === '' ? null : Number(score);
-    if (numScore != null && (Number.isNaN(numScore) || numScore < 0 || numScore > maxScore)) {
-      toast.warning(`Điểm số hợp lệ từ 0 đến ${maxScore}.`);
+    const validation = validateAllQuestionsGraded();
+    if (!validation.valid) {
+      notify.warning('Vui lòng kiểm tra lại', validation.message);
       return;
     }
-    if (numScore == null) {
-      toast.warning('Vui lòng nhập điểm.');
-      return;
-    }
+
+    const calculatedScore = calculateTotalScore();
     setSavingScoreLoading(true);
     const grades = buildAnswerGrades();
     gradeWritingSubmission(submissionId, {
-      score: numScore,
+      score: calculatedScore,
       feedback: feedback.trim() || null,
       answerGrades: grades,
     })
       .then(() => {
-        toast.success('Đã lưu điểm.');
-        // Reload submission để đồng bộ dữ liệu từ backend
+        notify.success('Đã lưu điểm thành công', 'Điểm số đã được lưu vào hệ thống.');
         return getWritingSubmission(submissionId).then((res) => {
           const data = res?.data ?? res;
           setSubmission(data);
           setScore(data?.score != null ? String(data.score) : '');
           setFeedback(data?.feedback ?? '');
-          setAnswerGrades({}); // Reset sau khi lưu thành công
+          setAnswerGrades({});
         });
       })
-      .catch(() => toast.error('Không thể lưu điểm. Vui lòng thử lại.'))
+      .catch(() => notify.error('Không thể lưu điểm', 'Vui lòng thử lại sau.'))
       .finally(() => setSavingScoreLoading(false));
   };
 
   const handleSendFeedback = () => {
-    const numScore = score === '' ? null : Number(score);
-    if (numScore != null && (Number.isNaN(numScore) || numScore < 0 || numScore > maxScore)) {
-      toast.warning(`Điểm số hợp lệ từ 0 đến ${maxScore}.`);
+    const validation = validateAllQuestionsGraded();
+    if (!validation.valid) {
+      notify.warning('Vui lòng kiểm tra lại', validation.message);
       return;
     }
+
+    const calculatedScore = calculateTotalScore();
     setSendingFeedbackLoading(true);
     const grades = buildAnswerGrades();
     gradeWritingSubmission(submissionId, {
-      score: numScore != null ? numScore : (submission?.score ?? 0),
+      score: calculatedScore,
       feedback: feedback.trim() || null,
       answerGrades: grades,
     })
       .then(() => {
-        toast.success('Đã lưu điểm và gửi nhận xét.');
-        // Reload submission để đồng bộ dữ liệu từ backend
+        notify.success('Đã lưu điểm và gửi nhận xét', 'Học sinh sẽ nhận được thông báo về điểm số và nhận xét của bạn.');
         return getWritingSubmission(submissionId).then((res) => {
           const data = res?.data ?? res;
           setSubmission(data);
           setScore(data?.score != null ? String(data.score) : '');
           setFeedback(data?.feedback ?? '');
-          setAnswerGrades({}); // Reset sau khi gửi thành công
+          setAnswerGrades({});
         });
       })
-      .catch(() => toast.error('Không thể gửi nhận xét. Vui lòng thử lại.'))
+      .catch(() => notify.error('Không thể gửi nhận xét', 'Vui lòng thử lại sau.'))
       .finally(() => setSendingFeedbackLoading(false));
   };
 
@@ -373,8 +419,7 @@ function TeacherGradingDetail() {
         <div className="submission-detail-right">
           <GradingPanel
             maxScore={maxScore}
-            score={score}
-            onScoreChange={setScore}
+            calculatedScore={calculateTotalScore()}
             feedback={feedback}
             onFeedbackChange={setFeedback}
             onSaveScore={handleSaveScore}

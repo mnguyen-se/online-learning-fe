@@ -9,7 +9,8 @@ import './SubmissionDetail.css';
  * - Quiz (isQuiz): chỉ hiển thị điểm theo logic BE, nút "Mở điểm cho học sinh xem".
  */
 function GradingPanel({
-  maxScore = 10,
+  maxScore = 100,
+  calculatedScore,
   score,
   onScoreChange,
   feedback,
@@ -18,23 +19,21 @@ function GradingPanel({
   onSendFeedback,
   onBack,
   submitting = false,
-  /** Cho phép truyền loading riêng cho nút điểm (ưu tiên hơn submitting nếu có) */
   scoreLoading,
-  /** Cho phép truyền loading riêng cho nút gửi nhận xét (ưu tiên hơn submitting nếu có) */
   feedbackLoading,
-  /** Disable cố định nút điểm (ví dụ sau khi đã công bố/hiển thị 1 lần) */
   scoreDisabled = false,
-  /** Disable cố định nút gửi nhận xét (ví dụ sau khi đã gửi 1 lần) */
   feedbackDisabled = false,
-  /** Quiz: true = điểm tự động theo BE, chỉ nút công bố điểm */
   isQuiz = false,
-  /** Quiz: điểm hiển thị (đã chấm từ BE hoặc tính từ đáp án) */
   displayScore = null,
-  /** Quiz: gọi khi bấm "Mở điểm cho học sinh xem" */
   onPublishScore,
 }) {
   const showScoreReadOnly = isQuiz && (displayScore != null || onPublishScore != null);
-  const scoreValue = showScoreReadOnly ? (displayScore ?? '—') : (score === '' ? undefined : Number(score));
+  const useCalculatedScore = calculatedScore !== undefined && calculatedScore !== null;
+  const scoreValue = showScoreReadOnly 
+    ? (displayScore ?? '—') 
+    : useCalculatedScore 
+      ? calculatedScore 
+      : (score === '' ? undefined : Number(score));
   const effectiveScoreLoading =
     typeof scoreLoading === 'boolean'
       ? scoreLoading
@@ -54,9 +53,9 @@ function GradingPanel({
       <div className="submission-detail-grading-body">
         <label className="submission-detail-grading-label">ĐIỂM SỐ (THANG ĐIỂM {maxScore})</label>
         <div className="submission-detail-score-row">
-          {showScoreReadOnly ? (
+          {showScoreReadOnly || useCalculatedScore ? (
             <span className="submission-detail-score-readonly">
-              {typeof scoreValue === 'number' ? scoreValue : scoreValue}
+              {typeof scoreValue === 'number' ? scoreValue.toFixed(2) : scoreValue}
             </span>
           ) : (
             <InputNumber
@@ -64,7 +63,7 @@ function GradingPanel({
               max={maxScore}
               step={maxScore <= 10 ? 0.25 : 1}
               value={scoreValue}
-              onChange={(v) => onScoreChange(v != null ? String(v) : '')}
+              onChange={(v) => onScoreChange && onScoreChange(v != null ? String(v) : '')}
               placeholder={`0 - ${maxScore}`}
               className="submission-detail-input-score"
               size="large"
