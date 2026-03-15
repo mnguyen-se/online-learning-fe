@@ -80,9 +80,9 @@ const ForgotPasswordPage = () => {
               name="email"
               label="Địa chỉ Email"
               rules={[
-                { required: true, message: 'Email must be at least 5 characters.' },
-                { min: 5, message: 'Email must be at least 5 characters.' },
-                { type: 'email', message: 'Invalid email format.' },
+                { required: true, message: 'Email phải có ít nhất 5 ký tự.' },
+                { min: 5, message: 'Email phải có ít nhất 5 ký tự.' },
+                { type: 'email', message: 'Định dạng email không hợp lệ.' },
               ]}
             >
               <Input
@@ -102,7 +102,7 @@ const ForgotPasswordPage = () => {
                 size="large"
                 className="forgot-password-submit"
               >
-                Send reset link
+                Gửi link khôi phục
               </Button>
             </Form.Item>
           </Form>
