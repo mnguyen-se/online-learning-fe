@@ -24,12 +24,27 @@ const ForgotPasswordPage = () => {
         err.message ||
         '';
 
+      const rawLower = typeof rawMsg === 'string' ? rawMsg.toLowerCase() : '';
+
+      // Email không tồn tại / chưa đăng ký (backend trả 4xx) → chặn luồng, không chuyển trang, hiển thị đúng message
+      const isEmailNotRegistered =
+        (status === 400 || status === 404) &&
+        (rawLower.includes('email') &&
+          (rawLower.includes('not found') ||
+            rawLower.includes('not registered') ||
+            rawLower.includes('chưa đăng ký') ||
+            rawLower.includes('không tồn tại') ||
+            rawLower.includes('invalid') ||
+            rawLower.includes('no account')));
+
+      if (isEmailNotRegistered) {
+        toast.error('Email không phù hợp với bất kỳ tài khoản nào đang hoạt động trong hệ thống.');
+        return;
+      }
+
       // Lỗi máy chủ (5xx) hoặc message kỹ thuật gây hiểu nhầm (vd: "Authentication failed" từ SMTP)
-      // → Hiển thị thông báo thân thiện, đúng ngữ cảnh "quên mật khẩu"
       const isServerError = status >= 500;
-      const isMisleadingAuthMessage =
-        typeof rawMsg === 'string' &&
-        rawMsg.toLowerCase().includes('authentication');
+      const isMisleadingAuthMessage = rawLower.includes('authentication');
 
       const msg =
         isServerError || isMisleadingAuthMessage
