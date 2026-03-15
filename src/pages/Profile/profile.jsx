@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { getUserInfo } from '../../api/userApi';
+import { Form, Input, Button, Modal } from 'antd';
+import { getUserInfo, changePassword } from '../../api/userApi';
 import Header from '../../components/Header/header';
 import Footer from '../../components/Footer/footer';
 import './profile.css';
@@ -9,6 +10,9 @@ import './profile.css';
 const Profile = () => {
   const [userInfo, setUserInfo] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [changePasswordForm] = Form.useForm();
+  const [isChangingPassword, setIsChangingPassword] = useState(false);
+  const [changePasswordModalOpen, setChangePasswordModalOpen] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -61,6 +65,36 @@ const Profile = () => {
       ADMIN: 'Quản trị viên',
     };
     return roleMap[role] || role;
+  };
+
+  const handleChangePassword = async (values) => {
+    setIsChangingPassword(true);
+    try {
+      const data = await changePassword({
+        oldPassword: values.oldPassword?.trim?.() ?? values.oldPassword,
+        newPassword: values.newPassword?.trim?.() ?? values.newPassword,
+        confirmPassword: values.confirmPassword?.trim?.() ?? values.confirmPassword,
+      });
+      toast.success('Cập nhật thành công: Mật khẩu của bạn đã được thay đổi.');
+      changePasswordForm.resetFields();
+      setChangePasswordModalOpen(false);
+    } catch (error) {
+      const apiError =
+        error.response?.data?.error ||
+        error.response?.data?.message ||
+        error.message ||
+        'Không thể đổi mật khẩu. Kiểm tra mật khẩu hiện tại hoặc kết nối mạng.';
+
+      const msg =
+        apiError === 'Old password is incorrect' ||
+        apiError?.toLowerCase?.().includes('old password is incorrect')
+          ? 'Mật khẩu cũ không chính xác.'
+          : apiError;
+
+      toast.error(msg);
+    } finally {
+      setIsChangingPassword(false);
+    }
   };
 
   if (isLoading) {
@@ -188,7 +222,93 @@ const Profile = () => {
               </div>
             </div>
           </div>
+
+          <div className="profile-card profile-card-actions">
+            <div className="card-body">
+              <Button
+                type="primary"
+                size="large"
+                className="profile-change-password-btn"
+                onClick={() => setChangePasswordModalOpen(true)}
+              >
+                Đổi mật khẩu
+              </Button>
+            </div>
+          </div>
         </div>
+
+        <Modal
+          title="Đổi mật khẩu"
+          open={changePasswordModalOpen}
+          onCancel={() => {
+            setChangePasswordModalOpen(false);
+            changePasswordForm.resetFields();
+          }}
+          closable
+          footer={null}
+          centered
+          destroyOnClose
+          className="profile-change-password-modal"
+        >
+          <Form
+            form={changePasswordForm}
+            layout="vertical"
+            onFinish={handleChangePassword}
+            validateTrigger={['onSubmit', 'onChange', 'onBlur']}
+          >
+            <Form.Item
+              name="oldPassword"
+              label="Mật khẩu hiện tại"
+              rules={[
+                { required: true, message: 'Vui lòng nhập mật khẩu hiện tại.' },
+              ]}
+            >
+              <Input.Password placeholder="Mật khẩu hiện tại" autoComplete="current-password" />
+            </Form.Item>
+            <Form.Item
+              name="newPassword"
+              label="Mật khẩu mới"
+              rules={[
+                { required: true, message: 'Vui lòng nhập mật khẩu mới.' },
+                { min: 6, message: 'Mật khẩu mới phải có ít nhất 6 ký tự.' },
+              ]}
+            >
+              <Input.Password placeholder="Mật khẩu mới" autoComplete="new-password" />
+            </Form.Item>
+            <Form.Item
+              name="confirmPassword"
+              label="Xác nhận mật khẩu mới"
+              dependencies={['newPassword']}
+              rules={[
+                { required: true, message: 'Vui lòng xác nhận mật khẩu mới.' },
+                ({ getFieldValue }) => ({
+                  validator(_, value) {
+                    const newPwd = getFieldValue('newPassword');
+                    if (!value || newPwd === value) {
+                      return Promise.resolve();
+                    }
+                    return Promise.reject(new Error('Mật khẩu xác nhận không khớp!'));
+                  },
+                }),
+              ]}
+            >
+              <Input.Password placeholder="Xác nhận mật khẩu mới" autoComplete="new-password" />
+            </Form.Item>
+            <Form.Item className="profile-modal-footer-actions">
+              <Button
+                onClick={() => {
+                  setChangePasswordModalOpen(false);
+                  changePasswordForm.resetFields();
+                }}
+              >
+                Hủy
+              </Button>
+              <Button type="primary" htmlType="submit" loading={isChangingPassword}>
+                Xác nhận
+              </Button>
+            </Form.Item>
+          </Form>
+        </Modal>
       </div>
       <Footer />
     </div>

@@ -216,6 +216,46 @@
   color: #991B1B;
 }
 
+/* Card chứa nút Đổi mật khẩu (form nằm trong Modal, không lộ thiên) */
+.profile-card-actions .card-body {
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+}
+
+.profile-change-password-btn {
+  min-width: 160px;
+}
+
+/* Modal đổi mật khẩu: form bên trong, lỗi hiển thị rõ */
+.profile-change-password-modal .ant-form-item {
+  margin-bottom: 1rem;
+}
+
+.profile-change-password-modal .ant-form-item.profile-modal-footer-actions {
+  margin-bottom: 0;
+  margin-top: 0.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #f0f0f0;
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.profile-change-password-modal .ant-form-item-explain,
+.profile-change-password-modal .ant-form-item-explain-error,
+.profile-change-password-modal .ant-form-item-extra,
+.profile-change-password-modal [class*="ant-form-item-explain"] {
+  display: block !important;
+  color: #ff4d4f;
+  font-size: 14px;
+  line-height: 1.5;
+  margin-top: 4px;
+  min-height: 22px;
+  visibility: visible;
+  opacity: 1;
+}
+
 /* Responsive Design */
 @media (max-width: 768px) {
   .profile-container {

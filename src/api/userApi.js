@@ -36,3 +36,15 @@ export const createUser = async (userData) => {
   const response = await apiClient.post('/users/create', userData);
   return response.data;
 };
+
+/**
+ * Đổi mật khẩu (đã đăng nhập).
+ * PUT /api/v1/auth/change-password
+ * Body: { oldPassword, newPassword, confirmPassword }
+ */
+export const changePassword = async (payload) => {
+  const response = await apiClient.put('/auth/change-password', payload, {
+    skipErrorToast: true,
+  });
+  return response.data;
+};
