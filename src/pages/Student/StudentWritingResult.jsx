@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { Button, Spin } from 'antd';
 import { ArrowLeft, CheckCircle2, AlertCircle, MessageSquare } from 'lucide-react';
-import { getWritingResult } from '../../api/assignmentApi';
+import { getWritingResult, getWritingQuestions } from '../../api/assignmentApi';
 import Header from '../../components/Header/header';
 import Footer from '../../components/Footer/footer';
 import './StudentWritingResult.css';
@@ -51,16 +51,35 @@ const getScoreTheme = (score, maxScore) => {
   return 'low';
 };
 
-/** Trả về mảng { index, questionText, studentAnswer, explanation } từ answers. */
-const getQuestionsWithAnswers = (data) => {
+/** Trả về mảng chứa thông tin để hiển thị */
+const getQuestionsWithAnswers = (data, questionsList = []) => {
   const answers = data?.answers ?? data?.writingAnswers ?? data?.writing_answers ?? [];
   if (!Array.isArray(answers) || answers.length === 0) return null;
-  return answers.map((a, i) => ({
-    index: i + 1,
-    questionText: a.questionText ?? a.question_text ?? a.questionContent ?? a.question ?? '',
-    studentAnswer: a.studentAnswer ?? a.student_answer ?? a.content ?? a.text ?? '',
-    explanation: a.explanation ?? a.feedback ?? a.giaiThich ?? '',
-  }));
+  
+  return answers.map((a, i) => {
+    const type = a.questionType ?? a.question_type ?? 'FILL_BLANK';
+    
+    // Tìm câu hỏi tương ứng gốc để lấy items, columnA, columnB
+    let qDetail = null;
+    if (questionsList && questionsList.length > 0) {
+      qDetail = questionsList.find(q => 
+        q.questionId === a.questionId || 
+        q.id === a.questionId
+      ) || questionsList[i]; // fallback to index if no ID match
+    }
+
+    return {
+      index: i + 1,
+      questionText: a.questionText ?? a.question_text ?? a.questionContent ?? a.question ?? '',
+      studentAnswer: a.studentAnswer ?? a.student_answer ?? a.content ?? a.text ?? '',
+      explanation: a.explanation ?? a.feedback ?? a.giaiThich ?? '',
+      questionType: type.toUpperCase(),
+      items: qDetail?.items ?? a.items ?? [],
+      columnA: qDetail?.columnA ?? a.columnA ?? a.column_a ?? [],
+      columnB: qDetail?.columnB ?? a.columnB ?? a.column_b ?? [],
+      sampleAnswer: a.sampleAnswer ?? a.sample_answer ?? null,
+    };
+  });
 };
 
 const STORAGE_KEY_PREFIX = 'writingResult_back_';
@@ -116,26 +135,45 @@ export default function StudentWritingResult() {
       return;
     }
     let cancelled = false;
-    getWritingResult(assignmentId)
-      .then((res) => {
-        if (!cancelled) setData(res?.data ?? res);
+    
+    Promise.all([
+      getWritingResult(assignmentId).catch(err => {
+        const msg = (err?.response?.data?.message ?? err?.response?.data?.error ?? '').toString();
+        const isPendingGrade = /chưa được giáo viên chấm|chờ giáo viên chấm/i.test(msg);
+        if (isPendingGrade) return { pending: true };
+        throw err;
+      }),
+      getWritingQuestions(assignmentId).catch(() => []) // Fallback to empty if questions fail
+    ])
+      .then(([resResult, resQuestions]) => {
+        if (cancelled) return;
+        
+        if (resResult?.pending) {
+          setData({ score: null });
+          setError(null);
+        } else {
+          const resultData = resResult?.data ?? resResult;
+          const questionsList = resQuestions?.data ?? resQuestions ?? [];
+          
+          // Attach questions list to data object so getQuestionsWithAnswers can use it later
+          if (resultData && typeof resultData === 'object') {
+            resultData._questionsList = questionsList;
+          }
+          setData(resultData);
+        }
       })
       .catch((err) => {
         if (cancelled) return;
         const msg = (err?.response?.data?.message ?? err?.response?.data?.error ?? '').toString();
-        const isPendingGrade =
-          /chưa được giáo viên chấm|chờ giáo viên chấm/i.test(msg);
-        if (isPendingGrade) {
-          setData({ score: null });
-          setError(null);
-        } else {
-          setError(msg || 'Không thể tải kết quả.');
-        }
+        setError(msg || 'Không thể tải kết quả.');
       })
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
-    return () => { cancelled = true; };
+
+    return () => {
+      cancelled = true;
+    };
   }, [assignmentId]);
 
   const title =
@@ -150,7 +188,7 @@ export default function StudentWritingResult() {
   const maxScore =
     data?.maxScore ?? data?.max_score ?? data?.totalPoints ?? data?.assignment?.maxScore ?? 10;
   const feedback = data?.feedback ?? data?.teacherFeedback ?? data?.teacher_feedback ?? '';
-  const questionsWithAnswers = getQuestionsWithAnswers(data);
+  const questionsWithAnswers = getQuestionsWithAnswers(data, data?._questionsList);
   const scoreTheme = getScoreTheme(score, maxScore);
   const fromState = courseIdFromState ?? courseIdFromQuery;
   const lessonIdBack = lessonIdFromState ?? lessonIdFromQuery;
@@ -255,7 +293,17 @@ export default function StudentWritingResult() {
                             </div>
                             <div className="student-result-qa-answer">
                               <span className="student-result-qa-label">ĐÁP ÁN CỦA BẠN</span>
-                              <div className="student-result-qa-answer-text">{item.studentAnswer || '—'}</div>
+                              <div className="student-result-qa-answer-wrapper" style={{ marginTop: '8px' }}>
+                                <AnswerDisplay 
+                                  type={item.questionType}
+                                  studentAnswer={item.studentAnswer}
+                                  sampleAnswer={item.sampleAnswer}
+                                  questionText={item.questionText}
+                                  items={item.items}
+                                  columnA={item.columnA}
+                                  columnB={item.columnB}
+                                />
+                              </div>
                             </div>
                             {item.explanation ? (
                               <div className="student-result-qa-explanation">
@@ -302,6 +350,205 @@ export default function StudentWritingResult() {
         </div>
       </main>
       <Footer />
+    </div>
+  );
+}
+
+/**
+ * Component hiển thị câu trả lời theo từng loại (Dành cho Học sinh xem)
+ */
+function AnswerDisplay({ type, studentAnswer, sampleAnswer, questionText, items, columnA, columnB }) {
+  if (!studentAnswer || studentAnswer === '—') {
+    return <div className="student-result-qa-answer-text">Chưa có câu trả lời</div>;
+  }
+
+  switch (type) {
+    case 'FILL_BLANK':
+      return <FillBlankAnswer answer={studentAnswer} questionText={questionText} />;
+
+    case 'REORDER':
+      return <ReorderAnswer answer={studentAnswer} items={items} />;
+
+    case 'MATCHING':
+      return <MatchingAnswer answer={studentAnswer} columnA={columnA} columnB={columnB} />;
+
+    case 'ESSAY_WRITING':
+      return <div className="student-result-qa-answer-text">{studentAnswer}</div>;
+
+    default:
+      return <div className="student-result-qa-answer-text">{studentAnswer}</div>;
+  }
+}
+
+function FillBlankAnswer({ answer, questionText }) {
+  if (questionText && questionText.includes('（') && questionText.includes('）')) {
+    const parts = questionText.split('（');
+    if (parts.length > 1) {
+      const [before, after] = parts;
+      const afterParts = after.split('）');
+      return (
+        <div className="student-result-qa-answer-text" style={{ fontSize: '1rem', lineHeight: '1.6' }}>
+          {before}
+          <span style={{ fontWeight: '600', color: '#16a34a', textDecoration: 'underline', padding: '0 4px' }}>
+            {answer || '______'}
+          </span>
+          {afterParts[1] || ''}
+        </div>
+      );
+    }
+  }
+  return <div className="student-result-qa-answer-text">{answer}</div>;
+}
+
+function ReorderAnswer({ answer, items = [] }) {
+  let orderedIds = [];
+  try {
+    if (answer.startsWith('[') && answer.endsWith(']')) {
+      orderedIds = JSON.parse(answer);
+    } else {
+      orderedIds = answer.split(',').map((item) => item.trim()).filter(Boolean);
+    }
+  } catch {
+    return <div className="student-result-qa-answer-text">{answer}</div>;
+  }
+
+  if (!Array.isArray(orderedIds) || orderedIds.length === 0) {
+    return <div className="student-result-qa-answer-text">Chưa có câu trả lời</div>;
+  }
+
+  const getItemText = (id) => {
+    if (!Array.isArray(items) || items.length === 0) {
+      return typeof id === 'string' && id.match(/^item\d+$/i) 
+        ? id.replace(/^item/i, 'Item ') 
+        : id;
+    }
+    const indexMatch = String(id).match(/^item(\d+)$/i);
+    if (indexMatch) {
+      const itemIndex = parseInt(indexMatch[1], 10);
+      if (itemIndex >= 0 && itemIndex < items.length) {
+        const item = items[itemIndex];
+        return typeof item === 'string' ? item : (item?.text ?? item?.itemText ?? item);
+      }
+    }
+    const foundItem = items.find((item) => {
+      const itemId = item?.id ?? item?.itemId ?? String(item);
+      return itemId === id || String(item) === id;
+    });
+    if (foundItem) {
+      return typeof foundItem === 'string' ? foundItem : (foundItem?.text ?? foundItem?.itemText ?? foundItem);
+    }
+    return typeof id === 'string' && id.match(/^item\d+$/i) 
+      ? id.replace(/^item/i, 'Item ') 
+      : id;
+  };
+
+  return (
+    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
+      {orderedIds.map((id, index) => {
+        const displayText = getItemText(id);
+        return (
+          <div key={index} style={{
+            display: 'flex', alignItems: 'center', background: '#f8fafc', 
+            border: '1px solid #e2e8f0', borderRadius: '6px', padding: '6px 12px'
+          }}>
+            <span style={{ fontSize: '0.85rem', color: '#64748b', marginRight: '6px', fontWeight: '500' }}>{index + 1}.</span>
+            <span style={{ fontSize: '0.95rem', color: '#1e293b', fontWeight: '500' }}>{displayText}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function MatchingAnswer({ answer, columnA = [], columnB = [] }) {
+  let pairs = [];
+  try {
+    if (answer.startsWith('[') && answer.endsWith(']')) {
+      const parsed = JSON.parse(answer);
+      if (Array.isArray(parsed)) {
+        pairs = parsed.map((item) => {
+          const aId = item.aid || item.aId || item.ald || item['aId'] || '';
+          const bId = item.bid || item.bId || item.bld || item['bld Id'] || item['bId'] || '';
+          return { aId, bId };
+        }).filter((p) => p.aId && p.bId);
+      }
+    }
+  } catch {
+    return <div className="student-result-qa-answer-text">{answer}</div>;
+  }
+
+  if (pairs.length === 0) {
+    return <div className="student-result-qa-answer-text">Chưa có câu trả lời</div>;
+  }
+
+  const formatId = (id, column) => {
+    if (!id) return id;
+    const idStr = String(id).trim().toUpperCase();
+    const patterns = [ /^([AB])(\d+)$/i, /^([AB])[-\s_]?(\d+)$/i, /^([AB])([A-Z])$/i ];
+    for (const pattern of patterns) {
+      const match = idStr.match(pattern);
+      if (match) {
+        const prefix = match[1].toUpperCase();
+        const numberOrLetter = match[2];
+        if (prefix === 'A') {
+          const num = parseInt(numberOrLetter, 10);
+          if (!isNaN(num) && num > 0) return String(num);
+        } else if (prefix === 'B') {
+          const num = parseInt(numberOrLetter, 10);
+          if (!isNaN(num) && num > 0) {
+            const letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+            return letters[num - 1] || String(num);
+          }
+          return numberOrLetter.toUpperCase();
+        }
+      }
+    }
+    const numberMatch = idStr.match(/(\d+)/);
+    if (numberMatch) {
+      const num = parseInt(numberMatch[1], 10);
+      if (column === 'A' && !isNaN(num) && num > 0) {
+        return String(num);
+      } else if (column === 'B' && !isNaN(num) && num > 0) {
+        const letters = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J'];
+        return letters[num - 1] || String(num);
+      }
+    }
+    return idStr;
+  };
+
+  const getItemText = (id, column) => {
+    const columnItems = column === 'A' ? columnA : columnB;
+    if (!Array.isArray(columnItems) || columnItems.length === 0) return '';
+    const found = columnItems.find((item) => {
+      const itemId = item?.id ?? item?.itemId ?? '';
+      return itemId === id;
+    });
+    return found?.text ?? found?.itemText ?? '';
+  };
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
+      {pairs.map((pair, index) => {
+        const aFormattedId = formatId(pair.aId, 'A');
+        const bFormattedId = formatId(pair.bId, 'B');
+        const aText = getItemText(pair.aId, 'A');
+        const bText = getItemText(pair.bId, 'B');
+        
+        return (
+          <div key={index} style={{
+            display: 'flex', alignItems: 'center', background: '#f0f9ff', 
+            border: '1px solid #bae6fd', borderRadius: '6px', padding: '8px 12px'
+          }}>
+            <span style={{ flex: 1, fontSize: '0.95rem', color: '#0c4a6e', fontWeight: '500' }}>
+              <strong style={{ opacity: 0.7, marginRight: '4px' }}>{aFormattedId}</strong> {aText}
+            </span>
+            <span style={{ margin: '0 12px', color: '#38bdf8', fontWeight: 'bold' }}>→</span>
+            <span style={{ flex: 1, fontSize: '0.95rem', color: '#0c4a6e', fontWeight: '500' }}>
+              <strong style={{ opacity: 0.7, marginRight: '4px' }}>{bFormattedId}</strong> {bText}
+            </span>
+          </div>
+        );
+      })}
     </div>
   );
 }
