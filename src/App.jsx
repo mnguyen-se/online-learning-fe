@@ -9,6 +9,7 @@ import LoginPage from './pages/LoginPage/LoginPage';
 import RegisterPage from './pages/register';
 import Profile from './pages/Profile/profile';
 import Dashboard from './pages/DashBoard-Admin/dashboard';
+import AdminStats from './pages/DashBoard-Admin/AdminStats';
 import AdminCourseManagement from './pages/Admin/ManageCourse/AdminCourseManagement';
 import CourseManagement from './pages/Manager/ManageCourse/CourseManagement';
 import TeacherLayout from './pages/Teacher/TeacherLayout';
@@ -44,6 +45,12 @@ function App() {
       path: '/dashboard-admin',
       element: (
         <PrivateRoute allowedRoles={['ADMIN']} element={<Dashboard />} />
+      ),
+    },
+    {
+      path: '/admin-stats',
+      element: (
+        <PrivateRoute allowedRoles={['ADMIN']} element={<AdminStats />} />
       ),
     },
     {
