@@ -152,6 +152,20 @@ const Dashboard = () => {
     return roleMap[role] || '';
   };
 
+  const getStatusLabel = (status) => {
+    if (status == null || status === '') return '—';
+    const s = String(status).toUpperCase();
+    const map = { ACTIVE: 'Đang hoạt động', INACTIVE: 'Ngừng hoạt động', BANNED: 'Bị khóa' };
+    return map[s] || status;
+  };
+
+  const getStatusBadgeClass = (status) => {
+    if (status == null || status === '') return '';
+    const s = String(status).toUpperCase();
+    const map = { ACTIVE: 'status-active', INACTIVE: 'status-inactive', BANNED: 'status-banned' };
+    return map[s] || 'status-inactive';
+  };
+
   const handleToggleClick = (user) => {
     setSelectedUser(user);
     setShowDeleteModal(true);
@@ -579,7 +593,9 @@ const Dashboard = () => {
                       <li key={item.enrollmentId ?? item.courseId ?? idx}>
                         <strong>{item.courseTitle ?? item.title ?? item.course?.title ?? '—'}</strong>
                         {item.enrollmentStatus && (
-                          <span className="dashboard-lookup-badge">{String(item.enrollmentStatus)}</span>
+                          <span className={`dashboard-lookup-badge status-badge ${getStatusBadgeClass(item.enrollmentStatus)}`}>
+                            {getStatusLabel(item.enrollmentStatus)}
+                          </span>
                         )}
                       </li>
                     ))}
@@ -608,7 +624,15 @@ const Dashboard = () => {
                             <td>{idx + 1}</td>
                             <td>{s.name || s.username || '—'}</td>
                             <td>{s.email || '—'}</td>
-                            <td>{s.status ? String(s.status) : '—'}</td>
+                            <td>
+                              {s.status ? (
+                                <span className={`status-badge ${getStatusBadgeClass(s.status)}`}>
+                                  {getStatusLabel(s.status)}
+                                </span>
+                              ) : (
+                                '—'
+                              )}
+                            </td>
                           </tr>
                         ))}
                       </tbody>
