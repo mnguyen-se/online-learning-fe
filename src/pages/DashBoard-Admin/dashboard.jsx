@@ -152,7 +152,7 @@ const Dashboard = () => {
     return roleMap[role] || '';
   };
 
-  const handleDeleteClick = (user) => {
+  const handleToggleClick = (user) => {
     setSelectedUser(user);
     setShowDeleteModal(true);
   };
@@ -162,15 +162,16 @@ const Dashboard = () => {
     setSelectedUser(null);
   };
 
-  const handleConfirmDelete = async () => {
+  const handleConfirmToggle = async () => {
     if (!selectedUser) return;
+    const newStatus = !selectedUser.active;
     try {
       setIsDeleting(true);
-      await updateUser(selectedUser.id, { ...selectedUser, active: false });
+      await updateUser(selectedUser.id, { ...selectedUser, active: newStatus });
       setUsers(users.map(user =>
-        user.id === selectedUser.id ? { ...user, active: false } : user
+        user.id === selectedUser.id ? { ...user, active: newStatus } : user
       ));
-      toast.success('Đã khóa tài khoản người dùng.');
+      toast.success(newStatus ? 'Đã kích hoạt tài khoản.' : 'Đã khóa tài khoản người dùng.');
       setShowDeleteModal(false);
       setSelectedUser(null);
     } catch (error) {
@@ -794,16 +795,14 @@ const Dashboard = () => {
                           <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       </button>
-                      <button
-                        className="action-icon-btn action-icon-btn-danger"
-                        title="Khóa tài khoản"
-                        onClick={() => handleDeleteClick(user)}
-                      >
-                        <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                          <polyline points="3 6 5 6 21 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </button>
+                      <label className="user-status-switch" title={user.active ? "Khóa tài khoản" : "Kích hoạt tài khoản"}>
+                        <input
+                          type="checkbox"
+                          checked={user.active}
+                          onChange={() => handleToggleClick(user)}
+                        />
+                        <span className="user-status-slider round"></span>
+                      </label>
                     </div>
                   </td>
                 </tr>
@@ -859,7 +858,7 @@ const Dashboard = () => {
         <div className="modal-overlay" onClick={handleCancelDelete}>
           <div className="modal-container" onClick={(e) => e.stopPropagation()}>
             <div className="modal-header">
-              <h2>Xác nhận khóa tài khoản</h2>
+              <h2>Xác nhận {selectedUser.active ? 'khóa' : 'kích hoạt'} tài khoản</h2>
               <button className="modal-close" onClick={handleCancelDelete} aria-label="Đóng">
                 <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
                   <line x1="18" y1="6" x2="6" y2="18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -869,16 +868,16 @@ const Dashboard = () => {
             </div>
             <div className="modal-body">
               <p>
-                Bạn có chắc chắn muốn khóa tài khoản người dùng này không?
+                Bạn có chắc chắn muốn {selectedUser.active ? 'khóa' : 'kích hoạt'} tài khoản người dùng này không?
                 <br />
-                Người dùng sẽ không thể đăng nhập cho đến khi được kích hoạt lại.
+                {selectedUser.active ? 'Người dùng sẽ không thể đăng nhập cho đến khi được kích hoạt lại.' : 'Người dùng sẽ có thể đăng nhập và sử dụng hệ thống.'}
               </p>
             </div>
             <div className="modal-footer">
               <button type="button" className="modal-btn modal-btn-cancel" onClick={handleCancelDelete} disabled={isDeleting}>
                 Hủy
               </button>
-              <button type="button" className="modal-btn modal-btn-confirm" onClick={handleConfirmDelete} disabled={isDeleting}>
+              <button type="button" className="modal-btn modal-btn-confirm" onClick={handleConfirmToggle} disabled={isDeleting}>
                 {isDeleting ? 'Đang xử lý...' : 'Xác nhận'}
               </button>
             </div>

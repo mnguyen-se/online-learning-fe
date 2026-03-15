@@ -1419,3 +1419,63 @@
   color: #94a3b8;
   user-select: none;
 }
+
+/* User Status Toggle Switch */
+.user-status-switch {
+  position: relative;
+  display: inline-block;
+  width: 40px;
+  height: 22px;
+  margin: 0;
+}
+
+.user-status-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.user-status-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: #F3F4F6;
+  transition: .3s;
+  border: 1px solid #E5E7EB;
+}
+
+.user-status-slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 2px;
+  bottom: 2px;
+  background-color: white;
+  transition: .3s;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+input:checked + .user-status-slider {
+  background-color: #10B981;
+  border-color: #10B981;
+}
+
+input:focus + .user-status-slider {
+  box-shadow: 0 0 1px #10B981;
+}
+
+input:checked + .user-status-slider:before {
+  transform: translateX(16px);
+}
+
+.user-status-slider.round {
+  border-radius: 22px;
+}
+
+.user-status-slider.round:before {
+  border-radius: 50%;
+}
