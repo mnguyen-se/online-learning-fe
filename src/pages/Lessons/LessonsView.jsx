@@ -1069,9 +1069,9 @@ function LessonsView() {
         delete next[idToKey(assignmentItem.assignmentId)];
         return next;
       });
-      toast.success('Đã nộp bài writing. Bài làm ở trạng thái SUBMITTED.');
+      toast.success('Đã nộp bài viết thành công!');
     } catch (err) {
-      const message = err?.response?.data?.message || 'Không thể nộp bài writing.';
+      const message = err?.response?.data?.message || 'Không thể nộp bài viết.';
       toast.error(message);
     } finally {
       setIsSubmittingAssignment(false);
