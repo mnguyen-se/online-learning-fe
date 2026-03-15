@@ -22,6 +22,7 @@ const Dashboard = () => {
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingUser, setEditingUser] = useState(null);
   const [editFormData, setEditFormData] = useState({ name: '', address: '', dateOfBirth: '' });
+  const [editFormErrors, setEditFormErrors] = useState({ dateOfBirth: '' });
   const [isSaving, setIsSaving] = useState(false);
   const [successMessage, setSuccessMessage] = useState('');
   const [showAddUserModal, setShowAddUserModal] = useState(false);
@@ -196,6 +197,18 @@ const Dashboard = () => {
     }
   };
 
+  const maxDateOfBirth = new Date().toISOString().slice(0, 10);
+
+  const isDateOfBirthInFuture = (dateStr) => {
+    if (!dateStr || typeof dateStr !== 'string') return false;
+    const d = new Date(dateStr.trim());
+    if (Number.isNaN(d.getTime())) return false;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    d.setHours(0, 0, 0, 0);
+    return d > today;
+  };
+
   const handleEditClick = (user) => {
     setEditingUser(user);
     setEditFormData({
@@ -203,6 +216,7 @@ const Dashboard = () => {
       address: user.address || '',
       dateOfBirth: user.dateOfBirth ? user.dateOfBirth.split('T')[0] : '',
     });
+    setEditFormErrors({ dateOfBirth: '' });
     setShowEditModal(true);
   };
 
@@ -210,11 +224,17 @@ const Dashboard = () => {
     setShowEditModal(false);
     setEditingUser(null);
     setEditFormData({ name: '', address: '', dateOfBirth: '' });
+    setEditFormErrors({ dateOfBirth: '' });
   };
 
   const handleEditSubmit = async (e) => {
     e.preventDefault();
     if (!editingUser) return;
+    if (editFormData.dateOfBirth && isDateOfBirthInFuture(editFormData.dateOfBirth)) {
+      setEditFormErrors({ dateOfBirth: 'Ngày sinh không hợp lệ (không được lớn hơn ngày hiện tại).' });
+      return;
+    }
+    setEditFormErrors({ dateOfBirth: '' });
 
     try {
       setIsSaving(true);
@@ -234,6 +254,7 @@ const Dashboard = () => {
       setShowEditModal(false);
       setEditingUser(null);
       setEditFormData({ name: '', address: '', dateOfBirth: '' });
+      setEditFormErrors({ dateOfBirth: '' });
 
       toast.success('Cập nhật thông tin người dùng thành công.', { position: 'top-right', autoClose: 3500 });
     } catch (error) {
@@ -245,7 +266,7 @@ const Dashboard = () => {
   };
 
   const validateAddUserForm = () => {
-    const { username, name, email, password } = addUserFormData;
+    const { username, name, email, password, dateOfBirth } = addUserFormData;
     const errors = { username: '', name: '', email: '', password: '', dateOfBirth: '' };
 
     if (!username.trim()) {
@@ -270,6 +291,10 @@ const Dashboard = () => {
       errors.password = 'Mật khẩu không được để trống.';
     } else if (password.length < 6) {
       errors.password = 'Mật khẩu phải có ít nhất 6 ký tự.';
+    }
+
+    if (dateOfBirth && isDateOfBirthInFuture(dateOfBirth)) {
+      errors.dateOfBirth = 'Ngày sinh không hợp lệ (không được lớn hơn ngày hiện tại).';
     }
 
     setAddUserFormErrors(errors);
@@ -1028,9 +1053,17 @@ const Dashboard = () => {
                   <input
                     type="date"
                     id="edit-dateOfBirth"
+                    max={maxDateOfBirth}
                     value={editFormData.dateOfBirth}
-                    onChange={(e) => setEditFormData({ ...editFormData, dateOfBirth: e.target.value })}
+                    onChange={(e) => {
+                      setEditFormData({ ...editFormData, dateOfBirth: e.target.value });
+                      setEditFormErrors((prev) => ({ ...prev, dateOfBirth: '' }));
+                    }}
+                    className={editFormErrors.dateOfBirth ? 'input-error' : ''}
                   />
+                  {editFormErrors.dateOfBirth && (
+                    <span className="form-error">{editFormErrors.dateOfBirth}</span>
+                  )}
                 </div>
               </div>
               <div className="modal-footer">
@@ -1122,9 +1155,17 @@ const Dashboard = () => {
                       <input
                         type="date"
                         id="add-dateOfBirth"
+                        max={maxDateOfBirth}
                         value={addUserFormData.dateOfBirth}
-                        onChange={(e) => setAddUserFormData({ ...addUserFormData, dateOfBirth: e.target.value })}
+                        onChange={(e) => {
+                          setAddUserFormData({ ...addUserFormData, dateOfBirth: e.target.value });
+                          setAddUserFormErrors((prev) => ({ ...prev, dateOfBirth: '' }));
+                        }}
+                        className={addUserFormErrors.dateOfBirth ? 'input-error' : ''}
                       />
+                      {addUserFormErrors.dateOfBirth && (
+                        <span className="form-error">{addUserFormErrors.dateOfBirth}</span>
+                      )}
                     </div>
                   </div>
 
