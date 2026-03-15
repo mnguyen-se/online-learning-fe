@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { motion as Motion } from 'framer-motion';
 import { User, Lock, BookOpen } from 'lucide-react';
 import { useDispatch } from 'react-redux';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { Input } from './Input';
 import { login as loginAction } from '../../store/slices/userSlice';
@@ -172,15 +172,12 @@ export const LoginForm = ({ isActive }) => {
               />
               <span>Ghi nhớ đăng nhập</span>
             </label>
-            <button
-              type="button"
-              onClick={() =>
-                toast.info('Chức năng quên mật khẩu sẽ được cập nhật sau.')
-              }
+            <Link
+              to="/forgot-password"
               className="text-slate-500 hover:text-rose-600 transition-colors"
             >
               Quên mật khẩu?
-            </button>
+            </Link>
           </div>
 
           <button

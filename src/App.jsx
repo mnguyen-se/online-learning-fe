@@ -25,6 +25,8 @@ import AiQuizPage from "./pages/Lessons/AiQuizPage";
 import MyCourses from "./pages/MyCourses/MyCourses";
 import StudentWritingResult from "./pages/Student/StudentWritingResult";
 import StudentQuizResult from "./pages/Student/StudentQuizResult";
+import ForgotPasswordPage from "./pages/ForgotPassword/ForgotPasswordPage";
+import CheckYourMailPage from "./pages/ForgotPassword/CheckYourMailPage";
 
 function App() {
   const router = createBrowserRouter([
@@ -114,6 +116,14 @@ function App() {
     {
       path: '/register',
       element: <RegisterPage />,
+    },
+    {
+      path: '/forgot-password',
+      element: <ForgotPasswordPage />,
+    },
+    {
+      path: '/forgot-password/check-email',
+      element: <CheckYourMailPage />,
     },
   ]);
 

@@ -1,0 +1,66 @@
+.check-your-mail-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 50%, #fef3f2 100%);
+}
+
+.check-your-mail-shell {
+  width: 100%;
+  max-width: 440px;
+}
+
+.check-your-mail-card {
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  padding: 2.5rem 2rem;
+  text-align: center;
+}
+
+.check-your-mail-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: #ecfdf5;
+  color: #059669;
+  margin-bottom: 1.5rem;
+}
+
+.check-your-mail-title {
+  margin: 0 0 1rem 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.check-your-mail-message {
+  margin: 0 0 1.75rem 0;
+  font-size: 15px;
+  color: #64748b;
+  line-height: 1.6;
+}
+
+.check-your-mail-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background: #ff6b4a;
+  color: #fff;
+  font-weight: 600;
+  text-decoration: none;
+  border-radius: 10px;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.check-your-mail-back-btn:hover {
+  background: #e85a3a;
+  color: #fff;
+  transform: translateY(-1px);
+}

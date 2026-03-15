@@ -48,3 +48,17 @@ export const changePassword = async (payload) => {
   });
   return response.data;
 };
+
+/**
+ * Gửi link/mã khôi phục mật khẩu qua email.
+ * POST /api/v1/auth/forgot-password
+ * Body: { email }
+ */
+export const forgotPassword = async (email) => {
+  const response = await apiClient.post(
+    '/auth/forgot-password',
+    { email: email?.trim?.() ?? email },
+    { skipErrorToast: true }
+  );
+  return response.data;
+};
