@@ -27,6 +27,8 @@ import StudentWritingResult from "./pages/Student/StudentWritingResult";
 import StudentQuizResult from "./pages/Student/StudentQuizResult";
 import ForgotPasswordPage from "./pages/ForgotPassword/ForgotPasswordPage";
 import CheckYourMailPage from "./pages/ForgotPassword/CheckYourMailPage";
+import VerifyOtpPage from "./pages/ForgotPassword/VerifyOtpPage";
+import ResetPasswordPage from "./pages/ForgotPassword/ResetPasswordPage";
 
 function App() {
   const router = createBrowserRouter([
@@ -124,6 +126,14 @@ function App() {
     {
       path: '/forgot-password/check-email',
       element: <CheckYourMailPage />,
+    },
+    {
+      path: '/forgot-password/verify-otp',
+      element: <VerifyOtpPage />,
+    },
+    {
+      path: '/forgot-password/reset',
+      element: <ResetPasswordPage />,
     },
   ]);
 

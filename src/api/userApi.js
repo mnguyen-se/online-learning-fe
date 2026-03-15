@@ -62,3 +62,22 @@ export const forgotPassword = async (email) => {
   );
   return response.data;
 };
+
+/**
+ * Đặt lại mật khẩu sau khi có mã OTP.
+ * POST /api/v1/auth/reset-password
+ * Body: { email, code, newPassword, confirmPassword }
+ */
+export const resetPassword = async (payload) => {
+  const response = await apiClient.post(
+    '/auth/reset-password',
+    {
+      email: payload.email?.trim?.() ?? payload.email,
+      code: String(payload.code ?? '').trim(),
+      newPassword: payload.newPassword,
+      confirmPassword: payload.confirmPassword,
+    },
+    { skipErrorToast: true }
+  );
+  return response.data;
+};

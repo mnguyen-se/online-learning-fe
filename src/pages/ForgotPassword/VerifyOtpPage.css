@@ -1,0 +1,84 @@
+.verify-otp-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: linear-gradient(135deg, #fef3f2 0%, #fff7ed 50%, #f0fdf4 100%);
+}
+
+.verify-otp-shell {
+  width: 100%;
+  max-width: 440px;
+}
+
+.verify-otp-card {
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+  padding: 2.5rem 2rem;
+  position: relative;
+}
+
+.verify-otp-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #64748b;
+  font-size: 14px;
+  text-decoration: none;
+  margin-bottom: 1.5rem;
+  transition: color 0.2s;
+}
+
+.verify-otp-back:hover {
+  color: #ff6b4a;
+}
+
+.verify-otp-title {
+  margin: 0 0 0.5rem 0;
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.verify-otp-subtitle {
+  margin: 0 0 1.75rem 0;
+  font-size: 14px;
+  color: #64748b;
+  line-height: 1.5;
+}
+
+.verify-otp-subtitle strong {
+  color: #334155;
+  word-break: break-all;
+}
+
+.verify-otp-form .ant-form-item-label > label {
+  font-weight: 500;
+}
+
+.verify-otp-input {
+  letter-spacing: 0.5em;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.verify-otp-actions {
+  margin-bottom: 0;
+}
+
+.verify-otp-actions .ant-form-item-control-input-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.verify-otp-submit {
+  height: 48px;
+  font-weight: 600;
+}
+
+.verify-otp-resend {
+  height: 48px;
+}

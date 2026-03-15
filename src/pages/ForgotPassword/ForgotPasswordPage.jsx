@@ -15,7 +15,7 @@ const ForgotPasswordPage = () => {
     setIsSubmitting(true);
     try {
       await forgotPassword(values.email);
-      navigate('/forgot-password/check-email', { replace: true });
+      navigate('/forgot-password/verify-otp', { state: { email: values.email }, replace: true });
     } catch (err) {
       const status = err.response?.status;
       const rawMsg =
