@@ -101,7 +101,7 @@ const CourseContentSidebar = ({
                         <button
                           type="button"
                           className="course-program-item-public"
-                          aria-label="Public chương"
+                          aria-label="Công khai chương"
                           disabled={isPublishingChapter}
                           onClick={(e) => {
                             e.stopPropagation();
@@ -110,7 +110,7 @@ const CourseContentSidebar = ({
                             }
                           }}
                         >
-                          {isPublishingChapter ? '...' : 'Public'}
+                          {isPublishingChapter ? '...' : 'Công khai'}
                         </button>
                       )}
                       <button
@@ -167,7 +167,7 @@ const CourseContentSidebar = ({
                                       <button
                                         type="button"
                                         className="course-program-lesson-item-public"
-                                        aria-label="Public bài học"
+                                        aria-label="Công khai bài học"
                                         disabled={isPublishingLesson}
                                         onClick={(e) => {
                                           e.stopPropagation();
@@ -176,7 +176,7 @@ const CourseContentSidebar = ({
                                           }
                                         }}
                                       >
-                                        {isPublishingLesson ? '...' : 'Public'}
+                                        {isPublishingLesson ? '...' : 'Công khai'}
                                       </button>
                                     )}
                                     <button

@@ -444,7 +444,7 @@ function CourseManagement() {
       const moduleId = moduleResponse?.moduleId ?? moduleResponse?.id ?? moduleResponse?._id ?? null;
 
       if (!moduleId) {
-        throw new Error('Không thể lấy ID module sau khi tạo.');
+        throw new Error('Không thể lấy ID chương sau khi tạo.');
       }
 
       // Load lại danh sách modules từ server để đảm bảo orderIndex chính xác
@@ -1022,15 +1022,15 @@ function CourseManagement() {
   const handlePublishChapter = async (chapterId) => {
     const chapter = lessons.find((item) => item.id === chapterId);
     if (!chapter) {
-      toast.error('Không tìm thấy chương để public.');
+      toast.error('Không tìm thấy chương để công khai.');
       return;
     }
     if (chapter.isNew) {
-      toast.warning('Vui lòng lưu chương trước khi public.');
+      toast.warning('Vui lòng lưu chương trước khi công khai.');
       return;
     }
     if (chapter.isPublic) {
-      toast.info('Chương này đã ở trạng thái public.');
+      toast.info('Chương này đã ở trạng thái công khai.');
       return;
     }
 
@@ -1059,9 +1059,9 @@ function CourseManagement() {
             : item
         )
       );
-      toast.success('Đã public chương thành công.');
+      toast.success('Đã công khai chương thành công.');
     } catch (error) {
-      const msg = error?.response?.data?.message || error?.message || 'Public chương thất bại. Vui lòng thử lại.';
+      const msg = error?.response?.data?.message || error?.message || 'Công khai chương thất bại. Vui lòng thử lại.';
       toast.error(msg);
       console.error('Publish module error:', error);
     } finally {
@@ -1072,15 +1072,15 @@ function CourseManagement() {
   const handlePublishLesson = async (lessonId) => {
     const lesson = moduleLessons.find((item) => item.id === lessonId);
     if (!lesson) {
-      toast.error('Không tìm thấy bài học để public.');
+      toast.error('Không tìm thấy bài học để công khai.');
       return;
     }
     if (lesson.isNew) {
-      toast.warning('Vui lòng lưu bài học trước khi public.');
+      toast.warning('Vui lòng lưu bài học trước khi công khai.');
       return;
     }
     if (lesson.isPublic) {
-      toast.info('Bài học này đã ở trạng thái public.');
+      toast.info('Bài học này đã ở trạng thái công khai.');
       return;
     }
 
@@ -1102,9 +1102,9 @@ function CourseManagement() {
             : item
         )
       );
-      toast.success('Đã public bài học thành công.');
+      toast.success('Đã công khai bài học thành công.');
     } catch (error) {
-      const msg = error?.response?.data?.message || error?.message || 'Public bài học thất bại. Vui lòng thử lại.';
+      const msg = error?.response?.data?.message || error?.message || 'Công khai bài học thất bại. Vui lòng thử lại.';
       toast.error(msg);
       console.error('Publish lesson error:', error);
     } finally {
@@ -1848,7 +1848,7 @@ function CourseManagement() {
       if (course?.description) payload.description = course.description;
       const normalizedCourseId = Number.isNaN(Number(courseId)) ? courseId : Number(courseId);
       await updateCourse(normalizedCourseId, payload);
-      toast.success(newActiveState ? 'Đã mở khóa học (PUBLIC).' : 'Đã đóng khóa học.');
+      toast.success(newActiveState ? 'Đã mở khóa học (Công khai).' : 'Đã đóng khóa học.');
     } catch {
       setCourseActiveStates((prev) => ({ ...prev, [courseId]: currentState }));
       setCourses((prev) =>

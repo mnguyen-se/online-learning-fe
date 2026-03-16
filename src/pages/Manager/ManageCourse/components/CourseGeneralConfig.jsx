@@ -118,14 +118,14 @@ const CourseGeneralConfig = ({
               className={`course-config-status-btn ${isPublic ? 'is-active' : ''}`}
               onClick={() => setIsPublic(true)}
             >
-              Công khai (Public)
+              Công khai
             </button>
             <button
               type="button"
               className={`course-config-status-btn ${!isPublic ? 'is-active' : ''}`}
               onClick={() => setIsPublic(false)}
             >
-              Riêng tư (Draft)
+              Riêng tư
             </button>
           </div>
         </div>
