@@ -409,6 +409,10 @@ function LessonsView() {
   const mountedRef = useRef(true);
 
   const selectedLessonKey = idToKey(resolveLessonId(selectedLesson));
+  const selectedLessonType = useMemo(() => {
+    if (!selectedLesson || isAssignmentItem(selectedLesson)) return null;
+    return (selectedLesson.lessonType || "VIDEO").toString().toUpperCase();
+  }, [selectedLesson]);
   const selectedLessonHint = aiHintByLesson[selectedLessonKey] || "";
   const selectedLessonHintError = hintErrorByLesson[selectedLessonKey] || "";
   const isHintLoading = hintLoadingLessonKey === selectedLessonKey;
@@ -1854,7 +1858,7 @@ function LessonsView() {
                 )}
 
                 {/* Tabs */}
-                {!isAssignmentItem(selectedLesson) && (
+                {!isAssignmentItem(selectedLesson) && selectedLessonType !== 'VIDEO' && (
                   <div className="lesson-content-tabs">
                     <button
                       type="button"
@@ -1875,7 +1879,7 @@ function LessonsView() {
 
                 {/* Content - gom vào 1 khối (compact khi quiz) */}
                 <div className={`lesson-content-block ${isAssignmentItem(selectedLesson) ? 'lesson-content-block-quiz' : ''}`}>
-                  {!isAssignmentItem(selectedLesson) && contentTab === 'reading' ? (
+                  {!isAssignmentItem(selectedLesson) && selectedLessonType !== 'VIDEO' && contentTab === 'reading' ? (
                     <div className="lesson-reading-tab">
                       {selectedLesson.contentUrl ? (
                         <a
@@ -1934,8 +1938,8 @@ function LessonsView() {
                   </div>
                 )}
 
-                {/* AI Support - ẩn khi làm quiz/assignment */}
-                {canUseAiHint && !isAssignmentItem(selectedLesson) && (
+                {/* AI Support - ẩn khi làm quiz/assignment và video */}
+                {canUseAiHint && !isAssignmentItem(selectedLesson) && selectedLessonType !== 'VIDEO' && (
                   <div className="lesson-ai-section lesson-ai-section-prominent">
                     <h4 className="lesson-ai-section-title">💡 AI hỗ trợ học</h4>
                     <p className="lesson-ai-section-desc">Nhận gợi ý hoặc luyện tập thêm.</p>
