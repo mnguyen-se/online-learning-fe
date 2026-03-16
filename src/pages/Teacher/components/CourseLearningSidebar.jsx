@@ -2,17 +2,20 @@ import React, { useState } from 'react';
 import { Collapse } from 'antd';
 import { Play, CheckCircle, Circle } from 'lucide-react';
 
-function LessonRow({ lesson, isActive, onSelect }) {
+function LessonRow({ lesson, isActive, isCompleted, onSelect }) {
   const title = lesson?.title || 'Bài học';
+
+  let icon = <Circle size={18} />;
+  if (isCompleted) icon = <CheckCircle size={18} />;
+  else if (isActive) icon = <Play size={18} />;
+
   return (
     <button
       type="button"
-      className={`tcd-lesson-row ${isActive ? 'tcd-lesson-row--active' : ''}`}
+      className={`tcd-lesson-row ${isActive ? 'tcd-lesson-row--active' : ''} ${isCompleted ? 'tcd-lesson-row--done' : ''}`}
       onClick={() => onSelect(lesson)}
     >
-      <span className="tcd-lesson-icon">
-        {isActive ? <Play size={18} /> : <Circle size={18} />}
-      </span>
+      <span className="tcd-lesson-icon">{icon}</span>
       <span className="tcd-lesson-title">{title}</span>
     </button>
   );
@@ -22,7 +25,7 @@ function LessonRow({ lesson, isActive, onSelect }) {
  * Sidebar nội dung khóa học: accordion modules → lessons.
  * Dùng trong tab "Nội dung khóa học".
  */
-function CourseLearningSidebar({ modules, currentLessonId, onSelectLesson }) {
+function CourseLearningSidebar({ modules, currentLessonId, completedLessonIds = new Set(), onSelectLesson }) {
   const sorted = Array.isArray(modules)
     ? [...modules].sort((a, b) => (a.orderIndex ?? 0) - (b.orderIndex ?? 0))
     : [];
@@ -48,14 +51,25 @@ function CourseLearningSidebar({ modules, currentLessonId, onSelectLesson }) {
       ),
       children: (
         <div className="tcd-accordion-body">
-          {lessons.map((lesson) => (
-            <LessonRow
-              key={lesson.lessonId}
-              lesson={lesson}
-              isActive={currentLessonId === lesson.lessonId}
-              onSelect={onSelectLesson}
-            />
-          ))}
+          {lessons.map((lesson) => {
+            const lessonKey = lesson.lessonId;
+            const isCompleted =
+              lessonKey &&
+              (completedLessonIds instanceof Set
+                ? completedLessonIds.has(lessonKey)
+                : Array.isArray(completedLessonIds)
+                  ? completedLessonIds.includes(lessonKey)
+                  : false);
+            return (
+              <LessonRow
+                key={lesson.lessonId}
+                lesson={lesson}
+                isActive={currentLessonId === lesson.lessonId}
+                isCompleted={isCompleted}
+                onSelect={onSelectLesson}
+              />
+            );
+          })}
         </div>
       ),
     };

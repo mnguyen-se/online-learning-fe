@@ -31,6 +31,7 @@ import {
   getAiLessonHint,
   getLessonView,
 } from "../../api/lessionApi";
+import { toast } from "react-toastify";
 import { notify } from "../../utils/notification";
 import "./LessonsView.css";
 
@@ -390,6 +391,7 @@ function LessonsView() {
   const [error, setError] = useState("");
   const [selectedLesson, setSelectedLesson] = useState(null);
   const [learningProcess, setLearningProcess] = useState(null);
+  const [localCompletedIdsState, setLocalCompletedIdsState] = useState(new Set());
   const [courseDetail, setCourseDetail] = useState(null);
   const [isCompleting, setIsCompleting] = useState(false);
   const [isSubmittingAssignment, setIsSubmittingAssignment] = useState(false);
@@ -414,18 +416,18 @@ function LessonsView() {
     () => [...lessons, ...assignments],
     [lessons, assignments]
   );
-  const localCompletedIds = useMemo(
-    () => getLocalCompletedLessonIds(courseId),
-    [courseId, learningProcess]
-  );
+  useEffect(() => {
+    setLocalCompletedIdsState(getLocalCompletedLessonIds(courseId));
+  }, [courseId, learningProcess]);
+
   const completedLessonSet = useMemo(
     () =>
       getCompletedLessonSetWithFallback(
         learningProcess,
         allLessonsForProgress,
-        localCompletedIds
+        localCompletedIdsState
       ),
-    [learningProcess, allLessonsForProgress, localCompletedIds]
+    [learningProcess, allLessonsForProgress, localCompletedIdsState]
   );
   const selectedLessonCompleted = useMemo(() => {
     if (!selectedLesson) return false;
@@ -894,7 +896,32 @@ function LessonsView() {
       invalidateCachedMyCourses();
       toast.success("Đã đánh dấu hoàn thành bài học.");
       setLocalCompletedLessonId(courseId, selectedId);
+      setLocalCompletedIdsState((prev) => {
+        const next = new Set(prev);
+        next.add(idToKey(selectedId));
+        return next;
+      });
       invalidateCachedLearningProcess(courseId);
+      setLearningProcess((prev) => {
+        if (!prev || typeof prev !== 'object') return prev;
+        const next = { ...prev };
+
+        if (Array.isArray(next.completedLessonIds)) {
+          const itemKey = idToKey(selectedId);
+          const hasItem = next.completedLessonIds.some((item) => idToKey(item) === itemKey);
+          if (!hasItem) next.completedLessonIds = [...next.completedLessonIds, selectedId];
+        }
+        if (typeof next.completedTasks === 'number') {
+          next.completedTasks = Math.min(
+            typeof next.totalTasks === 'number' && next.totalTasks > 0 ? next.totalTasks : Infinity,
+            next.completedTasks + 1
+          );
+        }
+        if (typeof next.totalTasks === 'number' && typeof next.completedTasks === 'number' && next.totalTasks > 0) {
+          next.progressPercent = clampPercent((next.completedTasks / next.totalTasks) * 100);
+        }
+        return next;
+      });
       const latestProcess = await getLearningProcessWithCache(courseId, {
         force: true,
       });
