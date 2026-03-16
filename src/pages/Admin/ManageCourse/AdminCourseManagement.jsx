@@ -3,7 +3,7 @@ import { toast } from 'react-toastify';
 import DashboardLayout from '../../../components/DashboardLayout';
 import StudentListModal from '../../../components/StudentListModal/StudentListModal';
 import { getAllUsers } from '../../../api/userApi';
-import { getCourses } from '../../../api/coursesApi';
+import { getCourses, getTeachers } from '../../../api/coursesApi';
 import { getLessons } from '../../../api/lessionApi';
 import { getModulesByCourse } from '../../../api/module';
 import { getAssignmentsByCourse } from '../../../api/assignmentApi';
@@ -15,9 +15,11 @@ function AdminCourseManagement() {
   const [isLoadingCourses, setIsLoadingCourses] = useState(false);
   const [coursesError, setCoursesError] = useState('');
   const [courseSearch, setCourseSearch] = useState('');
+  const [assignmentFilter, setAssignmentFilter] = useState('all'); // all | assigned | unassigned
   const [statusFilter] = useState('active');
   const [courseStats, setCourseStats] = useState({});
   const [courseActiveStates, setCourseActiveStates] = useState({});
+  const [teachers, setTeachers] = useState([]);
   const [assignModal, setAssignModal] = useState({ isOpen: false, course: null });
   const [assignUsername, setAssignUsername] = useState('');
   const [assignSearchQuery, setAssignSearchQuery] = useState('');
@@ -167,6 +169,48 @@ function AdminCourseManagement() {
     loadCourses();
   }, []);
 
+  useEffect(() => {
+    getTeachers()
+      .then((data) => {
+        const list = Array.isArray(data) ? data : data?.data ?? [];
+        setTeachers(list);
+      })
+      .catch(() => setTeachers([]));
+  }, []);
+
+  const getCourseTeacherId = (course) =>
+    course?.teacherId ??
+    course?.teacher_id ??
+    course?.teacher?.id ??
+    course?.teacher?.userId ??
+    null;
+
+  const resolveCourseTeacherName = (course) => {
+    const direct =
+      course?.teacherName ??
+      course?.teacher_name ??
+      course?.teacher?.name ??
+      course?.teacher?.fullName ??
+      course?.teacher?.username ??
+      course?.teacher?.userName ??
+      null;
+    if (direct && String(direct).trim()) return String(direct).trim();
+
+    const teacherId = getCourseTeacherId(course);
+    if (!teacherId) return null;
+    const t = teachers.find((x) => String(x.id ?? x.userId ?? '') === String(teacherId));
+    const fallback = t?.name ?? t?.fullName ?? t?.username ?? t?.userName ?? null;
+    return fallback && String(fallback).trim() ? String(fallback).trim() : null;
+  };
+
+  const matchesAssignmentFilter = (course) => {
+    if (assignmentFilter === 'all') return true;
+    const teacherId = getCourseTeacherId(course);
+    const teacherName = resolveCourseTeacherName(course);
+    const assigned = Boolean(teacherId) || Boolean(teacherName);
+    return assignmentFilter === 'assigned' ? assigned : !assigned;
+  };
+
   const normalizedSearch = courseSearch.trim().toLowerCase();
   const filteredCourses = useMemo(() => {
     let list = courses;
@@ -188,8 +232,9 @@ function AdminCourseManagement() {
     if (statusFilter === 'inactive') {
       list = list.filter((course) => !resolveCourseActiveState(course));
     }
+    list = list.filter(matchesAssignmentFilter);
     return list;
-  }, [courses, normalizedSearch, statusFilter, courseActiveStates]);
+  }, [courses, normalizedSearch, statusFilter, courseActiveStates, assignmentFilter, teachers]);
 
   const openAssignModal = (course) => {
     setAssignModal({ isOpen: true, course });
@@ -324,6 +369,22 @@ function AdminCourseManagement() {
                 onChange={(event) => setCourseSearch(event.target.value)}
               />
             </div>
+
+            <div className="course-assignment-filter">
+              <label htmlFor="admin-course-assignment-filter" className="course-assignment-filter__label">
+                Trạng thái phân công
+              </label>
+              <select
+                id="admin-course-assignment-filter"
+                className="course-assignment-filter__select"
+                value={assignmentFilter}
+                onChange={(e) => setAssignmentFilter(e.target.value)}
+              >
+                <option value="all">Tất cả</option>
+                <option value="assigned">Đã có giáo viên</option>
+                <option value="unassigned">Chưa có giáo viên</option>
+              </select>
+            </div>
           </div>
         </div>
 
@@ -342,12 +403,20 @@ function AdminCourseManagement() {
                 const lessonsCount = Number(stats.lessons) || 0;
                 const testsCount = Number(stats.assignments) || 0;
                 const studentsCount = Number(stats.students) || 0;
+                const teacherName = resolveCourseTeacherName(course);
+                const teacherAssigned = Boolean(teacherName && String(teacherName).trim());
                 return (
                   <article
                     className="manager-course-card"
                     key={courseId || course.title || index}
                   >
                     <h3 className="manager-course-card__title">{course.title}</h3>
+                    <div className={`course-teacher-line ${teacherAssigned ? '' : 'is-unassigned'}`}>
+                      <span className="course-teacher-label">Giáo viên:</span>{' '}
+                      <span className="course-teacher-value">
+                        {teacherAssigned ? teacherName : 'Chưa phân công'}
+                      </span>
+                    </div>
                     <div className="manager-course-card__meta">
                       <div className="manager-course-card__meta-row">
                         <span className="manager-course-card__meta-icon">
