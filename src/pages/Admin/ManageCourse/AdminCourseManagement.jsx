@@ -59,7 +59,17 @@ function AdminCourseManagement() {
 
   /** Lấy số liệu thực tế theo courseId: số chương, bài học, bài kiểm tra, số học sinh từ API */
   const loadCourseStats = async (courseId) => {
-    if (!courseId) return { modules: 0, lessons: 0, assignments: 0, students: 0 };
+    if (!courseId) {
+      return { modules: 0, lessons: 0, assignments: 0, students: 0 };
+    }
+
+    const normalizeList = (data) => {
+      if (Array.isArray(data)) return data;
+      if (Array.isArray(data?.data)) return data.data;
+      if (Array.isArray(data?.data?.data)) return data.data.data;
+      return [];
+    };
+
     try {
       const [modulesRes, lessonsRes, assignmentsRes, studentsRes] = await Promise.all([
         getModulesByCourse(courseId),
@@ -67,13 +77,42 @@ function AdminCourseManagement() {
         getAssignmentsByCourse(courseId).catch(() => []),
         getEnrolledStudentsByCourse(courseId).catch(() => []),
       ]);
-      const modulesList = Array.isArray(modulesRes) ? modulesRes : modulesRes?.data ?? [];
-      const lessonsList = Array.isArray(lessonsRes) ? lessonsRes : lessonsRes?.data ?? [];
-      const assignmentsList = Array.isArray(assignmentsRes) ? assignmentsRes : assignmentsRes?.data ?? [];
-      const studentsList = Array.isArray(studentsRes) ? studentsRes : studentsRes?.data ?? [];
+
+      const modulesList = normalizeList(modulesRes);
+      const lessonsList = normalizeList(lessonsRes);
+      const assignmentsList = normalizeList(assignmentsRes);
+      const studentsList = normalizeList(studentsRes);
+
+      // Đảm bảo chỉ đếm bài học thuộc các module của khóa học hiện tại,
+      // tránh trường hợp API trả về toàn bộ lessons của hệ thống.
+      const moduleIds = new Set(
+        modulesList
+          .map(
+            (module) =>
+              module?.moduleId ??
+              module?.id ??
+              module?._id ??
+              null,
+          )
+          .filter((id) => id !== null && id !== undefined)
+          .map((id) => String(id)),
+      );
+
+      const lessonsCount = moduleIds.size
+        ? lessonsList.filter((lesson) => {
+            const lessonModuleId =
+              lesson?.moduleId ??
+              lesson?.module?.moduleId ??
+              lesson?.sectionId ??
+              lesson?.section?.id;
+            if (lessonModuleId === null || lessonModuleId === undefined) return false;
+            return moduleIds.has(String(lessonModuleId));
+          }).length
+        : 0;
+
       return {
         modules: modulesList.length,
-        lessons: lessonsList.length,
+        lessons: lessonsCount,
         assignments: assignmentsList.length,
         students: studentsList.length,
       };
