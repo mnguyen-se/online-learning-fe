@@ -3567,6 +3567,62 @@
   flex-wrap: wrap;
 }
 
+.course-assignment-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 999px;
+  background: #ffffff;
+}
+
+.course-assignment-filter__label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #64748b;
+  white-space: nowrap;
+}
+
+.course-assignment-filter__select {
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+  cursor: pointer;
+  padding: 2px 0;
+}
+
+.course-assignment-filter__select:focus {
+  outline: none;
+}
+
+.course-teacher-line {
+  font-size: 13px;
+  color: #475569;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: -6px;
+}
+
+.course-teacher-label {
+  color: #64748b;
+  font-weight: 700;
+}
+
+.course-teacher-line.is-unassigned .course-teacher-value {
+  color: #f97316;
+  font-weight: 800;
+}
+
+.course-teacher-line.is-unassigned .course-teacher-label {
+  color: #f97316;
+}
+
 .course-management-search {
   min-width: 260px;
 }

@@ -49,6 +49,7 @@ const CourseCard = ({
   onViewStudents,
   getCourseId,
   getCourseIsActive,
+  resolveTeacherName,
 }) => {
   const courseId = getCourseId(course);
 
@@ -78,6 +79,9 @@ const CourseCard = ({
     onViewStudents?.(course);
   };
 
+  const teacherName = typeof resolveTeacherName === 'function' ? resolveTeacherName(course) : null;
+  const isTeacherAssigned = Boolean(teacherName && String(teacherName).trim());
+
   return (
     <article
       className="manager-course-card"
@@ -92,6 +96,13 @@ const CourseCard = ({
       }}
     >
       <h3 className="manager-course-card__title">{course.title}</h3>
+
+      <div className={`course-teacher-line ${isTeacherAssigned ? '' : 'is-unassigned'}`}>
+        <span className="course-teacher-label">Giáo viên:</span>{' '}
+        <span className="course-teacher-value">
+          {isTeacherAssigned ? teacherName : 'Chưa phân công'}
+        </span>
+      </div>
 
       <div className="manager-course-card__meta">
         <div className="manager-course-card__meta-row">

@@ -30,6 +30,7 @@ function CourseManagement() {
   const [isLoadingCourses, setIsLoadingCourses] = useState(false);
   const [coursesError, setCoursesError] = useState('');
   const [courseSearch, setCourseSearch] = useState('');
+  const [assignmentFilter, setAssignmentFilter] = useState('all'); // all | assigned | unassigned
   const [courseTitle, setCourseTitle] = useState('');
   const [courseDescription, setCourseDescription] = useState('');
   const [courseIsPublic, setCourseIsPublic] = useState(false);
@@ -111,6 +112,32 @@ function CourseManagement() {
     course?.teacher?.id ??
     course?.teacher?.userId ??
     null;
+
+  const resolveCourseTeacherName = (course) => {
+    const direct =
+      course?.teacherName ??
+      course?.teacher_name ??
+      course?.teacher?.name ??
+      course?.teacher?.fullName ??
+      course?.teacher?.username ??
+      course?.teacher?.userName ??
+      null;
+    if (direct && String(direct).trim()) return String(direct).trim();
+
+    const teacherId = getCourseTeacherId(course);
+    if (!teacherId) return null;
+    const t = teachers.find((x) => String(x.id ?? x.userId ?? '') === String(teacherId));
+    const fallback = t?.name ?? t?.fullName ?? t?.username ?? t?.userName ?? null;
+    return fallback && String(fallback).trim() ? String(fallback).trim() : null;
+  };
+
+  const matchesAssignmentFilter = (course) => {
+    if (assignmentFilter === 'all') return true;
+    const teacherId = getCourseTeacherId(course);
+    const teacherName = resolveCourseTeacherName(course);
+    const assigned = Boolean(teacherId) || Boolean(teacherName);
+    return assignmentFilter === 'assigned' ? assigned : !assigned;
+  };
 
   const resolveCourseActiveState = (course) => {
     const courseId = getCourseId(course);
@@ -1967,10 +1994,12 @@ function CourseManagement() {
   };
   const managementActiveCourses = courses
     .filter((course) => resolveCourseActiveState(course))
-    .filter(matchesSearch);
+    .filter(matchesSearch)
+    .filter(matchesAssignmentFilter);
   const managementInactiveCourses = courses
     .filter((course) => !resolveCourseActiveState(course))
-    .filter(matchesSearch);
+    .filter(matchesSearch)
+    .filter(matchesAssignmentFilter);
 
   return (
     <DashboardLayout
@@ -2215,6 +2244,22 @@ function CourseManagement() {
                         aria-label="Tìm kiếm khóa học"
                       />
                     </div>
+
+                    <div className="course-assignment-filter">
+                      <label htmlFor="course-assignment-filter" className="course-assignment-filter__label">
+                        Trạng thái phân công
+                      </label>
+                      <select
+                        id="course-assignment-filter"
+                        className="course-assignment-filter__select"
+                        value={assignmentFilter}
+                        onChange={(e) => setAssignmentFilter(e.target.value)}
+                      >
+                        <option value="all">Tất cả</option>
+                        <option value="assigned">Đã có giáo viên</option>
+                        <option value="unassigned">Chưa có giáo viên</option>
+                      </select>
+                    </div>
                     <button
                       type="button"
                       className="course-action-btn primary course-management-cta"
@@ -2246,6 +2291,7 @@ function CourseManagement() {
                                 course={course}
                                 courseStats={courseStats}
                                 courseActiveStates={courseActiveStates}
+                                resolveTeacherName={resolveCourseTeacherName}
                                 onSelect={() => {
                                   const nextCourseId = getCourseId(course);
                                   handleSelectCourse({ ...course, id: nextCourseId ?? course.id }, nextCourseId);
@@ -2282,6 +2328,7 @@ function CourseManagement() {
                                 course={course}
                                 courseStats={courseStats}
                                 courseActiveStates={courseActiveStates}
+                                resolveTeacherName={resolveCourseTeacherName}
                                 onSelect={() => {
                                   const nextCourseId = getCourseId(course);
                                   handleSelectCourse({ ...course, id: nextCourseId ?? course.id }, nextCourseId);
