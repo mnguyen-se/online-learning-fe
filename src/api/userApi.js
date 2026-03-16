@@ -37,6 +37,13 @@ export const createUser = async (userData) => {
   return response.data;
 };
 
+export const getNewStudentsStats = async (days = 7) => {
+  const response = await apiClient.get('/users/stats/new-students', {
+    params: { days },
+  });
+  return response.data;
+};
+
 /**
  * Đổi mật khẩu (đã đăng nhập).
  * PUT /api/v1/auth/change-password

@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { getAllUsers } from '../../api/userApi';
+import React, { useEffect, useMemo, useState } from 'react';
+import { getAllUsers, getNewStudentsStats } from '../../api/userApi';
 import { getCourses } from '../../api/coursesApi';
 import DashboardLayout from '../../components/DashboardLayout';
 import './dashboard.css';
@@ -8,6 +8,12 @@ const AdminStats = () => {
   const [users, setUsers] = useState([]);
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const [newStudents, setNewStudents] = useState([]);
+  const [newStudentsLoading, setNewStudentsLoading] = useState(true);
+  const [newStudentsError, setNewStudentsError] = useState(null);
+  const [hoveredPointIndex, setHoveredPointIndex] = useState(null);
+  const [daysRange] = useState(7);
 
   useEffect(() => {
     const loadData = async () => {
@@ -26,6 +32,39 @@ const AdminStats = () => {
     loadData();
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    const loadNewStudents = async () => {
+      setNewStudentsLoading(true);
+      setNewStudentsError(null);
+      try {
+        const data = await getNewStudentsStats(daysRange);
+        const list = Array.isArray(data) ? data : data?.data ?? [];
+        const normalized = list
+          .map((item) => ({
+            date: item.date || item.createdAt || item.day || '',
+            count: Number(item.count ?? item.value ?? 0),
+          }))
+          .filter((item) => item.date);
+        if (!cancelled) {
+          setNewStudents(normalized);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setNewStudents([]);
+          setNewStudentsError('Không tải được dữ liệu học viên đăng ký mới');
+        }
+      } finally {
+        if (!cancelled) setNewStudentsLoading(false);
+      }
+    };
+    loadNewStudents();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [daysRange]);
+
   const stats = {
     totalUsers: users.length,
     activeUsers: users.filter((u) => u.active).length,
@@ -43,6 +82,58 @@ const AdminStats = () => {
       role: u.role || '',
       active: Boolean(u.active),
     }));
+
+  const cleanStudentsData = newStudents.map((item) => ({
+    date: String(item.date),
+    count: Number(item.count || 0),
+  }));
+
+  const chartOptions = useMemo(() => {
+    const width = 600;
+    const height = 220;
+    const padding = { left: 40, right: 20, top: 20, bottom: 30 };
+    const innerWidth = width - padding.left - padding.right;
+    const innerHeight = height - padding.top - padding.bottom;
+
+    const maxCount = cleanStudentsData.length
+      ? Math.max(0, ...cleanStudentsData.map((row) => row.count))
+      : 0;
+    const yMaxBaseline = Math.max(5, Math.ceil(maxCount / 5) * 5);
+    const yMax = Math.max(yMaxBaseline, 5);
+    const yTickCount = 5;
+    const yTicks = Array.from({ length: yTickCount + 1 }, (_, i) => (yMax / yTickCount) * i);
+
+    const points = cleanStudentsData.map((item, index) => {
+      const x =
+        cleanStudentsData.length > 1
+          ? padding.left + (innerWidth * index) / (cleanStudentsData.length - 1)
+          : padding.left + innerWidth / 2;
+      const y = padding.top + innerHeight - (yMax > 0 ? (innerHeight * item.count) / yMax : 0);
+      return { ...item, x, y };
+    });
+
+    const linePath = points
+      .map((p, idx) => `${idx === 0 ? 'M' : 'L'} ${p.x.toFixed(2)} ${p.y.toFixed(2)}`)
+      .join(' ');
+
+    const xLabels = points.map((p) => {
+      const parsed = new Date(p.date);
+      if (!Number.isNaN(parsed.getTime())) {
+        const day = `${String(parsed.getDate()).padStart(2, '0')}`;
+        const month = `${String(parsed.getMonth() + 1).padStart(2, '0')}`;
+        return `${day}/${month}`;
+      }
+      return p.date;
+    });
+
+    return { width, height, padding, innerWidth, innerHeight, yMax, yTicks, points, linePath, xLabels };
+  }, [cleanStudentsData]);
+
+  const getTooltipText = (idx) => {
+    const point = chartOptions.points[idx];
+    if (!point) return '';
+    return `Ngày ${chartOptions.xLabels[idx] || point.date}: ${point.count} học viên`;
+  };
 
   return (
     <DashboardLayout
@@ -114,25 +205,128 @@ const AdminStats = () => {
       <div className="admin-stats-grid">
         <section className="admin-stats-panel">
           <div className="admin-stats-panel-header">
-            <h3>Đăng ký mới (mô phỏng)</h3>
-            <span className="admin-stats-panel-hint">Chưa có dữ liệu theo ngày từ backend</span>
+            <h3>Học viên đăng ký mới</h3>
           </div>
-          <div className="admin-stats-chart" role="img" aria-label="Biểu đồ đường mô phỏng đăng ký mới">
-            <svg viewBox="0 0 600 220" preserveAspectRatio="none">
-              <path
-                d="M20 170 L110 140 L200 155 L290 110 L380 120 L470 80 L580 95"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-                strokeLinejoin="round"
-                strokeLinecap="round"
-              />
-              <path d="M20 170 L110 140 L200 155 L290 110 L380 120 L470 80 L580 95 L580 205 L20 205 Z" fill="currentColor" opacity="0.08" />
-            </svg>
-            <div className="admin-stats-chart-legend">
-              <div className="admin-stats-chart-dot" aria-hidden="true" />
-              <span>Tổng người dùng hiện tại: <strong>{stats.totalUsers}</strong></span>
-            </div>
+          <div className="admin-stats-chart" role="img" aria-label="Biểu đồ đường học viên đăng ký mới">
+            {newStudentsLoading ? (
+              <div>Đang tải dữ liệu...</div>
+            ) : newStudentsError ? (
+              <div>{newStudentsError}</div>
+            ) : chartOptions.points.length === 0 ? (
+              <div>Chưa có dữ liệu để hiển thị.</div>
+            ) : (
+              <>
+                <svg viewBox="0 0 600 220" preserveAspectRatio="none">
+                  <defs>
+                    <linearGradient id="admin-stats-area-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                      <stop offset="0%" stopColor="#2563EB" stopOpacity="0.20" />
+                      <stop offset="100%" stopColor="#2563EB" stopOpacity="0" />
+                    </linearGradient>
+                  </defs>
+
+                  {/* Y grid */}
+                  {chartOptions.yTicks.map((tick) => {
+                    const y =
+                      chartOptions.padding.top +
+                      chartOptions.innerHeight -
+                      (tick / chartOptions.yMax) * chartOptions.innerHeight;
+                    return (
+                      <g key={`ytick-${tick}`}>
+                        <line
+                          x1={chartOptions.padding.left}
+                          x2={600 - chartOptions.padding.right}
+                          y1={y}
+                          y2={y}
+                          stroke="#CBD5E1"
+                          strokeWidth="1"
+                          opacity="0.4"
+                        />
+                        <text
+                          x={10}
+                          y={y + 4}
+                          fill="#475569"
+                          fontSize="11"
+                        >
+                          {tick}
+                        </text>
+                      </g>
+                    );
+                  })}
+
+                  {/* X labels */}
+                  {chartOptions.points.map((point, index) => (
+                    <text
+                      key={`xlabel-${index}`}
+                      x={point.x}
+                      y={chartOptions.padding.top + chartOptions.innerHeight + 18}
+                      fill="#475569"
+                      fontSize="11"
+                      textAnchor="middle"
+                    >
+                      {chartOptions.xLabels[index]}
+                    </text>
+                  ))}
+
+                  <path
+                    d={`${chartOptions.linePath} L ${chartOptions.points[chartOptions.points.length - 1].x} ${chartOptions.padding.top + chartOptions.innerHeight} L ${chartOptions.points[0].x} ${chartOptions.padding.top + chartOptions.innerHeight} Z`}
+                    fill="url(#admin-stats-area-gradient)"
+                    stroke="none"
+                  />
+                  <path
+                    d={chartOptions.linePath}
+                    fill="none"
+                    stroke="#2563EB"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+
+                  {chartOptions.points.map((point, index) => {
+                    const isHovered = hoveredPointIndex === index;
+                    return (
+                      <g key={`point-${index}`}>
+                        <circle
+                          cx={point.x}
+                          cy={point.y}
+                          r={isHovered ? 5 : 4}
+                          fill="#2563EB"
+                          stroke="#FFFFFF"
+                          strokeWidth="2"
+                          onMouseEnter={() => setHoveredPointIndex(index)}
+                          onMouseLeave={() => setHoveredPointIndex(null)}
+                        />
+
+                        {isHovered && (
+                          <g>
+                            <rect
+                              x={point.x + 8}
+                              y={point.y - 25}
+                              width={150}
+                              height={24}
+                              fill="#1E40AF"
+                              rx={4}
+                            />
+                            <text
+                              x={point.x + 10}
+                              y={point.y - 10}
+                              fill="#FFFFFF"
+                              fontSize="11"
+                              fontWeight="600"
+                            >
+                              {getTooltipText(index)}
+                            </text>
+                          </g>
+                        )}
+                      </g>
+                    );
+                  })}
+                </svg>
+                <div className="admin-stats-chart-legend">
+                  <div className="admin-stats-chart-dot" aria-hidden="true" />
+                  <span>Tổng trong {daysRange} ngày: <strong>{cleanStudentsData.reduce((sum, item) => sum + item.count, 0)}</strong></span>
+                </div>
+              </>
+            )}
           </div>
         </section>
 
