@@ -133,7 +133,7 @@
 .header-title p {
   margin: 0;
   font-size: 14px;
-  color: #6B7280;
+  color: #4B5563;
 }
 
 .btn-add-user {
@@ -176,8 +176,9 @@
   padding: 1.5rem;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   display: flex;
-  align-items: center;
-  gap: 1rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
   transition: box-shadow 0.3s ease;
 }
 
@@ -186,8 +187,8 @@
 }
 
 .stat-icon {
-  width: 56px;
-  height: 56px;
+  width: 44px;
+  height: 44px;
   border-radius: 12px;
   display: flex;
   align-items: center;
@@ -196,8 +197,8 @@
 }
 
 .stat-icon svg {
-  width: 28px;
-  height: 28px;
+  width: 22px;
+  height: 22px;
   color: #FFFFFF;
 }
 
@@ -217,36 +218,162 @@
   background: #EF4444;
 }
 
-.stat-content {
-  flex: 1;
+.stat-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
 }
 
-.stat-value {
-  font-size: 2rem;
-  font-weight: 700;
+.stat-card-subtitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: #6B7280;
+  line-height: 1.2;
+  padding-top: 4px;
+}
+
+.stat-card-value {
+  font-size: 2.1rem;
+  font-weight: 800;
   color: #111827;
   line-height: 1;
-  margin-bottom: 0.25rem;
 }
 
-.stat-trend {
+/* Panels dưới stat cards */
+.admin-stats-grid {
+  display: grid;
+  grid-template-columns: 1.35fr 1fr;
+  gap: 1.5rem;
+  margin-bottom: 2rem;
+}
+
+.admin-stats-panel {
+  background: #FFFFFF;
+  border-radius: 16px;
+  padding: 1.25rem 1.25rem 1rem;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  min-height: 240px;
+  display: flex;
+  flex-direction: column;
+}
+
+.admin-stats-panel-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 0.75rem;
+}
+
+.admin-stats-panel-header h3 {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+  color: #111827;
+}
+
+.admin-stats-panel-hint {
   font-size: 12px;
-  font-weight: 600;
-  margin-bottom: 0.25rem;
-}
-
-.stat-trend-up {
-  color: #10B981;
-}
-
-.stat-trend-down {
-  color: #EF4444;
-}
-
-.stat-label {
-  font-size: 14px;
   color: #6B7280;
-  font-weight: 500;
+  white-space: nowrap;
+}
+
+.admin-stats-chart {
+  flex: 1;
+  border-radius: 14px;
+  background: linear-gradient(180deg, rgba(37, 99, 235, 0.08), rgba(37, 99, 235, 0.02));
+  border: 1px solid rgba(37, 99, 235, 0.15);
+  padding: 12px 12px 10px;
+  color: #2563EB;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-stats-chart svg {
+  width: 100%;
+  height: 180px;
+  display: block;
+}
+
+.admin-stats-chart-legend {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 13px;
+  color: #374151;
+}
+
+.admin-stats-chart-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 999px;
+  background: #2563EB;
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+}
+
+.admin-recent-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.admin-recent-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: #F9FAFB;
+  border: 1px solid #EEF2F7;
+}
+
+.admin-recent-main {
+  min-width: 0;
+}
+
+.admin-recent-name {
+  font-size: 14px;
+  font-weight: 650;
+  color: #111827;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-recent-meta {
+  font-size: 12px;
+  color: #6B7280;
+  margin-top: 2px;
+}
+
+.admin-recent-status {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-radius: 999px;
+  flex-shrink: 0;
+}
+
+.admin-recent-status.is-active {
+  background: #ECFDF5;
+  color: #065F46;
+}
+
+.admin-recent-status.is-inactive {
+  background: #F3F4F6;
+  color: #6B7280;
+}
+
+.admin-recent-empty {
+  color: #6B7280;
+  font-size: 14px;
+  padding: 8px 2px;
 }
 
 /* Tra cứu Học viên - Khóa học */
@@ -772,6 +899,10 @@
   .stats-cards {
     grid-template-columns: repeat(2, 1fr);
   }
+
+  .admin-stats-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 @media (max-width: 1024px) {
@@ -840,6 +971,10 @@
 
   .stats-cards {
     grid-template-columns: 1fr;
+  }
+
+  .admin-stats-panel-hint {
+    display: none;
   }
 
   .users-table {
