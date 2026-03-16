@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
+import { UploadCloud, Loader2 } from 'lucide-react';
 import { createCourse, getCourses, getTeachers, updateCourse, getActiveCourses } from '../../../api/coursesApi';
+import { uploadImageToCloudinary } from '../../../api/cloudinaryApi';
 import { getEnrolledStudentsByCourse } from '../../../api/enrollmentApi';
 import { createLesson, updateLesson, getLessons, deleteLesson } from '../../../api/lessionApi';
 import {
@@ -32,10 +34,16 @@ function CourseManagement() {
   const [courseDescription, setCourseDescription] = useState('');
   const [courseIsPublic, setCourseIsPublic] = useState(false);
   const [courseTeacherId, setCourseTeacherId] = useState('');
+  const [courseImageFile, setCourseImageFile] = useState(null);
+  const [courseImagePreview, setCourseImagePreview] = useState('');
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [courseError, setCourseError] = useState('');
   const [courseSuccess, setCourseSuccess] = useState('');
   const [isSavingCourse, setIsSavingCourse] = useState(false);
   const [editCourseModal, setEditCourseModal] = useState({ isOpen: false, course: null });
+  const [editCourseImageFile, setEditCourseImageFile] = useState(null);
+  const [editCourseImagePreview, setEditCourseImagePreview] = useState('');
+  const [isUploadingEditImage, setIsUploadingEditImage] = useState(false);
   const [editCourseForm, setEditCourseForm] = useState({ title: '', description: '', teacherId: '' });
   const [isUpdatingCourse, setIsUpdatingCourse] = useState(false);
   const [isSavingGeneralConfig, setIsSavingGeneralConfig] = useState(false);
@@ -170,8 +178,21 @@ function CourseManagement() {
     setCourseDescription('');
     setCourseIsPublic(false);
     setCourseTeacherId('');
+    setCourseImageFile(null);
+    setCourseImagePreview('');
     setCourseError('');
     setCourseSuccess('');
+  };
+
+  const handleImageChange = (file) => {
+    setCourseImageFile(file);
+    const previewUrl = URL.createObjectURL(file);
+    setCourseImagePreview(previewUrl);
+  };
+
+  const handleRemoveImage = () => {
+    setCourseImageFile(null);
+    setCourseImagePreview('');
   };
 
   const openCreateCourse = () => {
@@ -232,6 +253,23 @@ function CourseManagement() {
       if (courseTeacherId && courseTeacherId.trim()) {
         const tid = Number(courseTeacherId);
         if (!Number.isNaN(tid)) payload.teacherId = tid;
+      }
+
+      // Upload ảnh lên Cloudinary nếu có
+      if (courseImageFile) {
+        try {
+          setIsUploadingImage(true);
+          const imageUrl = await uploadImageToCloudinary(courseImageFile);
+          payload.imageUrl = imageUrl;
+        } catch (imgError) {
+          console.error('Upload image error:', imgError);
+          toast.error('Tải ảnh lên thất bại. Vui lòng thử lại.');
+          setIsUploadingImage(false);
+          setIsSavingCourse(false);
+          return;
+        } finally {
+          setIsUploadingImage(false);
+        }
       }
 
       const createdCourse = await createCourse(payload);
@@ -1609,11 +1647,15 @@ function CourseManagement() {
       description: course?.description ?? '',
       teacherId: tid ? String(tid) : '',
     });
+    setEditCourseImageFile(null);
+    setEditCourseImagePreview(course?.imageUrl ?? course?.image_url ?? course?.coverImage ?? '');
     setEditCourseModal({ isOpen: true, course: { ...course, id: courseId } });
   };
 
   const closeEditCourseModal = () => {
     setEditCourseModal({ isOpen: false, course: null });
+    setEditCourseImageFile(null);
+    setEditCourseImagePreview('');
   };
 
   const handleQuickUpdateCourse = async () => {
@@ -1639,11 +1681,28 @@ function CourseManagement() {
     const currentIsPublic = getCourseIsActive(editCourseModal.course);
     try {
       setIsUpdatingCourse(true);
+      
+      let imageUrl = editCourseModal.course?.imageUrl ?? editCourseModal.course?.image_url ?? editCourseModal.course?.coverImage ?? '';
+      
+      if (editCourseImageFile) {
+        setIsUploadingEditImage(true);
+        try {
+          imageUrl = await uploadImageToCloudinary(editCourseImageFile);
+        } catch (uploadError) {
+          toast.error('Lỗi khi tải ảnh lên, vui lòng thử lại.');
+          setIsUploadingEditImage(false);
+          setIsUpdatingCourse(false);
+          return;
+        }
+        setIsUploadingEditImage(false);
+      }
+
       await updateCourse(courseId, {
         title: trimmedTitle,
         description: trimmedDescription,
         teacherId,
         isPublic: currentIsPublic,
+        imageUrl: imageUrl, 
       });
       toast.success('Đã cập nhật thông tin khóa học.');
       await loadCourses();
@@ -2118,6 +2177,9 @@ function CourseManagement() {
                   courseDescription={courseDescription}
                   courseIsPublic={courseIsPublic}
                   courseTeacherId={courseTeacherId}
+                  courseImageFile={courseImageFile}
+                  courseImagePreview={courseImagePreview}
+                  isUploadingImage={isUploadingImage}
                   teachers={teachers}
                   courseError={courseError}
                   courseSuccess={courseSuccess}
@@ -2126,6 +2188,8 @@ function CourseManagement() {
                   onDescriptionChange={setCourseDescription}
                   onPublicChange={handleCreatePublicChange}
                   onTeacherChange={handleCreateTeacherChange}
+                  onImageChange={handleImageChange}
+                  onRemoveImage={handleRemoveImage}
                   onCancel={handleCancelCreateCourse}
                   onContinue={handleCreateCourse}
                 />
@@ -2354,6 +2418,70 @@ function CourseManagement() {
                   value={editCourseForm.description}
                   onChange={(event) => setEditCourseForm((prev) => ({ ...prev, description: event.target.value }))}
                 />
+                
+                <label className="course-edit-modal-label">Ảnh bìa khóa học</label>
+                <div className="course-image-upload-area" style={{ marginBottom: '1rem' }}>
+                  {!editCourseImagePreview ? (
+                    <label className="course-image-dropzone">
+                      <input
+                        type="file"
+                        accept="image/jpeg, image/png, image/webp"
+                        onChange={(e) => {
+                          const file = e.target.files?.[0];
+                          if (file) {
+                            setEditCourseImageFile(file);
+                            setEditCourseImagePreview(URL.createObjectURL(file));
+                          }
+                        }}
+                        style={{ display: 'none' }}
+                      />
+                      <div className="course-image-dropzone-content">
+                        <UploadCloud size={32} />
+                        <p className="course-image-dropzone-text">Nhấn để chọn ảnh</p>
+                        <span className="course-image-dropzone-hint">JPG, PNG hoặc WebP (Tối đa 5MB)</span>
+                      </div>
+                    </label>
+                  ) : (
+                    <div className="course-image-preview-wrapper" style={{ height: '140px' }}>
+                      <img src={editCourseImagePreview} alt="Course Preview" />
+                      {isUploadingEditImage && (
+                        <div className="course-image-uploading">
+                          <Loader2 className="spinner" size={24} />
+                          <span>Đang tải lên...</span>
+                        </div>
+                      )}
+                      {!isUploadingEditImage && (
+                        <div className="course-image-actions">
+                          <label className="btn-change-image">
+                            <input
+                              type="file"
+                              accept="image/jpeg, image/png, image/webp"
+                              style={{ display: 'none' }}
+                              onChange={(e) => {
+                                const file = e.target.files?.[0];
+                                if (file) {
+                                  setEditCourseImageFile(file);
+                                  setEditCourseImagePreview(URL.createObjectURL(file));
+                                }
+                              }}
+                            />
+                            Thay đổi
+                          </label>
+                          <button
+                            type="button"
+                            className="btn-remove-image"
+                            onClick={() => {
+                              setEditCourseImageFile(null);
+                              setEditCourseImagePreview('');
+                            }}
+                          >
+                            Xóa
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
                 <p className="course-edit-modal-note">
                   Trạng thái mở/đóng được cập nhật trực tiếp trên thẻ khóa học.
                 </p>

@@ -1148,6 +1148,137 @@
   line-height: 1;
 }
 
+/* ── Image Upload ── */
+.course-image-upload-area {
+  margin-bottom: 18px;
+}
+
+.course-image-dropzone {
+  width: 100%;
+  border: 2px dashed #cbd5e1;
+  border-radius: 14px;
+  background: #f8fafc;
+  padding: 32px 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.course-image-dropzone:hover {
+  border-color: #94a3b8;
+  background: #f1f5f9;
+}
+
+.course-image-dropzone:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.course-image-dropzone-icon {
+  color: #94a3b8;
+  margin-bottom: 4px;
+}
+
+.course-image-dropzone-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: #374151;
+}
+
+.course-image-dropzone-hint {
+  font-size: 12px;
+  color: #9ca3af;
+}
+
+.course-image-preview-wrapper {
+  position: relative;
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+}
+
+.course-image-preview {
+  width: 100%;
+  height: 220px;
+  object-fit: cover;
+  display: block;
+}
+
+.course-image-preview-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  padding: 12px;
+  background: linear-gradient(transparent, rgba(0, 0, 0, 0.55));
+}
+
+.course-image-change-btn,
+.course-image-remove-btn {
+  border: none;
+  border-radius: 8px;
+  padding: 8px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.course-image-change-btn {
+  background: rgba(255, 255, 255, 0.92);
+  color: #1f2937;
+}
+
+.course-image-remove-btn {
+  background: rgba(220, 38, 38, 0.85);
+  color: #ffffff;
+}
+
+.course-image-change-btn:hover,
+.course-image-remove-btn:hover {
+  transform: translateY(-1px);
+}
+
+.course-image-change-btn:disabled,
+.course-image-remove-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.course-image-uploading {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0 0;
+  font-size: 13px;
+  color: #6b7280;
+  font-weight: 500;
+}
+
+.course-image-uploading-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2.5px solid #e5e7eb;
+  border-top-color: #3b82f6;
+  border-radius: 50%;
+  animation: img-spin 0.7s linear infinite;
+}
+
+@keyframes img-spin {
+  to { transform: rotate(360deg); }
+}
+
 /* Course Content Layout Styles */
 .course-content-layout {
   display: grid;

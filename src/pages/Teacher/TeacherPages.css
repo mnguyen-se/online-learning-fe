@@ -1228,6 +1228,22 @@
   overflow: hidden;
 }
 
+.teacher-tmc-card-cover {
+  width: 100%;
+  height: 160px;
+  overflow: hidden;
+  border-radius: 10px 10px 0 0;
+  margin: -1.25rem -1.5rem 0.75rem;
+  width: calc(100% + 3rem);
+}
+
+.teacher-tmc-card-cover img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 .teacher-tmc-card-icon {
   width: 48px;
   height: 48px;

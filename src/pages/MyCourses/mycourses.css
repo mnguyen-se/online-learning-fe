@@ -72,6 +72,14 @@
   object-fit: cover;
 }
 
+.my-courses-page .course-image--placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #e0e7ff 0%, #dbeafe 100%);
+  color: #94a3b8;
+}
+
 .my-courses-page .course-badge {
   position: absolute;
   top: 12px;

@@ -3,6 +3,7 @@ import { Card, Row, Col, Spin, Button, Empty, Input } from 'antd';
 import { BookOpen, ChevronRight, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { getTeacherCourses } from '../../api/teacherApi';
+import { getCourseById } from '../../api/coursesApi';
 import './TeacherPages.css';
 
 /** Chuẩn hóa một item khóa học từ API (GET /courses/my-courses – CourseDtoRes: courseId, title, description, isPublic) */
@@ -12,7 +13,8 @@ const normalizeCourse = (c) => {
   const title = c.title ?? c.name ?? c.courseName ?? '';
   const description = c.description ?? c.courseDescription ?? '';
   const isPublic = c.public === true || c.isPublic === true;
-  return { courseId, title, description, isPublic, raw: c };
+  const imageUrl = c.imageUrl ?? c.image_url ?? c.coverImage ?? '';
+  return { courseId, title, description, isPublic, imageUrl, raw: c };
 };
 
 /**
@@ -45,7 +47,7 @@ function TeacherMyCourses() {
       }
     });
     getTeacherCourses()
-      .then((data) => {
+      .then(async (data) => {
         // BE GET /courses/my-courses trả về { totalCourses, courses: CourseDtoRes[] }
         const raw = Array.isArray(data)
           ? data
@@ -56,7 +58,25 @@ function TeacherMyCourses() {
               : Array.isArray(data?.data)
                 ? data.data
                 : [];
-        const list = raw.map(normalizeCourse).filter((c) => c && c.isPublic);
+        
+        let list = raw.map(normalizeCourse).filter((c) => c && c.isPublic);
+        
+        // Lấy thêm ảnh nếu thiếu (do BE trả thiếu `imageUrl`)
+        list = await Promise.all(
+          list.map(async (c) => {
+            let imageUrl = c.imageUrl;
+            if (!imageUrl && c.courseId) {
+              try {
+                const courseDetail = await getCourseById(c.courseId);
+                imageUrl = courseDetail?.imageUrl ?? courseDetail?.image_url ?? courseDetail?.coverImage ?? '';
+              } catch {
+                // Ignore error if course image cannot be fetched
+              }
+            }
+            return { ...c, imageUrl };
+          })
+        );
+        
         if (!cancelled) setCourses(list);
       })
       .catch((err) => {
@@ -150,9 +170,15 @@ function TeacherMyCourses() {
                         </Button>,
                       ]}
                     >
-                      <div className="teacher-tmc-card-icon">
-                        <BookOpen size={28} strokeWidth={1.8} />
-                      </div>
+                      {course.imageUrl ? (
+                        <div className="teacher-tmc-card-cover">
+                          <img src={course.imageUrl} alt={title} />
+                        </div>
+                      ) : (
+                        <div className="teacher-tmc-card-icon">
+                          <BookOpen size={28} strokeWidth={1.8} />
+                        </div>
+                      )}
                       <Card.Meta
                         title={title}
                         description={

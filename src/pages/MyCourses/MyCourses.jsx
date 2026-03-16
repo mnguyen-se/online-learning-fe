@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import Header from "../../components/Header/header";
 import Footer from "../../components/Footer/footer";
 import { getMyCourses } from "../../api/enrollmentApi";
+import { getCourseById } from "../../api/coursesApi";
 import {
   enrollLearningProcess,
   getLearningProcess,
@@ -368,9 +369,20 @@ const MyCourses = () => {
                 level: course.level ?? cachedDetail.level ?? "",
               });
             }
+            // Fetch imageUrl từ API chi tiết khóa học
+            let imageUrl = course.imageUrl ?? course.image_url ?? course.coverImage ?? '';
+            if (!imageUrl && courseId) {
+              try {
+                const courseDetail = await getCourseById(courseId);
+                imageUrl = courseDetail?.imageUrl ?? courseDetail?.image_url ?? courseDetail?.coverImage ?? '';
+              } catch {
+                // Không block nếu lỗi, chỉ bỏ qua ảnh
+              }
+            }
             return {
               ...course,
               courseId,
+              imageUrl,
               learningProgress: progress,
               learningStatus: status,
               hasLearningProcess: hasProcess,
@@ -577,6 +589,18 @@ const MyCourses = () => {
 
               return (
                 <div className="course-card" key={courseKey}>
+                  {(course.imageUrl || course.image_url || course.coverImage) ? (
+                    <div className="course-image">
+                      <img src={course.imageUrl || course.image_url || course.coverImage} alt={courseTitle} />
+                    </div>
+                  ) : (
+                    <div className="course-image course-image--placeholder">
+                      <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+                        <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+                      </svg>
+                    </div>
+                  )}
                   <div className="course-body">
                     <div className="course-progress">
                       <span>Tiến độ</span>
