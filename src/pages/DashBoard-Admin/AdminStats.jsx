@@ -4,6 +4,22 @@ import { getCourses } from '../../api/coursesApi';
 import DashboardLayout from '../../components/DashboardLayout';
 import './dashboard.css';
 
+const ROLE_LABEL_MAP = {
+  ADMIN: 'Quản trị viên',
+  COURSE_MANAGER: 'Quản lý',
+  TEACHER: 'Giáo viên',
+  STUDENT: 'Học viên',
+};
+
+const ROLE_COLOR_MAP = {
+  ADMIN: '#f97316',
+  MANAGER: '#0ea5e9',
+  COURSE_MANAGER: '#0ea5e9',
+  TEACHER: '#9333ea',
+  STUDENT: '#14b8a6',
+  UNKNOWN: '#94a3b8',
+};
+
 const AdminStats = () => {
   const [users, setUsers] = useState([]);
   const [courses, setCourses] = useState([]);
@@ -13,7 +29,8 @@ const AdminStats = () => {
   const [newStudentsLoading, setNewStudentsLoading] = useState(true);
   const [newStudentsError, setNewStudentsError] = useState(null);
   const [hoveredPointIndex, setHoveredPointIndex] = useState(null);
-  const [daysRange] = useState(7);
+  const [daysRange, setDaysRange] = useState(7);
+  const dayRangeOptions = [7, 14, 30];
 
   useEffect(() => {
     const loadData = async () => {
@@ -49,7 +66,7 @@ const AdminStats = () => {
         if (!cancelled) {
           setNewStudents(normalized);
         }
-      } catch (error) {
+      } catch {
         if (!cancelled) {
           setNewStudents([]);
           setNewStudentsError('Không tải được dữ liệu học viên đăng ký mới');
@@ -72,6 +89,12 @@ const AdminStats = () => {
     totalCourses: courses.length,
   };
 
+  const getRoleLabel = (role) => {
+    if (!role) return 'Không xác định';
+    const key = String(role).toUpperCase();
+    return ROLE_LABEL_MAP[key] || role;
+  };
+
   const recentUsers = users
     .slice()
     .reverse()
@@ -79,7 +102,7 @@ const AdminStats = () => {
     .map((u) => ({
       id: u.id ?? u.username ?? u.email,
       name: u.name || u.username || u.email || 'Người dùng',
-      role: u.role || '',
+      role: getRoleLabel(u.role),
       active: Boolean(u.active),
     }));
 
@@ -206,10 +229,31 @@ const AdminStats = () => {
         <section className="admin-stats-panel">
           <div className="admin-stats-panel-header">
             <h3>Học viên đăng ký mới</h3>
+            <div className="admin-stats-panel-actions">
+              <label htmlFor="new-students-days" className="admin-stats-panel-label">
+                Số ngày:
+              </label>
+              <select
+                id="new-students-days"
+                className="admin-stats-panel-select"
+                value={daysRange}
+                onChange={(event) => setDaysRange(Number(event.target.value))}
+                aria-label="Chọn số ngày dữ liệu học viên mới"
+              >
+                {dayRangeOptions.map((value) => (
+                  <option key={value} value={value}>
+                    {value} ngày qua
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
           <div className="admin-stats-chart" role="img" aria-label="Biểu đồ đường học viên đăng ký mới">
             {newStudentsLoading ? (
-              <div>Đang tải dữ liệu...</div>
+              <div className="admin-stats-loading">
+                <div className="admin-stats-spinner" aria-hidden="true" />
+                <span>Đang tải dữ liệu...</span>
+              </div>
             ) : newStudentsError ? (
               <div>{newStudentsError}</div>
             ) : chartOptions.points.length === 0 ? (
@@ -346,7 +390,7 @@ const AdminStats = () => {
                     {u.role && <div className="admin-recent-meta">{u.role}</div>}
                   </div>
                   <span className={`admin-recent-status ${u.active ? 'is-active' : 'is-inactive'}`}>
-                    {u.active ? 'Active' : 'Inactive'}
+                    {u.active ? 'Hoạt động' : 'Không hoạt động'}
                   </span>
                 </li>
               ))

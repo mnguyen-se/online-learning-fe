@@ -266,6 +266,33 @@
   margin-bottom: 0.75rem;
 }
 
+.admin-stats-panel-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.admin-stats-panel-label {
+  font-size: 13px;
+  color: #475569;
+  font-weight: 500;
+}
+
+.admin-stats-panel-select {
+  border: 1px solid #D1D5DB;
+  border-radius: 8px;
+  background: #FFFFFF;
+  color: #111827;
+  padding: 5px 10px;
+  font-size: 13px;
+  min-width: 110px;
+}
+
+.admin-stats-panel-select:focus {
+  outline: 2px solid #60A5FA;
+  outline-offset: 2px;
+}
+
 .admin-stats-panel-header h3 {
   margin: 0;
   font-size: 1rem;
@@ -303,6 +330,31 @@
   gap: 10px;
   font-size: 13px;
   color: #374151;
+}
+
+.admin-stats-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: 100%;
+  height: 100%;
+  font-size: 14px;
+  color: #1D4ED8;
+  font-weight: 600;
+}
+
+.admin-stats-spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(37, 99, 235, 0.25);
+  border-top-color: #2563EB;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 .admin-stats-chart-dot {
