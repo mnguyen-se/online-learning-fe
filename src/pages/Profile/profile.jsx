@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { Form, Input, Button, Modal } from 'antd';
-import { getUserInfo, changePassword } from '../../api/userApi';
+import { getUserInfo, updateUser, changePassword } from '../../api/userApi';
 import Header from '../../components/Header/header';
 import Footer from '../../components/Footer/footer';
 import './profile.css';
@@ -13,6 +13,10 @@ const Profile = () => {
   const [changePasswordForm] = Form.useForm();
   const [isChangingPassword, setIsChangingPassword] = useState(false);
   const [changePasswordModalOpen, setChangePasswordModalOpen] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editFormData, setEditFormData] = useState({ name: '', address: '', dateOfBirth: '' });
+  const [editError, setEditError] = useState('');
+  const [isSavingProfile, setIsSavingProfile] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -30,6 +34,11 @@ const Profile = () => {
         setIsLoading(true);
         const data = await getUserInfo(username);
         setUserInfo(data);
+        setEditFormData({
+          name: data.name || '',
+          address: data.address || '',
+          dateOfBirth: data.dateOfBirth ? data.dateOfBirth.slice(0, 10) : '',
+        });
       } catch (error) {
         console.error('Error fetching user info:', error);
         if (error.response?.status === 401) {
@@ -62,9 +71,68 @@ const Profile = () => {
     const roleMap = {
       STUDENT: 'Học viên',
       TEACHER: 'Giáo viên',
+      COURSE_MANAGER: 'Quản lý',
       ADMIN: 'Quản trị viên',
     };
     return roleMap[role] || role;
+  };
+
+  const isFutureDate = (value) => {
+    if (!value) return false;
+    const selected = new Date(value);
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    selected.setHours(0, 0, 0, 0);
+    return selected > now;
+  };
+
+  const handleProfileSave = async () => {
+    setEditError('');
+
+    if (!editFormData.name.trim()) {
+      setEditError('Họ và tên không được để trống.');
+      return;
+    }
+
+    if (isFutureDate(editFormData.dateOfBirth)) {
+      setEditError('Ngày sinh không hợp lệ. Vui lòng chọn ngày trong quá khứ.');
+      return;
+    }
+
+    const userId = userInfo?.id ?? userInfo?.userId;
+    if (!userId) {
+      setEditError('Không tìm thấy ID người dùng để cập nhật.');
+      return;
+    }
+
+    try {
+      setIsSavingProfile(true);
+      const payload = {
+        name: editFormData.name.trim(),
+        address: editFormData.address.trim(),
+        dateOfBirth: editFormData.dateOfBirth || null,
+      };
+      await updateUser(userId, payload);
+      setUserInfo({ ...userInfo, ...payload });
+      setIsEditing(false);
+      toast.success('Cập nhật thông tin cá nhân thành công.');
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      const msg = error.response?.data?.message || 'Không thể cập nhật thông tin. Vui lòng thử lại.';
+      setEditError(msg);
+    } finally {
+      setIsSavingProfile(false);
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditError('');
+    setIsEditing(false);
+    setEditFormData({
+      name: userInfo.name || '',
+      address: userInfo.address || '',
+      dateOfBirth: userInfo.dateOfBirth ? userInfo.dateOfBirth.slice(0, 10) : '',
+    });
   };
 
   const handleChangePassword = async (values) => {
@@ -189,7 +257,17 @@ const Profile = () => {
                   </svg>
                   <span>Họ và tên</span>
                 </div>
-                <div className="info-value">{userInfo.name || 'Chưa cập nhật'}</div>
+                <div className="info-value">
+                  {isEditing ? (
+                    <Input
+                      value={editFormData.name}
+                      onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })}
+                      placeholder="Nhập họ và tên"
+                    />
+                  ) : (
+                    userInfo.name || 'Chưa cập nhật'
+                  )}
+                </div>
               </div>
 
               <div className="info-row">
@@ -200,7 +278,17 @@ const Profile = () => {
                   </svg>
                   <span>Địa chỉ</span>
                 </div>
-                <div className="info-value">{userInfo.address || 'Chưa cập nhật'}</div>
+                <div className="info-value">
+                  {isEditing ? (
+                    <Input
+                      value={editFormData.address}
+                      onChange={(e) => setEditFormData({ ...editFormData, address: e.target.value })}
+                      placeholder="Nhập địa chỉ"
+                    />
+                  ) : (
+                    userInfo.address || 'Chưa cập nhật'
+                  )}
+                </div>
               </div>
 
               <div className="info-row">
@@ -211,7 +299,19 @@ const Profile = () => {
                   </svg>
                   <span>Ngày sinh</span>
                 </div>
-                <div className="info-value">{formatDate(userInfo.dateOfBirth)}</div>
+                <div className="info-value">
+                  {isEditing ? (
+                    <input
+                      type="date"
+                      value={editFormData.dateOfBirth}
+                      onChange={(e) => setEditFormData({ ...editFormData, dateOfBirth: e.target.value })}
+                      max={new Date().toISOString().slice(0, 10)}
+                      className="profile-date-input"
+                    />
+                  ) : (
+                    formatDate(userInfo.dateOfBirth)
+                  )}
+                </div>
               </div>
 
               <div className="info-row">
@@ -234,15 +334,49 @@ const Profile = () => {
 
           <div className="profile-card profile-card-actions">
             <div className="card-body">
-              <Button
-                type="primary"
-                size="large"
-                className="profile-change-password-btn"
-                onClick={() => setChangePasswordModalOpen(true)}
-              >
-                Đổi mật khẩu
-              </Button>
+              {!isEditing ? (
+                <>
+                  <Button
+                    type="default"
+                    size="large"
+                    className="profile-edit-btn"
+                    onClick={() => setIsEditing(true)}
+                  >
+                    Cập nhật thông tin
+                  </Button>
+                  <Button
+                    type="primary"
+                    size="large"
+                    className="profile-change-password-btn"
+                    onClick={() => setChangePasswordModalOpen(true)}
+                  >
+                    Đổi mật khẩu
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    type="primary"
+                    size="large"
+                    className="profile-save-btn"
+                    onClick={handleProfileSave}
+                    loading={isSavingProfile}
+                  >
+                    Lưu
+                  </Button>
+                  <Button
+                    type="default"
+                    size="large"
+                    className="profile-cancel-btn"
+                    onClick={handleCancelEdit}
+                    disabled={isSavingProfile}
+                  >
+                    Hủy
+                  </Button>
+                </>
+              )}
             </div>
+            {editError && <div className="profile-error-message">{editError}</div>}
           </div>
         </div>
 
