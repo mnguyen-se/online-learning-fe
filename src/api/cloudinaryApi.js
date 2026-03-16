@@ -19,7 +19,7 @@ export const uploadVideoToCloudinary = async (file, options = {}) => {
   formData.append("upload_preset", UPLOAD_PRESET || import.meta.env.VITE_UPLOAD_PRESET);
 
   const res = await axios.post(
-    `https://api.cloudinary.com/v1_1/${dtxuexrch|| import.meta.env.VITE_CLOUD_NAME}/video/upload`,
+    `https://api.cloudinary.com/v1_1/${CLOUD_NAME|| import.meta.env.VITE_CLOUD_NAME}/video/upload`,
     formData,
     {
       timeout: UPLOAD_TIMEOUT_MS,
