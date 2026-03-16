@@ -153,6 +153,10 @@ const Dashboard = () => {
   };
 
   const handleToggleClick = (user) => {
+    if (user.role?.toUpperCase() === 'ADMIN') {
+      toast.info('Không thể thay đổi trạng thái tài khoản ADMIN.');
+      return;
+    }
     setSelectedUser(user);
     setShowDeleteModal(true);
   };
@@ -750,11 +754,21 @@ const Dashboard = () => {
                           <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       </button>
-                      <label className="user-status-switch" title={user.active ? "Khóa tài khoản" : "Kích hoạt tài khoản"}>
+                      <label
+                        className={`user-status-switch ${user.role?.toUpperCase() === 'ADMIN' ? 'disabled' : ''}`}
+                        title={
+                          user.role?.toUpperCase() === 'ADMIN'
+                            ? 'Không thể thay đổi trạng thái tài khoản ADMIN'
+                            : user.active
+                            ? 'Khóa tài khoản'
+                            : 'Kích hoạt tài khoản'
+                        }
+                      >
                         <input
                           type="checkbox"
                           checked={user.active}
                           onChange={() => handleToggleClick(user)}
+                          disabled={user.role?.toUpperCase() === 'ADMIN'}
                         />
                         <span className="user-status-slider round"></span>
                       </label>

@@ -1678,6 +1678,21 @@ input:checked + .user-status-slider:before {
   transform: translateX(16px);
 }
 
+.user-status-switch.disabled .user-status-slider {
+  background-color: #E5E7EB;
+  border-color: #D1D5DB;
+  cursor: not-allowed;
+}
+
+.user-status-switch.disabled .user-status-slider:before {
+  background-color: #F8FAFC;
+  box-shadow: none;
+}
+
+.user-status-switch.disabled input + .user-status-slider {
+  cursor: not-allowed;
+}
+
 .user-status-slider.round {
   border-radius: 22px;
 }
