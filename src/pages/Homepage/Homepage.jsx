@@ -45,17 +45,61 @@ function Homepages() {
   useEffect(() => {
     const container = innerRef.current
     if (!container) return
+
     const revealEls = container.querySelectorAll('.reveal')
+    const statsSection = container.querySelector('.homepage-stats')
+    const faqItems = container.querySelectorAll('.faq-item')
+
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
-          if (entry.isIntersecting) entry.target.classList.add('is-visible')
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible')
+
+            // Kích hoạt hiệu ứng đếm số cho khối thống kê
+            if (entry.target === statsSection) {
+              const counters = statsSection.querySelectorAll('.stat-value[data-target]')
+              counters.forEach((el) => {
+                const target = Number(el.getAttribute('data-target') || '0')
+                if (!Number.isFinite(target) || target <= 0) return
+                const duration = 1200
+                const startTime = performance.now()
+
+                const animate = (now) => {
+                  const progress = Math.min(1, (now - startTime) / duration)
+                  const current = Math.floor(progress * target)
+                  el.textContent = current.toLocaleString('vi-VN')
+                  if (progress < 1) requestAnimationFrame(animate)
+                }
+
+                requestAnimationFrame(animate)
+              })
+            }
+          }
         })
       },
-      { rootMargin: '0px 0px -80px 0px', threshold: 0.08 }
+      { rootMargin: '0px 0px -80px 0px', threshold: 0.15 }
     )
+
     revealEls.forEach((el) => observer.observe(el))
-    return () => observer.disconnect()
+
+    // Thêm class để hỗ trợ animation FAQ (+ xoay)
+    faqItems.forEach((item) => {
+      item.addEventListener('toggle', () => {
+        if (item.open) {
+          item.classList.add('is-open')
+        } else {
+          item.classList.remove('is-open')
+        }
+      })
+    })
+
+    return () => {
+      observer.disconnect()
+      faqItems.forEach((item) => {
+        item.classList.remove('is-open')
+      })
+    }
   }, [])
 
   const handleGoToDashboard = () => {
@@ -90,16 +134,22 @@ function Homepages() {
                   <p className="hero-description">
                     Học tiếng Nhật trực tuyến với lộ trình rõ ràng – review bài tập, lịch học cố định và tương tác với giảng viên. Phù hợp sinh viên và người đi làm, đồng hành cùng bạn chinh phục JLPT.
                   </p>
-                  <div className="hero-buttons">
-                    {!isLoggedIn && (
-                      <button type="button" className="hero-button">NHẬN LỘ TRÌNH TIẾNG NHẬT</button>
-                    )}
-                    {isStaff && (
-                      <button type="button" className="hero-button hero-button-dashboard" onClick={handleGoToDashboard}>
-                        Go to Dashboard
-                      </button>
-                    )}
-                  </div>
+              <div className="hero-buttons">
+                {!isLoggedIn && (
+                  <button type="button" className="hero-button">
+                    NHẬN LỘ TRÌNH TIẾNG NHẬT
+                  </button>
+                )}
+                {isStaff && (
+                  <button
+                    type="button"
+                    className="hero-button hero-button-dashboard"
+                    onClick={handleGoToDashboard}
+                  >
+                    VÀO BẢNG ĐIỀU KHIỂN
+                  </button>
+                )}
+              </div>
                 </div>
                 <div className="hero-image">
                   <div className="hero-image-wrapper">
@@ -115,32 +165,6 @@ function Homepages() {
                 <span className={activeSlide === 0 ? 'active' : ''} onClick={() => setActiveSlide(0)} aria-label="Slide 1" />
                 <span className={activeSlide === 1 ? 'active' : ''} onClick={() => setActiveSlide(1)} aria-label="Slide 2" />
                 <span className={activeSlide === 2 ? 'active' : ''} onClick={() => setActiveSlide(2)} aria-label="Slide 3" />
-              </div>
-            </section>
-
-            {/* Stats strip – số liệu nổi bật (WaniKani-style) */}
-            <section className="homepage-stats reveal">
-              <div className="homepage-stats-inner">
-                <div className="stat-item">
-                  <span className="stat-icon" aria-hidden="true">日</span>
-                  <span className="stat-value">2,000+</span>
-                  <span className="stat-label">Từ vựng</span>
-                </div>
-                <div className="stat-item">
-                  <span className="stat-icon" aria-hidden="true">書</span>
-                  <span className="stat-value">500+</span>
-                  <span className="stat-label">Chữ Kanji</span>
-                </div>
-                <div className="stat-item">
-                  <span className="stat-icon" aria-hidden="true">課</span>
-                  <span className="stat-value">100+</span>
-                  <span className="stat-label">Bài học</span>
-                </div>
-                <div className="stat-item">
-                  <span className="stat-icon" aria-hidden="true">級</span>
-                  <span className="stat-value">N5→N2</span>
-                  <span className="stat-label">Lộ trình JLPT</span>
-                </div>
               </div>
             </section>
 
@@ -290,7 +314,7 @@ function Homepages() {
                   <div className="role-banner-content">
                     <h2 className="role-banner-title">Quản trị hệ thống</h2>
                     <p className="role-banner-desc">Quản lý người dùng, khóa học và cấu hình toàn hệ thống Ryugo.</p>
-                    <button type="button" className="role-banner-btn primary" onClick={() => navigate('/dashboard-admin')}>Vào Dashboard Admin</button>
+                    <button type="button" className="role-banner-btn primary" onClick={() => navigate('/dashboard-admin')}>Quản trị ngay</button>
                   </div>
                 </div>
               ) : null}
@@ -304,7 +328,7 @@ function Homepages() {
                   <div className="role-banner-content">
                     <h2 className="role-banner-title">Quản lý khóa học</h2>
                     <p className="role-banner-desc">Tạo và chỉnh sửa khóa học, chương trình, bài học cho nền tảng Ryugo.</p>
-                    <button type="button" className="role-banner-btn primary" onClick={() => navigate('/dashboard-manager')}>Vào Dashboard Manager</button>
+                    <button type="button" className="role-banner-btn primary" onClick={() => navigate('/dashboard-manager')}>Quản lý ngay</button>
                   </div>
                 </div>
               ) : null}

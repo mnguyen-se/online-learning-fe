@@ -327,16 +327,33 @@
 }
 
 .hero-button-dashboard {
+  position: relative;
   background: var(--ryugo-navy) !important;
   color: var(--ryugo-white) !important;
   border-color: var(--ryugo-navy) !important;
   box-shadow: 0 8px 20px rgba(15, 23, 42, 0.2);
+  overflow: hidden;
+}
+
+.hero-button-dashboard::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 0 0, rgba(251, 191, 36, 0.35), transparent 55%);
+  opacity: 0;
+  transition: opacity 0.25s ease;
+  pointer-events: none;
 }
 
 .hero-button-dashboard:hover {
   background: var(--ryugo-navy-mid) !important;
   color: var(--ryugo-white) !important;
   border-color: var(--ryugo-navy-mid) !important;
+  box-shadow: 0 12px 28px rgba(15, 23, 42, 0.3);
+}
+
+.hero-button-dashboard:hover::after {
+  opacity: 1;
 }
 
 .hero-image {
@@ -426,6 +443,17 @@
 .reveal.is-visible .feature-card:nth-child(2) { animation-delay: 0.18s; }
 .reveal.is-visible .feature-card:nth-child(3) { animation-delay: 0.28s; }
 .reveal.is-visible .feature-card:nth-child(4) { animation-delay: 0.38s; }
+
+/* Split reveal cho banner role (quản trị / quản lý khóa học) */
+.reveal.is-visible .role-banner.role-banner-manager .role-banner-image,
+.reveal.is-visible .role-banner.role-banner-admin .role-banner-image {
+  animation: splitImageIn 0.6s ease-out both;
+}
+
+.reveal.is-visible .role-banner.role-banner-manager .role-banner-content,
+.reveal.is-visible .role-banner.role-banner-admin .role-banner-content {
+  animation: splitTextIn 0.6s ease-out 0.08s both;
+}
 
 @keyframes statPop {
   from { opacity: 0; transform: translateY(16px) scale(0.96); }
@@ -534,11 +562,12 @@
   padding: 1.75rem;
   border: 1px solid rgba(15, 23, 42, 0.06);
   transition: transform 0.35s ease, box-shadow 0.35s ease, border-color 0.35s ease;
+  transform-style: preserve-3d;
 }
 
 .feature-card:hover {
-  transform: translateY(-6px);
-  box-shadow: 0 16px 40px rgba(15, 23, 42, 0.08);
+  transform: translateY(-6px) translateZ(8px);
+  box-shadow: 0 20px 40px rgba(15, 23, 42, 0.16);
   border-color: rgba(201, 162, 39, 0.25);
 }
 
@@ -727,8 +756,11 @@
 }
 
 .faq-content {
-  padding: 0 1.5rem 1.1rem 1.5rem;
+  padding: 0 1.5rem;
   border-top: 1px solid rgba(226, 232, 240, 0.9);
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.35s ease, padding-bottom 0.35s ease;
 }
 
 .faq-content p {
@@ -736,6 +768,19 @@
   font-size: 0.96rem;
   color: var(--ryugo-navy-light);
   line-height: 1.6;
+}
+
+.faq-item.is-open .faq-content {
+  max-height: 400px;
+  padding-bottom: 1.1rem;
+}
+
+.faq-toggle {
+  transition: background 0.25s ease, border-color 0.25s ease, color 0.25s ease, transform 0.25s ease;
+}
+
+.faq-item.is-open .faq-toggle {
+  transform: rotate(180deg);
 }
 
 /* Role-based section: Guest / Admin / Manager (banner + image), Student / Teacher (course list) */
@@ -746,6 +791,23 @@
   border: 1px solid rgba(15, 23, 42, 0.08);
   box-shadow: 0 18px 50px rgba(15, 23, 42, 0.06);
   overflow: hidden;
+}
+
+/* Đảm bảo vùng chữ trên ảnh tối luôn dễ đọc (overlay) */
+.role-banner-image::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 20% 20%, rgba(15, 23, 42, 0.2), transparent 55%),
+              linear-gradient(to bottom, rgba(15, 23, 42, 0.55), rgba(15, 23, 42, 0.65));
+  pointer-events: none;
+}
+
+.role-banner-content,
+.role-banner-title,
+.role-banner-desc {
+  position: relative;
+  z-index: 1;
 }
 
 /* Bottom CTA bar – giống thanh menu lộ trình */
