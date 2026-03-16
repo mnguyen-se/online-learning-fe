@@ -106,21 +106,6 @@ const Dashboard = () => {
     return pages;
   };
 
-  // Calculate statistics
-  const stats = {
-    total: users.length,
-    active: users.filter(u => u.active).length,
-    newUsers: users.filter(u => {
-      // Giả sử "new" là users được tạo trong 30 ngày gần đây
-      if (!u.dateOfBirth) return false;
-      const userDate = new Date(u.dateOfBirth);
-      const thirtyDaysAgo = new Date();
-      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
-      return userDate >= thirtyDaysAgo;
-    }).length,
-    locked: users.filter(u => !u.active).length,
-  };
-
   const formatDate = (dateString) => {
     if (!dateString) return 'Chưa có';
     const date = new Date(dateString);
@@ -488,68 +473,6 @@ const Dashboard = () => {
         </button>
       </div>
 
-      {/* Stats Cards */}
-      <div className="stats-cards">
-        <div className="stat-card">
-          <div className="stat-icon stat-icon-blue">
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              <circle cx="9" cy="7" r="4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M23 21v-2a4 4 0 0 0-3-3.87" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              <path d="M16 3.13a4 4 0 0 1 0 7.75" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
-          <div className="stat-content">
-            <div className="stat-value">{stats.total}</div>
-            <div className="stat-trend stat-trend-up">+12.5%</div>
-            <div className="stat-label">Tổng người dùng</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon stat-icon-green">
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              <polyline points="22 4 12 14.01 9 11.01" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
-          <div className="stat-content">
-            <div className="stat-value">{stats.active}</div>
-            <div className="stat-trend stat-trend-up">+8.2%</div>
-            <div className="stat-label">Người dùng hoạt động</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon stat-icon-orange">
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <polyline points="23 6 13.5 15.5 8.5 10.5 1 18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              <polyline points="17 6 23 6 23 12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
-          <div className="stat-content">
-            <div className="stat-value">{stats.newUsers}</div>
-            <div className="stat-trend stat-trend-up">+23.1%</div>
-            <div className="stat-label">Người dùng mới</div>
-          </div>
-        </div>
-
-        <div className="stat-card">
-          <div className="stat-icon stat-icon-red">
-            <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              <line x1="12" y1="8" x2="12" y2="12" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              <line x1="12" y1="16" x2="12.01" y2="16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
-          <div className="stat-content">
-            <div className="stat-value">{stats.locked}</div>
-            <div className="stat-trend stat-trend-down">-4.3%</div>
-            <div className="stat-label">Tài khoản bị khóa</div>
-          </div>
-        </div>
-      </div>
-
       {/* Tra cứu phân bổ Học viên - Khóa học */}
       <div className="dashboard-lookup-card">
         <h3 className="dashboard-lookup-title">Tra cứu phân bổ Học viên — Khóa học</h3>
@@ -719,24 +642,7 @@ const Dashboard = () => {
             </button>
           </div>
 
-          <div className="action-buttons">
-            <button className="action-btn">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                <polyline points="7 10 12 15 17 10" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                <line x1="12" y1="15" x2="12" y2="3" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <span>Xuất Excel</span>
-            </button>
-            <button className="action-btn">
-              <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                <polyline points="17 8 12 3 7 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                <line x1="12" y1="3" x2="12" y2="15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <span>Nhập dữ liệu</span>
-            </button>
-          </div>
+          <div className="action-buttons" />
         </div>
       </div>
 

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Spin } from 'antd';
-import { ChevronLeft, BookOpen, Users, ArrowRight, Layers } from 'lucide-react';
+import { ChevronLeft, BookOpen, ArrowRight, Layers } from 'lucide-react';
 import { getModulesByCourse } from '../../api/module';
 import { getLessonView } from '../../api/lessionApi';
 import { getCourseById } from '../../api/coursesApi';
@@ -24,7 +24,7 @@ function TeacherCourseDetail() {
   const [courseName, setCourseName] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [view, setView] = useState('overview'); // 'overview' | 'students'
+  const [view, setView] = useState('overview'); // giữ state nếu sau này cần mở lại danh sách học viên
 
   useEffect(() => {
     if (!courseId) return;
@@ -90,17 +90,7 @@ function TeacherCourseDetail() {
     );
   }
 
-  if (view === 'students') {
-    return (
-      <div className="teacher-page-wrap teacher-cd-wrap">
-        <button type="button" onClick={() => setView('overview')} className="teacher-cd-back-btn" aria-label="Quay lại">
-          <ChevronLeft size={20} strokeWidth={2} />
-          <span>Quay lại</span>
-        </button>
-        <CourseStudentList courseId={courseId} courseName={courseName} />
-      </div>
-    );
-  }
+  // Không còn hiển thị view 'students' riêng
 
   return (
     <div className="teacher-page-wrap teacher-cd-wrap teacher-cd-wrap--modules">
@@ -139,22 +129,6 @@ function TeacherCourseDetail() {
             </article>
           );
         })}
-        <article
-          className="teacher-module-card teacher-module-card--students"
-          onClick={() => setView('students')}
-          onKeyDown={(e) => e.key === 'Enter' && setView('students')}
-          role="button"
-          tabIndex={0}
-        >
-          <div className="teacher-module-card__icon teacher-module-card__icon--purple">
-            <Users size={24} strokeWidth={1.8} />
-          </div>
-          <div className="teacher-module-card__body">
-            <h2 className="teacher-module-card__title">Danh sách học viên</h2>
-            <p className="teacher-module-card__meta">Xem và chấm điểm bài nộp</p>
-          </div>
-          <ArrowRight size={18} className="teacher-module-card__arrow" />
-        </article>
       </div>
 
       {modules.length === 0 && (
