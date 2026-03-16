@@ -483,7 +483,7 @@ const Dashboard = () => {
             className={`dashboard-lookup-tab ${lookupMode === 'student' ? 'active' : ''}`}
             onClick={() => { setLookupMode('student'); setLookupResult(null); }}
           >
-            Theo học viên (username)
+            Theo tài khoản học viên
           </button>
           <button
             type="button"
@@ -498,7 +498,7 @@ const Dashboard = () => {
             <div className="dashboard-lookup-row">
               <input
                 type="text"
-                placeholder="Nhập username học viên (VD: student01)"
+                placeholder="Nhập tài khoản học viên (Ví dụ: AnNT)"
                 value={lookupUsername}
                 onChange={(e) => setLookupUsername(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && handleLookup()}

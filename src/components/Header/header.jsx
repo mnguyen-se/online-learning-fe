@@ -81,7 +81,7 @@ const Header = ({ headerTitle = '' }) => {
                       className="dropdown-item"
                       onClick={() => setShowDropdown(false)}
                     >
-                      <span>Thông tin người dùng</span>
+                      <span>Thông tin cá nhân</span>
                     </Link>
                     {isStudent && (
                       <Link
@@ -98,10 +98,7 @@ const Header = ({ headerTitle = '' }) => {
                         className="dropdown-item"
                         onClick={handleGoToDashboard}
                       >
-                        <span>Dashboard</span>
-                        <span className="dropdown-note">
-                          Sẽ điều hướng về trang role
-                        </span>
+                        <span>Bảng điều khiển</span>
                       </button>
                     )}
                     <button
