@@ -2,7 +2,7 @@ import axios from 'axios';
 import { toast } from 'react-toastify';
 
 const apiClient = axios.create({
-  baseURL: import.meta.env.DEV ? '/api/v1' : 'http://localhost:8080/api/v1',
+  baseURL: import.meta.env.DEV ? '/api/v1' : 'https://online-learning-l700.onrender.com/api/v1',
   headers: {
     'Content-Type': 'application/json',
   },
