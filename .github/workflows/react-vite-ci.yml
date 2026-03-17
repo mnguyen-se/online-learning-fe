@@ -2,7 +2,7 @@ name: React Vite CI
 
 on:
   push:
-    branches: [ "fe-dev" ]
+    branches: ["main"]
   pull_request:
 
 jobs:
@@ -16,8 +16,8 @@ jobs:
       - name: ⚙️ Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
-          cache: 'npm'
+          node-version: "20"
+          cache: "npm"
 
       - name: 📦 Install dependencies
         run: npm ci
@@ -28,9 +28,19 @@ jobs:
       - name: 🏗 Build
         run: npm run build
 
+  deploy-render:
+    needs: build-test
+    if: success()
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: 🚀 Trigger Render Deploy
+        run: |
+          curl -X POST ${{ secrets.RENDER_DEPLOY_HOOK }}
+
   send-email:
     if: always()
-    needs: build-test
+    needs: [build-test, deploy-render]
     runs-on: ubuntu-latest
 
     steps:
@@ -49,14 +59,13 @@ jobs:
 
             The FE React CI pipeline has finished.
 
-            🔎 Result: ${{ needs.build-test.result }}
+            Result: ${{ needs.build-test.result }}
 
             Repository: ${{ github.repository }}
             Branch: ${{ github.ref_name }}
             Commit: ${{ github.sha }}
 
-            👉 Check logs:
-            GitHub → Actions → Workflow run
+            Render deploy triggered automatically.
 
             Regards,
-            GitHub Actions 🤖
+            GitHub Actions
