@@ -401,7 +401,6 @@ function LessonsView() {
   const [hintErrorByLesson, setHintErrorByLesson] = useState({});
   const [hintLoadingLessonKey, setHintLoadingLessonKey] = useState("");
   const [assignmentQuestionPage, setAssignmentQuestionPage] = useState(1);
-  const [contentTab, setContentTab] = useState('content');
   const [aiHintExpanded, setAiHintExpanded] = useState(false);
   const [quizCurrentQuestion, setQuizCurrentQuestion] = useState(1);
   /** Lưu (courseId, assignmentDrafts) để khi đổi khóa học có thể ghi draft cũ vào đúng key trước khi load draft mới */
@@ -838,7 +837,6 @@ function LessonsView() {
 
   useEffect(() => {
     setAssignmentQuestionPage(1);
-    setContentTab('content');
     setAiHintExpanded(false);
     setQuizCurrentQuestion(1);
   }, [selectedLesson]);
@@ -1558,7 +1556,6 @@ function LessonsView() {
                 <div className="lesson-empty-icon">📄</div>
                 <h4 className="lesson-empty-title">Bài học chưa có nội dung</h4>
                 <p className="lesson-empty-desc">Tài liệu sẽ được cập nhật sau.</p>
-                <p className="lesson-empty-hint">Bạn có thể xem tài liệu đọc trong tab bên cạnh.</p>
                 {lesson.contentUrl ? (
                   <a
                     href={lesson.contentUrl}
@@ -1862,44 +1859,16 @@ function LessonsView() {
                   <div className="lesson-content-tabs">
                     <button
                       type="button"
-                      className={`lesson-tab-btn ${contentTab === 'content' ? 'active' : ''}`}
-                      onClick={() => setContentTab('content')}
+                      className="lesson-tab-btn active"
                     >
                       📘 Nội dung bài học
-                    </button>
-                    <button
-                      type="button"
-                      className={`lesson-tab-btn ${contentTab === 'reading' ? 'active' : ''}`}
-                      onClick={() => setContentTab('reading')}
-                    >
-                      📄 Tài liệu đọc
                     </button>
                   </div>
                 )}
 
                 {/* Content - gom vào 1 khối (compact khi quiz) */}
                 <div className={`lesson-content-block ${isAssignmentItem(selectedLesson) ? 'lesson-content-block-quiz' : ''}`}>
-                  {!isAssignmentItem(selectedLesson) && selectedLessonType !== 'VIDEO' && contentTab === 'reading' ? (
-                    <div className="lesson-reading-tab">
-                      {selectedLesson.contentUrl ? (
-                        <a
-                          href={selectedLesson.contentUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="lesson-download-reading-btn"
-                        >
-                          📎 Tải tài liệu đọc
-                        </a>
-                      ) : (
-                        <div className="lesson-empty-state lesson-reading-empty">
-                          <p>📄 Chưa có tài liệu đọc cho bài học này.</p>
-                          <p className="lesson-empty-desc">Tài liệu sẽ được cập nhật sau.</p>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    renderLessonContent(selectedLesson)
-                  )}
+                  {renderLessonContent(selectedLesson)}
                 </div>
 
                 {/* Complete + Navigation - ẩn khi đang làm quiz (quiz có nút riêng sau khi nộp) */}
